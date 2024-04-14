@@ -10,7 +10,7 @@ import { phash } "mo:map/Map";
 import types "types";
 import UserCs "user";
 
-actor {
+shared({caller}) actor class(){
 
   type User = types.User;
 
