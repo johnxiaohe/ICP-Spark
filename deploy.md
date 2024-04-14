@@ -1,5 +1,21 @@
 ## spark本地开发环境搭建部署命令记录
 
+#### 安装包管理工具
+sudo npm i ic-mops -g
+
+#### 初始化mops
+mops init (有 mops.toml文件后可不执行该步骤)
+
+#### 初始化包依赖
+> mops包管理库地址：https://mops.one/
+> 安装文档: https://j4mwm-bqaaa-aaaam-qajbq-cai.ic0.app/docs/install
+##### 安装 mops.toml所有包文件
+mops install
+
+##### 安装指定包文件
+mops add map
+mops add base 
+
 #### 启动ICP容器基础环境
 clean命令会以纯净模式启动，消除之前的记录
 dfx start --background --clean
