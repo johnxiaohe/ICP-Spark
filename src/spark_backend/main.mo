@@ -16,7 +16,6 @@ shared({caller}) actor class(){
 
   // user principal -- user info map
   let userMap = Map.new<Principal,User>();
-
   // 用户注册先后排名
   private stable var _ranking : List.List<Principal> = List.nil();
 
@@ -74,5 +73,13 @@ shared({caller}) actor class(){
 
   public shared({caller}) func queryUserInfo(): async(?User) {
     Map.get(userMap, phash, caller);
+  };
+
+  public shared({caller}) func queryByName(): async(){
+
+  };
+
+  public shared({caller}) func queryById(id: Principal): async(?User){
+    Map.get(userMap, phash, id);
   };
 }

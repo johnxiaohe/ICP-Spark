@@ -1,8 +1,12 @@
 import Time "mo:base/Time";
+import List "mo:base/List";
+import Array "mo:base/Array";
+import Error "mo:base/Error";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
 import Principal "mo:base/Principal";
-import Cycles "mo:base/ExperimentalCycles";
+import Nat "mo:base/Nat";
+import HashMap "mo:base/HashMap";
 import Prim "mo:prim";
 
 import configs "configs";
@@ -20,9 +24,12 @@ shared({caller}) actor class UserSpace(
 ) = this{
     type User = types.User;
     type UserDetail = types.UserDetail;
+
+    type WorkSpaceInfo = types.WorkSpaceInfo;
+    type Collection = types.Collection;
     type LedgerActor = Ledger.Self;
-    let spark : types.Spark = actor (configs.SPARK_CANISTER_ID);
-    let icpLedger: LedgerActor = actor(configs.ICP_LEGDER_ID);
+    type UserActor = types.UserActor;
+    type WorkActor = types.WorkActor;
 
     private stable var owner : Principal = _owner;
     private stable var name : Text = _name;
@@ -30,6 +37,16 @@ shared({caller}) actor class UserSpace(
     private stable var desc : Text = _desc;
     private stable var ctime : Time.Time = _ctime;
     private stable var cyclesPerNamespace: Nat = 20_000_000_000; // 0.02t cycles for each token canister
+
+    private stable var _follows: List.List<Principal> = List.nil();
+    private stable var _fans: List.List<Principal> = List.nil();
+    private stable var _collections: List.List<Collection> = List.nil();
+    private stable var _subscribes: List.List<Principal> = List.nil();
+
+    let spark : types.Spark = actor (configs.SPARK_CANISTER_ID);
+    private let tokenMap = HashMap.HashMap<Text, LedgerActor>(3, Text.equal, Text.hash);
+    tokenMap.put("ICP", actor(configs.ICP_LEGDER_ID));
+    tokenMap.put("CYCLES", actor(configs.CYCLES_LEGDER_ID));
 
     // 更新用户信息，回调用户管理模块更新全局存储的用户信息
     public shared({caller}) func updateInfo(newName: Text, newAvatar: Text, newDesc: Text): async Result.Result<User,Text>{
@@ -50,7 +67,7 @@ shared({caller}) actor class UserSpace(
           });
     };
 
-    public shared({caller}) func detail(): async(UserDetail) {
+    public shared func info(): async (User){
         {
             id=owner;
             uid=Principal.fromActor(this);
@@ -58,10 +75,21 @@ shared({caller}) actor class UserSpace(
             avatar=avatar;
             desc=desc;
             ctime=ctime;
-            followSum=0;
-            fansSum=0;
-            collectionSum=0;
-            subscribeSum=0;
+        };
+    };
+
+    public shared func detail(): async(UserDetail) {
+        {
+            id=owner;
+            uid=Principal.fromActor(this);
+            name=name;
+            avatar=avatar;
+            desc=desc;
+            ctime=ctime;
+            followSum = List.size(_follows);
+            fansSum = List.size(_fans);
+            collectionSum=List.size(_collections);
+            subscribeSum=List.size(_subscribes);
         };
     };
 
@@ -69,44 +97,123 @@ shared({caller}) actor class UserSpace(
         return Prim.rts_memory_size();
     };
 
-    public query func cyclesBalance(): async Nat{
-        Cycles.balance();
+    public shared func balance(token: Text): async Nat{
+        switch(tokenMap.get(token)){
+            case(null){
+                0;
+            };
+            case(?ledger){
+                await ledger.icrc1_balance_of({owner=Principal.fromActor(this); subaccount=null});
+            }
+        };
     };
 
-    public shared func icpBalance(): async Nat{
-        await icpLedger.icrc1_balance_of({owner=Principal.fromActor(this); subaccount=null});
+    public shared({caller}) func withdrawals(token: Text, amount: Nat, reciver: Principal): async Result.Result<Nat, Text>{
+        if (not Principal.equal(caller,owner)){
+            return #err("permision denied")
+        };
+        switch(tokenMap.get(token)){
+            case(null){
+                return #err("unsuport token: " # token);
+            };
+            case(?ledger){
+                let transferArgs : Ledger.TransferArgs = {
+                    memo = null;
+                    amount = amount;
+                    from_subaccount = null;
+                    fee = null;
+                    to = { owner = reciver; subaccount = null };
+                    created_at_time = null;
+                };
+                try {
+                    // initiate the transfer
+                    let transferResult = await ledger.icrc1_transfer(transferArgs);
+
+                    // check if the transfer was successfull
+                    switch (transferResult) {
+                        case (#Err(transferError)) {
+                            return #err("Couldn't transfer funds:\n" # debug_show (transferError));
+                        };
+                        case (#Ok(blockIndex)) { 
+                            return #ok blockIndex 
+                        };
+                    };
+                } catch (error : Error) {
+                    // catch any errors that might occur during the transfer
+                    return #err("Reject message: " # Error.message(error));
+                };
+            };
+        };
     };
 
-    public shared func withdrawals(amount: Nat, ): async {
-
+    // a follow b => a.follow b.fans relation: uid -- uid
+    public shared({caller}) func addFollow(target: Principal): async(){
+        if (not Principal.equal(caller,owner)){
+            return;
+        };
+        // add follow relation
+        _follows := List.push(target, _follows);
+        // add target fans relation
+        let userActor : UserActor = actor(Principal.toText(target));
+        await userActor.addFans();
     };
 
-    public shared({caller}) follow(): async{
-
+    public shared({caller}) func addFans(): async (){
+        if (Principal.equal(caller,owner)){
+            return;
+        };
+        _fans := List.push(caller, _fans);
     };
 
-    public query fans(): async{
-
+    public shared({caller}) func fans(): async([User]){
+        let result = Array.init<User>(List.size(_fans), null);
+        var sum = 0;
+        for (uid in List.toIter<User>(_fans)) {
+            let userActor : userActor = actor(uid); 
+            result[sum] := await userActor.info();
+            sum += 1;
+        };
+        return result;
     };
 
-    public query follows(): async{
-
+    public shared({caller}) func follows(): async([User]){
+        var result: List.List<User> = List.nil();
+        for (uid in List.toIter<Principal>(_follows)) {
+            let userActor : UserActor = actor(Principal.toText(uid)); 
+            let user = await userActor.info();
+            result := List.push(user, result);
+        };
+        return List.toArray(result);
     };
 
-    public shared({caller}) collection(): async{
-
+    public shared({caller}) func collection(wid: Principal, wName: Text, index: Nat, name: Text): async(){
+        if (not Principal.equal(caller,owner)){
+            return;
+        };
+        let waitCollection : Collection = {wid=wid;wName=wName;index=index;name=name};
+        _collections := List.push(waitCollection, _collections);
     };
 
-    public query collections(): async{
-
+    public query func collections(): async([Collection]){
+        List.toArray(_collections);
     };
 
-    public shared({caller}) subscribe(): async{
-
+    // target workspace pid
+    public shared({caller}) func subscribe(pid: Principal): async(){
+        if (not Principal.equal(caller,owner)){
+            return;
+        };
+        _subscribes := List.push(pid, _subscribes);
     };
 
-    public shared({caller}) subscribes(): async{
-
+    public shared({caller}) func subscribes(): async([WorkSpaceInfo]){
+        var result: List.List<WorkSpaceInfo> = List.nil();
+        for (wid in List.toIter<Principal>(_subscribes)) {
+            let workActor : WorkActor = actor(Principal.toText(wid)); 
+            let workspaceinfo = await workActor.info();
+            result := List.push(workspaceinfo, result);
+        };
+        return List.toArray(result);
     };
 
 }
