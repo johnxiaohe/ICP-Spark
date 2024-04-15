@@ -75,7 +75,9 @@ shared({caller}) actor class(){
     Map.get(userMap, phash, caller);
   };
 
-  public shared({caller}) func queryByName(): async(){
+  public shared({caller}) func queryByName(name: Text): async(){
+    Text.contains("Motoko", #text "oto") // true
+
 
   };
 

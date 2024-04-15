@@ -11,6 +11,7 @@ import Prim "mo:prim";
 
 import configs "configs";
 import Ledger "ledgers";
+import WorkSpace "workspace";
 
 import types "types";
 // Prim.rts_heap_size() -> Nat : wasm(canister) heap size at present
@@ -27,6 +28,9 @@ shared({caller}) actor class UserSpace(
 
     type WorkSpaceInfo = types.WorkSpaceInfo;
     type Collection = types.Collection;
+    type MyWorkspaceResp = types.MyWorkspaceResp;
+    type MyWorkspace = types.MyWorkspace;
+
     type LedgerActor = Ledger.Self;
     type UserActor = types.UserActor;
     type WorkActor = types.WorkActor;
@@ -42,6 +46,7 @@ shared({caller}) actor class UserSpace(
     private stable var _fans: List.List<Principal> = List.nil();
     private stable var _collections: List.List<Collection> = List.nil();
     private stable var _subscribes: List.List<Principal> = List.nil();
+    private stable var _workspaces: List.List<MyWorkspace> = List.nil();
 
     let spark : types.Spark = actor (configs.SPARK_CANISTER_ID);
     private let tokenMap = HashMap.HashMap<Text, LedgerActor>(3, Text.equal, Text.hash);
@@ -253,8 +258,14 @@ shared({caller}) actor class UserSpace(
         return List.toArray(result);
     };
 
-    public shared({caller}) func createWorkNs(): async(){
-
+    public shared({caller}) func createWorkNs(name: Text, desc: Text, avatar: Text): async(){
+        if (not Principal.equal(caller,owner)){
+            return;
+        };
+        let ctime = Time.now();
+        let workspaceActor = await WorkSpace.WorkSpace(caller, name, avatar, desc,ctime);
+        let myworkspace : MyWorkspace = {wid=Principal.fromActor(workspaceActor);owner=true;start=false};
+        _workspaces := List.push(myworkspace, _workspaces);
     };
 
     public shared({caller}) func transferWorkNs(): async(){

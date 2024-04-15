@@ -25,10 +25,29 @@ shared({caller}) actor class WorkSpace(
     type UserDetail = types.UserDetail;
     type LedgerActor = Ledger.Self;
     type UserActor = types.UserActor;
+    type Content = types.Content;
 
     private stable var owner : Principal = _owner;
     private stable var name : Text = _name;
     private stable var avatar : Text = _avatar;
     private stable var desc : Text = _desc;
     private stable var ctime : Time.Time = _ctime;
+
+    private stable var index : Nat = 0;
+    private stable var members: List.List<Principal> = List.nil();
+    private stable var admins : List.List<Principal> = List.nil();
+    private stable var contents: List.List<Content> = List.nil();
+    // user pid -- uid  map
+
+    public shared({caller}) func addContent(name: Text){
+
+    };
+
+    public shared({caller}) func updateContent(name: Text, content: Text){
+
+    };
+
+    public shared({caller}) func delContent(id: Nat){
+
+    };
 }
