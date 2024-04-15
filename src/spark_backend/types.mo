@@ -49,9 +49,12 @@ module{
         info : shared() -> async(User);
         detail : shared() -> async (UserDetail);
         addFans : shared () -> async ();
+        delFans: shared() -> async();
     };
 
     public type WorkActor = actor {
         info: shared() -> async(WorkSpaceInfo);
-    }
+        subscribe: shared() -> async();
+        unSubscribe: shared() -> async();
+    };
 }

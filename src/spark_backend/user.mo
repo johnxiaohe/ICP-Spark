@@ -158,11 +158,39 @@ shared({caller}) actor class UserSpace(
         await userActor.addFans();
     };
 
+    public shared({caller}) func unFollow(target: Principal): async(){
+        if (not Principal.equal(caller,owner)){
+            return;
+        };
+        // find and del target
+        _follows := List.filter<Principal>(_follows, func pid { not Principal.equal(pid, target) });
+        // add target fans relation
+        let userActor : UserActor = actor(Principal.toText(target));
+        await userActor.addFans();
+    };
+
+    public shared({caller}) func follows(): async([User]){
+        var result: List.List<User> = List.nil();
+        for (uid in List.toIter<Principal>(_follows)) {
+            let userActor : UserActor = actor(Principal.toText(uid)); 
+            let user = await userActor.info();
+            result := List.push(user, result);
+        };
+        return List.toArray(result);
+    };
+
     public shared({caller}) func addFans(): async (){
         if (Principal.equal(caller,owner)){
             return;
         };
         _fans := List.push(caller, _fans);
+    };
+
+    public shared({caller}) func delFans(): async (){
+        if (Principal.equal(caller,owner)){
+            return;
+        };
+        _fans := List.filter<Principal>(_fans, func pid { not Principal.equal(pid, caller) });
     };
 
     public shared({caller}) func fans(): async([User]){
@@ -176,16 +204,6 @@ shared({caller}) actor class UserSpace(
         return result;
     };
 
-    public shared({caller}) func follows(): async([User]){
-        var result: List.List<User> = List.nil();
-        for (uid in List.toIter<Principal>(_follows)) {
-            let userActor : UserActor = actor(Principal.toText(uid)); 
-            let user = await userActor.info();
-            result := List.push(user, result);
-        };
-        return List.toArray(result);
-    };
-
     public shared({caller}) func collection(wid: Principal, wName: Text, index: Nat, name: Text): async(){
         if (not Principal.equal(caller,owner)){
             return;
@@ -194,16 +212,35 @@ shared({caller}) actor class UserSpace(
         _collections := List.push(waitCollection, _collections);
     };
 
+    public shared({caller}) func unCollection(wid: Principal, index:Nat): async(){
+        if (not Principal.equal(caller,owner)){
+            return;
+        };
+        // find and del target
+        _collections := List.filter<Collection>(_collections, func c { not Principal.equal(c.wid,wid) and c.index != index });
+    };
+
     public query func collections(): async([Collection]){
         List.toArray(_collections);
     };
 
     // target workspace pid
-    public shared({caller}) func subscribe(pid: Principal): async(){
+    public shared({caller}) func subscribe(wid: Principal): async(){
         if (not Principal.equal(caller,owner)){
             return;
         };
-        _subscribes := List.push(pid, _subscribes);
+        _subscribes := List.push(wid, _subscribes);
+        let workActor : WorkActor = actor(Principal.toText(wid)); 
+        await workActor.subscribe();
+    };
+
+    public shared({caller}) func unsubscribe(wid: Principal): async(){
+        if (not Principal.equal(caller,owner)){
+            return;
+        };
+        _subscribes := List.filter<Principal>(_subscribes, func id { not Principal.equal(id, wid) });
+        let workActor : WorkActor = actor(Principal.toText(wid)); 
+        await workActor.unSubscribe();
     };
 
     public shared({caller}) func subscribes(): async([WorkSpaceInfo]){
@@ -214,6 +251,14 @@ shared({caller}) actor class UserSpace(
             result := List.push(workspaceinfo, result);
         };
         return List.toArray(result);
+    };
+
+    public shared({caller}) func createWorkNs(): async(){
+
+    };
+
+    public shared({caller}) func transferWorkNs(): async(){
+
     };
 
 }
