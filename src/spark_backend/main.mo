@@ -28,6 +28,7 @@ shared({caller}) actor class(){
 
   system func postupgrade() {};
 
+  // 录入个人信息
   public shared({caller}) func initUserInfo(name: Text, avatar: Text, desc: Text): async(){
     let contains = Map.has(userMap, phash, caller);
     if (contains){
@@ -52,56 +53,60 @@ shared({caller}) actor class(){
   };
 
   // user canister update callback
-  public shared({caller}) func userUpdateCall(id: Principal, name: Text, avatar: Text, desc: Text): async(){
-    var user = Map.get(userMap, phash, caller);
+  public shared({caller}) func userUpdateCall(owner: Principal, name: Text, avatar: Text, desc: Text): async(){
+    var user = Map.get(userMap, phash, owner);
     switch(user){
       case(null){
         return
       };
       case(?user){
         // only update user canister by self
-        if (Principal.equal(caller, user.uid)){
+        if (Principal.equal(caller, user.id)){
           let nUser:User = {
-            id=id;
-            uid=caller;
+            id=caller;
+            pid=user.pid;
             name=name;
             avatar=avatar;
             desc=desc;
             ctime=user.ctime;
           };
-          Map.set(userMap, phash, id, nUser);
+          Map.set(userMap, phash, user.pid, nUser);
         };
       };
     };
   };
 
+  // 查询个人基础信息
   public shared({caller}) func queryUserInfo(): async(?User) {
     Map.get(userMap, phash, caller);
   };
 
-  public shared({caller}) func queryByName(keyword: Text): async([User]){
-    let result : List.List<User> = List.nil();
+  // 用户名称模糊查询
+  public shared func queryByName(keyword: Text): async([User]){
+    var result : List.List<User> = List.nil();
     for (u in Map.vals(userMap)){
       let name = u.name;
       if (Text.contains(name, #text keyword)){
         result := List.push(u, result);
       };
     };
-    List.toArray(result);
+    return List.toArray(result);
   };
 
-  public shared({caller}) func queryById(id: Principal): async(?User){
+  // 用户canisterid查询
+  public shared func queryById(id: Principal): async(?User){
     switch(Map.get(userIdMap, phash, id)){
       case(null){
         return null;
       };
       case(?pid){
-        Map.get(userMap, phash, pid);
+        return Map.get(userMap, phash, pid);
       };
     };
   };
 
-  public shared({caller}) func queryByPid(pid: Principal): async(?User){
+  // 用户principalid查询
+  public shared func queryByPid(pid: Principal): async(?User){
     Map.get(userMap, phash, pid);
   };
 }

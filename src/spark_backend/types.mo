@@ -33,6 +33,10 @@ module{
         fansSum: Nat;
         collectionSum: Nat;
         subscribeSum: Nat;
+        showfollow: Bool;
+        showfans: Bool;
+        showcollection: Bool;
+        showsubscribe: Bool;
     };
 
     // artical
@@ -68,7 +72,7 @@ module{
     };
 
     public type Spark = actor {
-        userUpdateCall : shared (id: Principal, name: Text, avatar: Text, desc: Text) -> async ();
+        userUpdateCall : shared (owner: Principal, name: Text, avatar: Text, desc: Text) -> async ();
     };
 
     public type UserActor = actor {
