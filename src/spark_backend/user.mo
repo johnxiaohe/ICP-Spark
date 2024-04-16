@@ -63,8 +63,8 @@ shared({caller}) actor class UserSpace(
         desc := newDesc;
         await spark.userUpdateCall(owner,newName,newAvatar,newDesc);
         return #ok({
-            id=owner;
-            uid=Principal.fromActor(this);
+            id=Principal.fromActor(this);
+            pid=owner;
             name=name;
             avatar=avatar;
             desc=desc;
@@ -74,8 +74,8 @@ shared({caller}) actor class UserSpace(
 
     public shared func info(): async (User){
         {
-            id=owner;
-            uid=Principal.fromActor(this);
+            id=Principal.fromActor(this);
+            pid=owner;
             name=name;
             avatar=avatar;
             desc=desc;
@@ -85,8 +85,8 @@ shared({caller}) actor class UserSpace(
 
     public shared func detail(): async(UserDetail) {
         {
-            id=owner;
-            uid=Principal.fromActor(this);
+            id=Principal.fromActor(this);
+            pid=owner;
             name=name;
             avatar=avatar;
             desc=desc;

@@ -6,8 +6,8 @@ import List "mo:base/List";
 
 module{
     public type User = {
-        id: Principal; // user principal id
-        uid: Principal; // user canister principal id
+        id: Principal; // user canister id
+        pid: Principal; // user principal id
         name: Text;
         avatar: Text;
         desc: Text;
@@ -23,8 +23,8 @@ module{
     };
 
     public type UserDetail = {
-        id: Principal; // user principal id
-        uid: Principal; // user canister principal id
+        id: Principal; // user canister id
+        pid: Principal; // user principal id
         name: Text;
         avatar: Text;
         desc: Text;

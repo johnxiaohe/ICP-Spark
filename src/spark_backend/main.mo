@@ -9,13 +9,16 @@ import { phash } "mo:map/Map";
 
 import types "types";
 import UserCs "user";
+import User "user";
 
 shared({caller}) actor class(){
 
   type User = types.User;
 
-  // user principal -- user info map
+  // user pid --- user info map
   let userMap = Map.new<Principal,User>();
+  // user id --- user pid
+  let userIdMap = Map.new<Principal,Principal>();
   // 用户注册先后排名
   private stable var _ranking : List.List<Principal> = List.nil();
 
@@ -37,14 +40,15 @@ shared({caller}) actor class(){
     let userActorId = Principal.fromActor(userActor);
     _ranking := List.push(caller, _ranking);
     let user:User = {
-      id=caller;
-      uid=userActorId;
+      id=userActorId;
+      pid=caller;
       name=name;
       avatar=avatar;
       desc=desc;
       ctime=ctime;
     };
     Map.set(userMap, phash, caller, user);
+    Map.set(userIdMap, phash, userActorId,caller);
   };
 
   // user canister update callback
@@ -75,13 +79,29 @@ shared({caller}) actor class(){
     Map.get(userMap, phash, caller);
   };
 
-  public shared({caller}) func queryByName(name: Text): async(){
-    Text.contains("Motoko", #text "oto") // true
-
-
+  public shared({caller}) func queryByName(keyword: Text): async([User]){
+    let result : List.List<User> = List.nil();
+    for (u in Map.vals(userMap)){
+      let name = u.name;
+      if (Text.contains(name, #text keyword)){
+        result := List.push(u, result);
+      };
+    };
+    List.toArray(result);
   };
 
   public shared({caller}) func queryById(id: Principal): async(?User){
-    Map.get(userMap, phash, id);
+    switch(Map.get(userIdMap, phash, id)){
+      case(null){
+        return null;
+      };
+      case(?pid){
+        Map.get(userMap, phash, pid);
+      };
+    };
+  };
+
+  public shared({caller}) func queryByPid(pid: Principal): async(?User){
+    Map.get(userMap, phash, pid);
   };
 }
