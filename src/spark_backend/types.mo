@@ -3,6 +3,7 @@ import Text "mo:base/Text";
 import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
 import List "mo:base/List";
+import Result "mo:base/Result";
 
 module{
 
@@ -97,6 +98,9 @@ module{
         detail : shared() -> async (UserDetail);
         addFans : shared () -> async ();
         delFans: shared() -> async();
+        reciveWns: shared() -> async Result.Result<Bool, Text>;
+        addWorkNs: shared() -> async(Bool);
+        leaveWorkNs: shared() -> async();
     };
 
     public type WorkActor = actor {
@@ -104,5 +108,6 @@ module{
         subscribe: shared() -> async();
         unSubscribe: shared() -> async();
         quit: shared() -> async();
+        transfer: shared(target: Principal) -> async();
     };
 }

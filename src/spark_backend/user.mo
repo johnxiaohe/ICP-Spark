@@ -10,6 +10,9 @@ import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
 
+import Map "mo:map/Map";
+import { phash } "mo:map/Map";
+
 import Ledger "ledgers";
 import configs "configs";
 import types "types";
@@ -63,7 +66,8 @@ shared({caller}) actor class UserSpace(
     private stable var _subscribes: List.List<Principal> = List.nil();
 
     // 用户创作数据
-    private stable var _workspaces: List.List<MyWorkspace> = List.nil();
+    let _workspaces = Map.new<Principal,MyWorkspace>();
+    // private stable var _workspaces: List.List<MyWorkspace> = List.nil();
     // 最近创作记录
     private stable var _RECENT_SIZE : Nat = 10;
     private stable var _recentWorks : List.List<RecentWork> = List.nil();
@@ -353,7 +357,7 @@ shared({caller}) actor class UserSpace(
             return [];
         };
         var result : List.List<MyWorkspaceResp> = List.nil();
-        for (work in List.toIter(_workspaces)){
+        for (work in Map.vals(_workspaces)){
             let workActor: WorkActor = actor(Principal.toText(work.wid));
             let workInfo :WorkSpaceInfo = await workActor.info();
             let workResp: MyWorkspaceResp = {
@@ -368,25 +372,115 @@ shared({caller}) actor class UserSpace(
         return List.toArray(result);
     };
 
-    public shared({caller}) func createWorkNs(name: Text, desc: Text, avatar: Text): async(){
+    public shared({caller}) func createWorkNs(name: Text, desc: Text, avatar: Text): async(Bool){
         if (not Principal.equal(caller,owner)){
-            return;
+            return false;
         };
         Cycles.add<system>(cyclesPerNamespace);
         let ctime = Time.now();
         let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), name, avatar, desc,ctime);
         let myworkspace : MyWorkspace = {wid=Principal.fromActor(workspaceActor);owner=true;start=false};
-        _workspaces := List.push(myworkspace, _workspaces);
-    };
-    // 退出工作空间
-    public shared({caller}) func quitWorkNs(wid: Principal): async(Bool){
-        if (not Principal.equal(caller,owner)){
-            return false;
-        };
-        // 退出指定工作空间: 删除工作空间映射，通知指定工作空间
+        Map.set(_workspaces, phash, myworkspace.wid, myworkspace);
         return true;
     };
 
+    public shared({caller}) func addWorkNs(): async(Bool){
+        let contains = Map.has(_workspaces, phash, caller);
+        if (contains){
+            return true;
+        };
+        // 判断是否实现 workspace方法或者非canister
+        let workActor: WorkActor = actor(Principal.toText(caller));
+        let workInfo :WorkSpaceInfo = await workActor.info();
+
+        let wns : MyWorkspace = {
+            wid=caller;
+            owner=false;
+            start=false;
+        };
+        Map.set(_workspaces, phash, caller, wns);
+        return true;
+    };
+
+    // 退出工作空间，被动
+    public shared({caller}) func leaveWorkNs(): async(){
+        let contains = Map.has(_workspaces, phash, caller);
+        if (not contains){
+            return;
+        };
+        removeRecentData(caller);
+        Map.delete(_workspaces, phash, caller);
+    };
+
+    // 退出工作空间 主动
+    public shared({caller}) func quitWorkNs(wid: Principal): async Result.Result<Bool, Text>{
+        if (not Principal.equal(caller,owner)){
+            return #err("permision denied");
+        };
+        // 退出指定工作空间: 删除工作空间映射，通知指定工作空间
+        switch(Map.get(_workspaces, phash, wid)){
+            case(null){
+                return #err("can not find target workspace");
+            };
+            case(?wns){
+                Map.delete(_workspaces, phash, wid);
+                removeRecentData(wid);
+                let workActor: WorkActor = actor(Principal.toText(wid));
+                await workActor.quit();
+                return #ok(true);
+            };
+        };
+    };
+
+    // 转移工作空间owner身份
+    public shared({caller}) func transferWorkOwner(wid: Principal, target: Principal): async Result.Result<Bool, Text>{
+        if (not Principal.equal(caller,owner)){
+            return #err("permision denied");
+        };
+
+        switch(Map.get(_workspaces, phash, wid)){
+            case(null){
+                return #err("can not find target workspace");
+            };
+            case(?wns){
+                if ( not wns.owner ){
+                    return #err("you are not this workspace owner");
+                };
+                let nWns : MyWorkspace = {
+                    wid=wns.wid;
+                    owner=false;
+                    start=wns.start;
+                };
+                Map.set(_workspaces, phash, wid, nWns);
+                let workActor: WorkActor = actor(Principal.toText(target));
+                await workActor.transfer(target);
+                return #ok(true);
+            };
+        };
+    };
+
+    // 接收他人转移过来的工作空间 由workspace canister调用
+    public shared({caller}) func reciveWns(): async Result.Result<Bool, Text>{
+        switch(Map.get(_workspaces, phash, caller)){
+            case(null){
+                return #err("can not find target workspace");
+            };
+            case(?wns){
+                if ( wns.owner ){
+                    return #err("still owner");
+                };
+                let nWns : MyWorkspace = {
+                    wid=wns.wid;
+                    owner=true;
+                    start=wns.start;
+                };
+                Map.set(_workspaces, phash, wns.wid, nWns);
+                return #ok(true);
+            };
+        };
+    };
+
+    // 最近工作记录管理
     public shared({caller}) func addRecentWork(wid:Principal, name: Text, isowner: Bool): async([RecentWork]){
         if (not Principal.equal(caller,owner)){
             return [];
@@ -425,6 +519,12 @@ shared({caller}) actor class UserSpace(
             return [];
         };
         return List.toArray(_recentEdits);
+    };
+
+    // 退出工作空间后，需要删除对应的最近工作记录
+    private func removeRecentData(wid: Principal){
+        _recentEdits := List.filter<RecentEdit>(_recentEdits, func edit {not Principal.equal(wid, edit.wid)});
+        _recentWorks := List.filter<RecentWork>(_recentWorks, func ns {not Principal.equal(wid, ns.wid)});
     };
 
 }
