@@ -5,17 +5,11 @@ import Nat "mo:base/Nat";
 import List "mo:base/List";
 
 module{
+
+    // user api types --------------------------------
     public type User = {
         id: Principal; // user canister id
         pid: Principal; // user principal id
-        name: Text;
-        avatar: Text;
-        desc: Text;
-        ctime: Time.Time;
-    };
-
-    public type WorkSpaceInfo = {
-        id: Principal;
         name: Text;
         avatar: Text;
         desc: Text;
@@ -47,15 +41,6 @@ module{
         name: Text;
     };
 
-    public type Content = {
-        id: Nat;
-        pid: Nat;
-        name: Text;
-        content: Text;
-        utime: Time.Time;
-        coAuthors: List.List<Principal>;
-    };
-
     public type MyWorkspace = {
         wid: Principal;
         owner: Bool;
@@ -71,6 +56,39 @@ module{
         start: Bool;
     };
 
+    public type WorkSpaceInfo = {
+        id: Principal;
+        name: Text;
+        avatar: Text;
+        desc: Text;
+        ctime: Time.Time;
+    };
+
+    public type RecentWork = {
+        wid: Principal;
+        name: Text;
+        owner: Bool;
+    };
+
+    public type RecentEdit = {
+        wid: Principal;
+        wname: Text;
+        cid: Nat;
+        cname: Text;
+        etime: Time.Time;
+    };
+
+    // work api types -----------------------------------
+    public type Content = {
+        id: Nat;
+        pid: Nat;
+        name: Text;
+        content: Text;
+        utime: Time.Time;
+        coAuthors: List.List<Principal>;
+    };
+
+    // actors api
     public type Spark = actor {
         userUpdateCall : shared (owner: Principal, name: Text, avatar: Text, desc: Text) -> async ();
     };

@@ -1,22 +1,20 @@
+import Prim "mo:prim";
+import Nat "mo:base/Nat";
 import Time "mo:base/Time";
 import List "mo:base/List";
-import Array "mo:base/Array";
+import Text "mo:base/Text";
+import Bool "mo:base/Bool";
 import Error "mo:base/Error";
 import Result "mo:base/Result";
-import Text "mo:base/Text";
-import Principal "mo:base/Principal";
-import Nat "mo:base/Nat";
 import HashMap "mo:base/HashMap";
-import Prim "mo:prim";
+import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
-import Bool "mo:base/Bool";
 
-import configs "configs";
 import Ledger "ledgers";
-import WorkSpace "workspace";
-
+import configs "configs";
 import types "types";
-// Prim.rts_heap_size() -> Nat : wasm(canister) heap size at present
+
+import WorkSpace "workspace";
 
 // 用户的canisterid是唯一标识符，作为主键和对外关联关系字段
 shared({caller}) actor class UserSpace(
@@ -26,39 +24,58 @@ shared({caller}) actor class UserSpace(
     _desc: Text, 
     _ctime: Time.Time,
 ) = this{
+
+    // 用户接口api类型声明
     type User = types.User;
     type UserDetail = types.UserDetail;
-
     type WorkSpaceInfo = types.WorkSpaceInfo;
     type Collection = types.Collection;
     type MyWorkspaceResp = types.MyWorkspaceResp;
     type MyWorkspace = types.MyWorkspace;
+    type RecentWork = types.RecentWork;
+    type RecentEdit = types.RecentEdit;
 
+    // 第三方api actor类型声明
     type LedgerActor = Ledger.Self;
     type UserActor = types.UserActor;
     type WorkActor = types.WorkActor;
 
+    // 常量声明
+    private stable var cyclesPerNamespace: Nat = 20_000_000_000; // 0.02t cycles for each token canister
+
+    // 用户元信息
     private stable var owner : Principal = _owner;
     private stable var name : Text = _name;
     private stable var avatar : Text = _avatar;
     private stable var desc : Text = _desc;
     private stable var ctime : Time.Time = _ctime;
-    private stable var cyclesPerNamespace: Nat = 20_000_000_000; // 0.02t cycles for each token canister
 
-    private stable var _follows: List.List<Principal> = List.nil();
-    private stable var _fans: List.List<Principal> = List.nil();
-    private stable var _collections: List.List<Collection> = List.nil();
-    private stable var _subscribes: List.List<Principal> = List.nil();
-    private stable var _workspaces: List.List<MyWorkspace> = List.nil();
+    // 用户隐私显示开关
     private stable var _showfollow: Bool = true;
     private stable var _showfans: Bool = true;
     private stable var _showcollection: Bool = true;
     private stable var _showsubscribe: Bool = true;
 
+    // 用户交互数据
+    private stable var _follows: List.List<Principal> = List.nil();
+    private stable var _fans: List.List<Principal> = List.nil();
+    private stable var _collections: List.List<Collection> = List.nil();
+    private stable var _subscribes: List.List<Principal> = List.nil();
+
+    // 用户创作数据
+    private stable var _workspaces: List.List<MyWorkspace> = List.nil();
+    // 最近创作记录
+    private stable var _RECENT_SIZE : Nat = 10;
+    private stable var _recentWorks : List.List<RecentWork> = List.nil();
+    private stable var _recentEdits : List.List<RecentEdit> = List.nil();
+
+    // 全局 actor api client 预创建
     let spark : types.Spark = actor (configs.SPARK_CANISTER_ID);
-    private let tokenMap = HashMap.HashMap<Text, LedgerActor>(3, Text.equal, Text.hash);
     let icpLedger: LedgerActor = actor(configs.ICP_LEGDER_ID);
     let cyclesLedger: LedgerActor = actor(configs.CYCLES_LEGDER_ID);
+
+    // token类型 actor 预存，用于 转账和余额查询等
+    private let tokenMap = HashMap.HashMap<Text, LedgerActor>(3, Text.equal, Text.hash);
     tokenMap.put("ICP", icpLedger);
     tokenMap.put("CYCLES", cyclesLedger);
 
@@ -347,6 +364,46 @@ shared({caller}) actor class UserSpace(
         let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), name, avatar, desc,ctime);
         let myworkspace : MyWorkspace = {wid=Principal.fromActor(workspaceActor);owner=true;start=false};
         _workspaces := List.push(myworkspace, _workspaces);
+    };
+
+    public shared({caller}) func addRecentWork(wid:Principal, name: Text, isowner: Bool): async([RecentWork]){
+        if (not Principal.equal(caller,owner)){
+            return [];
+        };
+        let recent :RecentWork = {wid=wid;name=name;owner=isowner};
+        _recentWorks := List.push(recent, _recentWorks);
+        if (Nat.greater(List.size(_recentWorks), _RECENT_SIZE)){
+            let sub: Nat = List.size(_recentWorks) - _RECENT_SIZE;
+            _recentWorks := List.drop<RecentWork>(_recentWorks, sub);
+        };
+        return List.toArray(_recentWorks);
+    };
+
+    public shared({caller}) func recentWorks(): async([RecentWork]){
+        if (not Principal.equal(caller,owner)){
+            return [];
+        };
+        return List.toArray(_recentWorks);
+    };
+
+    public shared({caller}) func addRecentEdit(wid: Principal, wname: Text, cid: Nat, cname: Text): async([RecentEdit]){
+        if (not Principal.equal(caller,owner)){
+            return [];
+        };
+        let recent : RecentEdit = {wid=wid;wname=wname;cid=cid;cname=cname;etime=Time.now()};
+        _recentEdits := List.push(recent, _recentEdits);
+        if (Nat.greater(List.size(_recentEdits), _RECENT_SIZE)){
+            let sub: Nat = List.size(_recentEdits) - _RECENT_SIZE;
+            _recentEdits := List.drop<RecentEdit>(_recentEdits, sub);
+        };
+        return List.toArray(_recentEdits);
+    };
+
+    public shared({caller}) func recentEdits(): async([RecentEdit]){
+        if (not Principal.equal(caller,owner)){
+            return [];
+        };
+        return List.toArray(_recentEdits);
     };
 
 }
