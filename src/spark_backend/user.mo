@@ -181,6 +181,21 @@ shared({caller}) actor class UserSpace(
         };
     };
 
+    // 为指定容器添加Cycles，仅限本人操作
+    public shared({caller}) func addCycles(target: Principal): async(){
+
+    };
+
+    // 预存cycles到 cycles管理容器，并设置自动充值阈值
+    public shared({caller}) func presaveCycles(presaveAmount: Nat, addAmount: Nat, trigger: Nat): async(){
+
+    };
+
+    // 获取预存余额
+    public shared({caller}) func presaveBalance(): async(Nat){
+        return 0;
+    };
+
     // a follow b => a.follow b.fans relation: uid -- uid
     public shared({caller}) func addFollow(uid: Principal): async(){
         if (not Principal.equal(caller,owner)){
@@ -341,12 +356,10 @@ shared({caller}) actor class UserSpace(
         for (work in List.toIter(_workspaces)){
             let workActor: WorkActor = actor(Principal.toText(work.wid));
             let workInfo :WorkSpaceInfo = await workActor.info();
-            let cyclesBalance = await cyclesLedger.icrc1_balance_of({owner=work.wid; subaccount=null});
             let workResp: MyWorkspaceResp = {
                 wid = workInfo.id;
                 name = workInfo.name;
                 desc = workInfo.desc;
-                cycles = cyclesBalance;
                 owner = work.owner;
                 start = work.start;
             };
@@ -364,6 +377,14 @@ shared({caller}) actor class UserSpace(
         let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), name, avatar, desc,ctime);
         let myworkspace : MyWorkspace = {wid=Principal.fromActor(workspaceActor);owner=true;start=false};
         _workspaces := List.push(myworkspace, _workspaces);
+    };
+    // 退出工作空间
+    public shared({caller}) func quitWorkNs(wid: Principal): async(Bool){
+        if (not Principal.equal(caller,owner)){
+            return false;
+        };
+        // 退出指定工作空间: 删除工作空间映射，通知指定工作空间
+        return true;
     };
 
     public shared({caller}) func addRecentWork(wid:Principal, name: Text, isowner: Bool): async([RecentWork]){

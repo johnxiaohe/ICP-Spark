@@ -51,7 +51,6 @@ module{
         wid: Principal;
         name: Text;
         desc: Text;
-        cycles: Nat;
         owner: Bool;
         start: Bool;
     };
