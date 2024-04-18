@@ -1,8 +1,10 @@
 import Text "mo:base/Text";
 import List "mo:base/List";
 import Time "mo:base/Time";
+import Result "mo:base/Result";
 import Cycles "mo:base/ExperimentalCycles";
 import Principal "mo:base/Principal";
+import Bool "mo:base/Bool";
 
 import Map "mo:map/Map";
 import { phash } "mo:map/Map";
@@ -77,8 +79,15 @@ shared({caller}) actor class(){
   };
 
   // 查询个人基础信息
-  public shared({caller}) func queryUserInfo(): async(?User) {
-    Map.get(userMap, phash, caller);
+  public shared({caller}) func queryUserInfo(): async Result.Result<User,Text> {
+    switch(Map.get(userMap, phash, caller)){
+      case(null){
+        return #err("user not found");
+      };
+      case(?user){
+        return #ok(user);
+      };
+    };
   };
 
   // 用户名称模糊查询
