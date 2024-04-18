@@ -19,7 +19,7 @@ export const defaultOptions = {
     identityProvider:
       process.env.DFX_NETWORK === 'ic'
         ? 'https://identity.ic0.app/#authorize'
-        : `http://localhost:4943?canisterId=${process.env.CANISTER_ID_SPARK_BACKEND}#authorize`,
+        : `http://rdmx6-jaaaa-aaaaa-aaadq-cai.localhost:4943`,
     // Maximum authorization expiration is 8 days
     maxTimeToLive: days * hours * nanoseconds,
   },
@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }) => {
   const [actor, setActor] = useState(null)
   const [cActor, setCActor] = useState(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userInfo, setUserInfo] = useState({})
 
   const init = async () => {
     console.log('init========')
@@ -69,11 +70,15 @@ export const AuthProvider = ({ children }) => {
     setPrincipalId(_principalId)
     console.log(_principalId)
     setIsLoggedIn(true)
+    const _userInfo = await _actor.queryUserInfo()
+    console.log('userInfo:::', _userInfo)
+    setUserInfo(_userInfo)
   }
 
   const login = async () => {
     if (!authClient) await init()
     authClient.login({
+      ...defaultOptions.loginOptions,
       onSuccess: () => handleAuthenticated(authClient),
     })
   }

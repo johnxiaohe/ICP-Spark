@@ -3,16 +3,20 @@ import Avatar from '@/components/Avatar'
 import { Button, Typography, Tooltip } from 'antd'
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons'
 import { useParams } from 'react-router-dom'
+import { useAuth } from '@/Hooks/useAuth'
 
 const { Paragraph } = Typography
 
 const Post = () => {
   const params = useParams()
+  const { actor } = useAuth()
   const [userInfo, setUserInfo] = useState({})
   const [isEdit, setIsEdit] = useState(false)
   const [newUserInfo, setNewUserInfo] = useState(null)
 
-  const getUserInfo = () => {
+  const getUserInfo = async () => {
+    const result = await actor.queryUserInfo()
+    console.log('userinfo::', actor, result)
     const _userInfo = {
       userName: 'Vinst',
       id: params.id,
@@ -34,8 +38,10 @@ const Post = () => {
   }
 
   useEffect(() => {
-    getUserInfo()
-  }, [])
+    if (actor) {
+      getUserInfo()
+    }
+  }, [actor])
 
   return (
     <div className=" w-2/3 max-w-7xl min-w-[800px] ml-auto mr-auto ">
