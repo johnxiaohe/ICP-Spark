@@ -4,6 +4,14 @@
       "main": "src/spark_backend/main.mo",
       "type": "motoko"
     },
+    "spark_user": {
+      "main": "src/spark_backend/user.mo",
+      "type": "motoko"
+    },
+    "spark_workspace": {
+      "main": "src/spark_backend/workspace.mo",
+      "type": "motoko"
+    },
     "spark_frontend": {
       "dependencies": [
         "spark_backend"
@@ -25,7 +33,7 @@
       "type": "custom",
       "candid": "https://raw.githubusercontent.com/dfinity/ic/ff10ea1dba07c0f66c66536a46a97146cf260e90/rs/rosetta-api/icp_ledger/ledger.did",
       "wasm": "https://download.dfinity.systems/ic/ff10ea1dba07c0f66c66536a46a97146cf260e90/canisters/ledger-canister.wasm.gz"
-  }
+    }
   },
   "defaults": {
     "build": {
