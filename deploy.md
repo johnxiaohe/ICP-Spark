@@ -24,8 +24,8 @@ dfx start --background --clean
 dfx deps pull
 
 #### 初始化II身份认证本地容器罐
-dfx deps init --argument '(null)' internet-identity
-dfx deploy internet-identity
+dfx deps init --argument '(null)' internet_identity
+dfx deploy internet_identity
 
 #### 启动本地Leger账本容器罐
 dfx deploy icp-ledger --argument "(variant {
@@ -66,11 +66,6 @@ dfx canister call icp-ledger icrc1_transfer '(record {amount=1000000; to=record{
 
 #### 启动业务后端容器
 dfx deploy --backend
-
-
-
-
-
 
 
 
