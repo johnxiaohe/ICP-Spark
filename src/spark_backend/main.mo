@@ -15,6 +15,7 @@ import User "user";
 
 shared({caller}) actor class(){
 
+  type Resp<T> = types.Resp<T>;
   type User = types.User;
 
   // user pid --- user info map
@@ -79,13 +80,21 @@ shared({caller}) actor class(){
   };
 
   // 查询个人基础信息
-  public shared({caller}) func queryUserInfo(): async Result.Result<User,Text> {
+  public shared({caller}) func queryUserInfo(): async Resp<?User> {
     switch(Map.get(userMap, phash, caller)){
       case(null){
-        return #err("user not found");
+        return {
+          code=404;
+          msg="user not registed";
+          data=null;
+        };
       };
       case(?user){
-        return #ok(user);
+        return {
+          code=200;
+          msg="user not registed";
+          data=?user;
+        };
       };
     };
   };

@@ -7,6 +7,12 @@ import Result "mo:base/Result";
 
 module{
 
+    public type Resp<T> = {
+        code: Nat;
+        msg: Text;
+        data: T;
+    };
+
     // user api types --------------------------------
     public type User = {
         id: Principal; // user canister id
