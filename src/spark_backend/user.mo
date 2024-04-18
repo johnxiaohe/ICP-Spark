@@ -31,12 +31,13 @@ shared({caller}) actor class UserSpace(
     // 用户接口api类型声明
     type User = types.User;
     type UserDetail = types.UserDetail;
-    type WorkSpaceInfo = types.WorkSpaceInfo;
     type Collection = types.Collection;
     type MyWorkspaceResp = types.MyWorkspaceResp;
     type MyWorkspace = types.MyWorkspace;
     type RecentWork = types.RecentWork;
     type RecentEdit = types.RecentEdit;
+
+    type WorkSpaceInfo = types.WorkSpaceInfo;
 
     // 第三方api actor类型声明
     type LedgerActor = Ledger.Self;
@@ -67,7 +68,6 @@ shared({caller}) actor class UserSpace(
 
     // 用户创作数据
     let _workspaces = Map.new<Principal,MyWorkspace>();
-    // private stable var _workspaces: List.List<MyWorkspace> = List.nil();
     // 最近创作记录
     private stable var _RECENT_SIZE : Nat = 10;
     private stable var _recentWorks : List.List<RecentWork> = List.nil();
@@ -147,6 +147,10 @@ shared({caller}) actor class UserSpace(
         };
     };
 
+    public shared func cycles(): async Nat{
+        return Cycles.balance();
+    };
+
     public shared({caller}) func withdrawals(token: Text, amount: Nat, reciver: Principal): async Result.Result<Nat, Text>{
         if (not Principal.equal(caller,owner)){
             return #err("permision denied")
@@ -185,6 +189,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
+    // cycles 管理 api --------------------------------------
     // 为指定容器添加Cycles，仅限本人操作
     public shared({caller}) func addCycles(target: Principal): async(){
 
@@ -199,6 +204,7 @@ shared({caller}) actor class UserSpace(
     public shared({caller}) func presaveBalance(): async(Nat){
         return 0;
     };
+
 
     // a follow b => a.follow b.fans relation: uid -- uid
     public shared({caller}) func addFollow(uid: Principal): async(){

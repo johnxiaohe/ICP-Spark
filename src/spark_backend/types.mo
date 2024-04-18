@@ -58,6 +58,7 @@ module{
 
     public type WorkSpaceInfo = {
         id: Principal;
+        owner: Principal;
         name: Text;
         avatar: Text;
         desc: Text;
