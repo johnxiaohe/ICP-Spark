@@ -4,6 +4,14 @@
       "main": "src/spark_backend/main.mo",
       "type": "motoko"
     },
+    "spark_user": {
+      "main": "src/spark_backend/user.mo",
+      "type": "motoko"
+    },
+    "spark_workspace": {
+      "main": "src/spark_backend/workspace.mo",
+      "type": "motoko"
+    },
     "spark_frontend": {
       "dependencies": [
         "spark_backend"
