@@ -4,6 +4,7 @@ import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
 import List "mo:base/List";
 import Result "mo:base/Result";
+import Bool "mo:base/Bool";
 
 module{
 
@@ -103,18 +104,18 @@ module{
     public type UserActor = actor {
         info : shared() -> async(User);
         detail : shared() -> async (UserDetail);
-        addFans : shared () -> async ();
-        delFans: shared() -> async();
+        addFans : shared () -> async (Bool);
+        delFans: shared() -> async(Bool);
         reciveWns: shared() -> async Result.Result<Bool, Text>;
         addWorkNs: shared() -> async(Bool);
-        leaveWorkNs: shared() -> async();
+        leaveWorkNs: shared() -> async(Bool);
     };
 
     public type WorkActor = actor {
         info: shared() -> async(WorkSpaceInfo);
-        subscribe: shared() -> async();
-        unSubscribe: shared() -> async();
-        quit: shared() -> async();
-        transfer: shared(target: Principal) -> async();
+        subscribe: shared() -> async(Bool);
+        unSubscribe: shared() -> async(Bool);
+        quit: shared() -> async(Bool);
+        transfer: shared(target: Principal) -> async(Bool);
     };
 }

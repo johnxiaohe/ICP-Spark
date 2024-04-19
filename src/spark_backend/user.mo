@@ -36,6 +36,7 @@ shared({caller}) actor class UserSpace(
     type MyWorkspace = types.MyWorkspace;
     type RecentWork = types.RecentWork;
     type RecentEdit = types.RecentEdit;
+    type Resp<T> = types.Resp<T>;
 
     type WorkSpaceInfo = types.WorkSpaceInfo;
 
@@ -84,80 +85,120 @@ shared({caller}) actor class UserSpace(
     tokenMap.put("CYCLES", cyclesLedger);
 
     // 更新用户信息，回调用户管理模块更新全局存储的用户信息
-    public shared({caller}) func updateInfo(newName: Text, newAvatar: Text, newDesc: Text): async Result.Result<User,Text>{
+    public shared({caller}) func updateInfo(newName: Text, newAvatar: Text, newDesc: Text): async Resp<User>{
         if (not Principal.equal(caller,owner)){
-            return #err("")
+            return {
+                code=403;
+                msg="permision denied";
+                data={id=caller;avatar="";desc="";name="";pid=caller;ctime=0};
+            };
         };
         name := newName;
         avatar := newAvatar;
         desc := newDesc;
         await spark.userUpdateCall(owner,newName,newAvatar,newDesc);
-        return #ok({
-            id=Principal.fromActor(this);
-            pid=owner;
-            name=name;
-            avatar=avatar;
-            desc=desc;
-            ctime=ctime;
-          });
-    };
-
-    public shared func info(): async (User){
-        {
-            id=Principal.fromActor(this);
-            pid=owner;
-            name=name;
-            avatar=avatar;
-            desc=desc;
-            ctime=ctime;
+        return {
+            code=200;
+            msg="";
+            data={
+                id=Principal.fromActor(this);
+                pid=owner;
+                name=name;
+                avatar=avatar;
+                desc=desc;
+                ctime=ctime;
+            };
         };
     };
 
-    public shared func detail(): async(UserDetail) {
-        {
-            id=Principal.fromActor(this);
-            pid=owner;
-            name=name;
-            avatar=avatar;
-            desc=desc;
-            ctime=ctime;
-            followSum = List.size(_follows);
-            fansSum = List.size(_fans);
-            collectionSum=List.size(_collections);
-            subscribeSum=List.size(_subscribes);
-            showfollow = _showfollow;
-            showfans = _showfans;
-            showcollection = _showcollection;
-            showsubscribe = _showsubscribe;
+    public shared func info(): async Resp<User>{
+        return {
+            code=200;
+            msg="";
+            data={
+                id=Principal.fromActor(this);
+                pid=owner;
+                name=name;
+                avatar=avatar;
+                desc=desc;
+                ctime=ctime;
+            };
         };
     };
 
-    public query func canisterMemory() : async Nat {
-        return Prim.rts_memory_size();
+    public shared func detail(): async(Resp<UserDetail>) {
+        return {
+            code=200;
+            msg="";
+            data={
+                id=Principal.fromActor(this);
+                pid=owner;
+                name=name;
+                avatar=avatar;
+                desc=desc;
+                ctime=ctime;
+                followSum = List.size(_follows);
+                fansSum = List.size(_fans);
+                collectionSum=List.size(_collections);
+                subscribeSum=List.size(_subscribes);
+                showfollow = _showfollow;
+                showfans = _showfans;
+                showcollection = _showcollection;
+                showsubscribe = _showsubscribe;
+            };
+        };
     };
 
-    public shared func balance(token: Text): async Nat{
+    public query func canisterMemory() : async Resp<Nat> {
+        return {
+            code = 200;
+            msg = "";
+            data = Prim.rts_memory_size();
+        };
+    };
+
+    public shared func balance(token: Text): async Resp<Nat>{
         switch(tokenMap.get(token)){
             case(null){
-                0;
+                return {
+                    code = 404;
+                    msg = "token not found";
+                    data = 0;
+                };
             };
             case(?ledger){
-                await ledger.icrc1_balance_of({owner=Principal.fromActor(this); subaccount=null});
-            }
+                return {
+                    code = 200;
+                    msg = "";
+                    data = await ledger.icrc1_balance_of({owner=Principal.fromActor(this); subaccount=null});
+                };
+            };
         };
     };
 
-    public shared func cycles(): async Nat{
-        return Cycles.balance();
+    public shared func cycles(): async Resp<Nat>{
+        return {
+            code = 200;
+            msg = "";
+            data = Cycles.balance();
+        };
     };
 
-    public shared({caller}) func withdrawals(token: Text, amount: Nat, reciver: Principal): async Result.Result<Nat, Text>{
+    public shared({caller}) func withdrawals(token: Text, amount: Nat, reciver: Principal): async Resp<Nat>{
         if (not Principal.equal(caller,owner)){
-            return #err("permision denied")
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = 0;
+            };
         };
         switch(tokenMap.get(token)){
             case(null){
-                return #err("unsuport token: " # token);
+                return {
+                    code = 404;
+                    msg = "unsuport token: " # token;
+                    data = 0;
+                };
             };
             case(?ledger){
                 let transferArgs : Ledger.TransferArgs = {
@@ -175,63 +216,123 @@ shared({caller}) actor class UserSpace(
                     // check if the transfer was successfull
                     switch (transferResult) {
                         case (#Err(transferError)) {
-                            return #err("Couldn't transfer funds:\n" # debug_show (transferError));
+                            return {
+                                code = 500;
+                                msg = "Couldn't transfer funds:\n" # debug_show (transferError);
+                                data = 0;
+                            };
                         };
                         case (#Ok(blockIndex)) { 
-                            return #ok blockIndex 
+                            return {
+                                code = 200;
+                                msg = "";
+                                data = blockIndex;
+                            };
                         };
                     };
                 } catch (error : Error) {
                     // catch any errors that might occur during the transfer
-                    return #err("Reject message: " # Error.message(error));
+                    return {
+                        code = 500;
+                        msg = "Reject message: " # Error.message(error);
+                        data = 0;
+                    };
                 };
             };
         };
     };
 
     // cycles 管理 api --------------------------------------
-    // 为指定容器添加Cycles，仅限本人操作
-    public shared({caller}) func addCycles(target: Principal): async(){
-
+    // 为指定容器添加Cycles，仅限本人操作. 返回当前cycles
+    public shared({caller}) func addCycles(target: Principal): async Resp<Nat>{
+        if (not Principal.equal(caller,owner)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = 0;
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            // todo 
+            data = Cycles.balance();
+        };
     };
 
     // 预存cycles到 cycles管理容器，并设置自动充值阈值
-    public shared({caller}) func presaveCycles(presaveAmount: Nat, addAmount: Nat, trigger: Nat): async(){
-
+    public shared({caller}) func presaveCycles(presaveAmount: Nat, addAmount: Nat, trigger: Nat): async Resp<Nat>{
+        // todo 
+        return {
+            code = 200;
+            msg = "";
+            data = 0;
+        }
     };
 
     // 获取预存余额
-    public shared({caller}) func presaveBalance(): async(Nat){
-        return 0;
+    public shared({caller}) func presaveBalance(): async Resp<Nat>{
+        // todo 
+        return {
+            code = 200;
+            msg = "";
+            data = 0;
+        }
     };
 
 
     // a follow b => a.follow b.fans relation: uid -- uid
-    public shared({caller}) func addFollow(uid: Principal): async(){
+    public shared({caller}) func addFollow(uid: Principal): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
-        // add follow relation
-        _follows := List.push(uid, _follows);
         // add target fans relation
         let userActor : UserActor = actor(Principal.toText(uid));
-        await userActor.addFans();
+        let success = await userActor.addFans();
+        if (success){
+            // add follow relation
+            _follows := List.push(uid, _follows);
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = success;
+        };
     };
 
-    public shared({caller}) func unFollow(target: Principal): async(){
+    public shared({caller}) func unFollow(target: Principal): async Resp<Bool> {
         if (not Principal.equal(caller,owner)){
-            return;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
-        // find and del target
-        _follows := List.filter<Principal>(_follows, func uid { not Principal.equal(uid, target) });
         // add target fans relation
         let userActor : UserActor = actor(Principal.toText(target));
-        await userActor.addFans();
+        let success = await userActor.delFans();
+        if (success){
+            // find and del target
+            _follows := List.filter<Principal>(_follows, func uid { not Principal.equal(uid, target) });
+        };
+        return {
+            code = 200;
+            msg = "";
+            data =  success;
+        };
     };
 
-    public shared({caller}) func follows(): async(Result.Result<[User], Text>){
+    public shared({caller}) func follows(): async Resp<[User]> {
         if ( not _showfollow and not Principal.equal(caller, owner) ){
-            return #err("permision denied");
+            return {
+                code = 403;
+                msg = "secret model";
+                data = [];
+            };
         };
         var result: List.List<User> = List.nil();
         for (uid in List.toIter<Principal>(_follows)) {
@@ -239,34 +340,53 @@ shared({caller}) actor class UserSpace(
             let user = await userActor.info();
             result := List.push(user, result);
         };
-        return #ok(List.toArray(result));
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
+        };
     };
 
-    public shared({caller}) func changeFollowDisplay(): async(Bool){
+    public shared({caller}) func changeFollowDisplay(): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return false;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
         _showfollow := not _showfollow;
-        return _showfollow;
+        return {
+            code = 200;
+            msg = "";
+            data = _showfollow;
+        };
     };
 
-    public shared({caller}) func addFans(): async (){
+    public shared({caller}) func addFans(): async Bool{
+        // call by other user canister 
         if (Principal.equal(caller,owner)){
-            return;
+            return false;
         };
         _fans := List.push(caller, _fans);
+        return true;
     };
 
-    public shared({caller}) func delFans(): async (){
+    public shared({caller}) func delFans(): async Bool{
         if (Principal.equal(caller,owner)){
-            return;
+            return false;
         };
         _fans := List.filter<Principal>(_fans, func uid { not Principal.equal(uid, caller) });
+        return true;
     };
 
-    public shared({caller}) func fans(): async(Result.Result<[User], Text>){
+    public shared({caller}) func fans(): async Resp<[User]> {
         if ( not _showfans and not Principal.equal(caller, owner) ){
-            return #err("permision denied");
+            return {
+                code = 403;
+                msg = "secret model";
+                data = [];
+            };
         };
         var result: List.List<User> = List.nil();
         for (uid in List.toIter<Principal>(_fans)) {
@@ -274,71 +394,144 @@ shared({caller}) actor class UserSpace(
             let user = await userActor.info();
             result := List.push(user, result);
         };
-        return #ok(List.toArray(result));
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
+        };
     };
 
-    public shared({caller}) func changeFansDisplay(): async(Bool){
+    public shared({caller}) func changeFansDisplay(): async Resp<Bool> {
         if (not Principal.equal(caller,owner)){
-            return false;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
         _showfans := not _showfans;
-        return _showfans;
+        return {
+            code = 200;
+            msg = "";
+            data = _showfans;
+        };
     };
 
     // 收藏、取消收藏、收藏列表
-    public shared({caller}) func collection(wid: Principal, wName: Text, index: Nat, name: Text): async(){
+    public shared({caller}) func collection(wid: Principal, wName: Text, index: Nat, name: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
         let waitCollection : Collection = {wid=wid;wName=wName;index=index;name=name};
         _collections := List.push(waitCollection, _collections);
+        return {
+            code = 200;
+            msg = "";
+            data = true;
+        };
     };
 
-    public shared({caller}) func unCollection(wid: Principal, index:Nat): async(){
+    public shared({caller}) func unCollection(wid: Principal, index:Nat): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
         // find and del target
         _collections := List.filter<Collection>(_collections, func c { not Principal.equal(c.wid,wid) and c.index != index });
-    };
-
-    public shared({caller}) func collections(): async(Result.Result<[Collection], Text>){
-        if ( not _showcollection and not Principal.equal(caller, owner) ){
-            return #err("permision denied");
+        return {
+            code = 200;
+            msg = "";
+            data = true;
         };
-        return #ok(List.toArray(_collections));
     };
 
-    public shared({caller}) func changeCollectionDisplay(): async(Bool){
+    public shared({caller}) func collections(): async Resp<[Collection]>{
+        if ( not _showcollection and not Principal.equal(caller, owner) ){
+            return {
+                code = 403;
+                msg = "secret model";
+                data = [];
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(_collections);
+        };
+    };
+
+    public shared({caller}) func changeCollectionDisplay(): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return false;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
         _showcollection := not _showcollection;
-        return _showcollection;
+        return {
+            code = 200;
+            msg = "";
+            data = _showcollection;
+        };
     };
 
     // 订阅列表、添加、删除订阅。关联标识为目标workspace的 priciaplid
-    public shared({caller}) func subscribe(wid: Principal): async(){
+    public shared({caller}) func subscribe(wid: Principal): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
-        _subscribes := List.push(wid, _subscribes);
         let workActor : WorkActor = actor(Principal.toText(wid)); 
-        await workActor.subscribe();
+        let success = await workActor.subscribe();
+        if (success){
+            _subscribes := List.push(wid, _subscribes);
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = success;
+        };
     };
 
-    public shared({caller}) func unsubscribe(wid: Principal): async(){
+    public shared({caller}) func unsubscribe(wid: Principal): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
-        _subscribes := List.filter<Principal>(_subscribes, func id { not Principal.equal(id, wid) });
         let workActor : WorkActor = actor(Principal.toText(wid)); 
-        await workActor.unSubscribe();
+        let success = await workActor.unSubscribe();
+        if (success) {
+            _subscribes := List.filter<Principal>(_subscribes, func id { not Principal.equal(id, wid) });
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = success;
+        };
+
     };
 
-    public shared({caller}) func subscribes(): async(Result.Result<[WorkSpaceInfo], Text>){
+    public shared({caller}) func subscribes(): async Resp<[WorkSpaceInfo]> {
         if ( not _showsubscribe and not Principal.equal(caller, owner) ){
-            return #err("permision denied");
+            return {
+                code = 403;
+                msg = "secret model";
+                data = [];
+            };
         };
         var result: List.List<WorkSpaceInfo> = List.nil();
         for (wid in List.toIter<Principal>(_subscribes)) {
@@ -346,21 +539,37 @@ shared({caller}) actor class UserSpace(
             let workspaceinfo = await workActor.info();
             result := List.push(workspaceinfo, result);
         };
-        return #ok(List.toArray(result));
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
+        };
     };
 
-    public shared({caller}) func changeSubscribeDisplay(): async(Bool){
+    public shared({caller}) func changeSubscribeDisplay(): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return false;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
         _showsubscribe := not _showsubscribe;
-        return _showsubscribe;
+        return {
+            code = 200;
+            msg = "";
+            data = _showsubscribe;
+        };
     };
 
     // 工作空间列表、创建工作空间、转让工作空间、退出工作空间、加入工作空间
-    public shared({caller}) func workspaces(): async([MyWorkspaceResp]){
+    public shared({caller}) func workspaces(): async(Resp<[MyWorkspaceResp]>){
         if (not Principal.equal(caller,owner)){
-            return [];
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
         };
         var result : List.List<MyWorkspaceResp> = List.nil();
         for (work in Map.vals(_workspaces)){
@@ -375,27 +584,40 @@ shared({caller}) actor class UserSpace(
             };
             result := List.push(workResp, result);
         };
-        return List.toArray(result);
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
+        };
     };
 
-    public shared({caller}) func createWorkNs(name: Text, desc: Text, avatar: Text): async(Bool){
+    public shared({caller}) func createWorkNs(name: Text, desc: Text, avatar: Text): async(Resp<Bool>){
         if (not Principal.equal(caller,owner)){
-            return false;
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
         Cycles.add<system>(cyclesPerNamespace);
         let ctime = Time.now();
         let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), name, avatar, desc,ctime);
         let myworkspace : MyWorkspace = {wid=Principal.fromActor(workspaceActor);owner=true;start=false};
         Map.set(_workspaces, phash, myworkspace.wid, myworkspace);
-        return true;
+        return {
+            code =200;
+            msg = "";
+            data = true;
+        };
     };
 
+    // 加入工作空间，被动
     public shared({caller}) func addWorkNs(): async(Bool){
         let contains = Map.has(_workspaces, phash, caller);
         if (contains){
             return true;
         };
-        // 判断是否实现 workspace方法或者非canister
+        // 判断是否实现 workspace方法或者 是否是canister
         let workActor: WorkActor = actor(Principal.toText(caller));
         let workInfo :WorkSpaceInfo = await workActor.info();
 
@@ -409,58 +631,91 @@ shared({caller}) actor class UserSpace(
     };
 
     // 退出工作空间，被动
-    public shared({caller}) func leaveWorkNs(): async(){
+    public shared({caller}) func leaveWorkNs(): async(Bool){
         let contains = Map.has(_workspaces, phash, caller);
         if (not contains){
-            return;
+            return true;
         };
         removeRecentData(caller);
         Map.delete(_workspaces, phash, caller);
+        return true;
     };
 
     // 退出工作空间 主动
-    public shared({caller}) func quitWorkNs(wid: Principal): async Result.Result<Bool, Text>{
+    public shared({caller}) func quitWorkNs(wid: Principal): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return #err("permision denied");
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
         // 退出指定工作空间: 删除工作空间映射，通知指定工作空间
         switch(Map.get(_workspaces, phash, wid)){
             case(null){
-                return #err("can not find target workspace");
+                return {
+                    code = 404;
+                    msg ="can not find target workspace";
+                    data = false;
+                };
             };
             case(?wns){
-                Map.delete(_workspaces, phash, wid);
-                removeRecentData(wid);
                 let workActor: WorkActor = actor(Principal.toText(wid));
-                await workActor.quit();
-                return #ok(true);
+                let success = await workActor.quit();
+                if (success){
+                    Map.delete(_workspaces, phash, wid);
+                    removeRecentData(wid);
+                };
+                return {
+                    code = 403;
+                    msg ="can not find target workspace";
+                    data = false;
+                };
             };
         };
     };
 
     // 转移工作空间owner身份
-    public shared({caller}) func transferWorkOwner(wid: Principal, target: Principal): async Result.Result<Bool, Text>{
+    public shared({caller}) func transferWorkOwner(wid: Principal, target: Principal): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
-            return #err("permision denied");
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
         };
 
         switch(Map.get(_workspaces, phash, wid)){
             case(null){
-                return #err("can not find target workspace");
+                return {
+                    code = 404;
+                    msg = "can not find target workspace";
+                    data = false;
+                };
             };
             case(?wns){
                 if ( not wns.owner ){
-                    return #err("you are not this workspace owner");
+                    return {
+                        code = 404;
+                        msg = "you are not this workspace owner";
+                        data = false;
+                    };
                 };
-                let nWns : MyWorkspace = {
-                    wid=wns.wid;
-                    owner=false;
-                    start=wns.start;
-                };
-                Map.set(_workspaces, phash, wid, nWns);
                 let workActor: WorkActor = actor(Principal.toText(target));
-                await workActor.transfer(target);
-                return #ok(true);
+                let success = await workActor.transfer(target);
+                if (success){
+                    let nWns : MyWorkspace = {
+                        wid=wns.wid;
+                        owner=false;
+                        start=wns.start;
+                    };
+                    Map.set(_workspaces, phash, wid, nWns);
+                };
+                return {
+                    code = 200;
+                    msg = "";
+                    data = success;
+                };
             };
         };
     };
@@ -487,9 +742,13 @@ shared({caller}) actor class UserSpace(
     };
 
     // 最近工作记录管理
-    public shared({caller}) func addRecentWork(wid:Principal, name: Text, isowner: Bool): async([RecentWork]){
+    public shared({caller}) func addRecentWork(wid:Principal, name: Text, isowner: Bool): async(Resp<[RecentWork]>){
         if (not Principal.equal(caller,owner)){
-            return [];
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
         };
         let recent :RecentWork = {wid=wid;name=name;owner=isowner};
         _recentWorks := List.push(recent, _recentWorks);
@@ -497,19 +756,35 @@ shared({caller}) actor class UserSpace(
             let sub: Nat = List.size(_recentWorks) - _RECENT_SIZE;
             _recentWorks := List.drop<RecentWork>(_recentWorks, sub);
         };
-        return List.toArray(_recentWorks);
-    };
-
-    public shared({caller}) func recentWorks(): async([RecentWork]){
-        if (not Principal.equal(caller,owner)){
-            return [];
+        return { 
+            code = 200;
+            msg = "";
+            data = List.toArray(_recentWorks);
         };
-        return List.toArray(_recentWorks);
     };
 
-    public shared({caller}) func addRecentEdit(wid: Principal, wname: Text, cid: Nat, cname: Text): async([RecentEdit]){
+    public shared({caller}) func recentWorks(): async(Resp<[RecentWork]>){
         if (not Principal.equal(caller,owner)){
-            return [];
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
+        };
+        return { 
+            code = 200;
+            msg = "";
+            data = List.toArray(_recentWorks);
+        };
+    };
+
+    public shared({caller}) func addRecentEdit(wid: Principal, wname: Text, cid: Nat, cname: Text): async(Resp<[RecentEdit]>){
+        if (not Principal.equal(caller,owner)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
         };
         let recent : RecentEdit = {wid=wid;wname=wname;cid=cid;cname=cname;etime=Time.now()};
         _recentEdits := List.push(recent, _recentEdits);
@@ -517,14 +792,26 @@ shared({caller}) actor class UserSpace(
             let sub: Nat = List.size(_recentEdits) - _RECENT_SIZE;
             _recentEdits := List.drop<RecentEdit>(_recentEdits, sub);
         };
-        return List.toArray(_recentEdits);
+        return { 
+            code = 200;
+            msg = "";
+            data = List.toArray(_recentEdits);
+        };
     };
 
-    public shared({caller}) func recentEdits(): async([RecentEdit]){
+    public shared({caller}) func recentEdits(): async(Resp<[RecentEdit]>){
         if (not Principal.equal(caller,owner)){
-            return [];
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
         };
-        return List.toArray(_recentEdits);
+        return { 
+            code = 200;
+            msg = "";
+            data = List.toArray(_recentEdits);
+        };
     };
 
     // 退出工作空间后，需要删除对应的最近工作记录
