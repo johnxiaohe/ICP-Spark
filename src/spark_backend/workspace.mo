@@ -17,7 +17,7 @@ import types "types";
 // Prim.rts_heap_size() -> Nat : wasm(canister) heap size at present
 
 shared({caller}) actor class WorkSpace(
-    _owner: Principal,
+    _creater: Principal,
     _name: Text, 
     _avatar: Text, 
     _desc: Text, 
@@ -36,7 +36,7 @@ shared({caller}) actor class WorkSpace(
     type LedgerActor = Ledger.Self;
     type UserActor = types.UserActor;
 
-    private stable var owner : Principal = _owner; // user canister id
+    private stable var super : Principal = _creater; // user canister id
     private stable var name : Text = _name;
     private stable var avatar : Text = _avatar;
     private stable var desc : Text = _desc;
@@ -59,7 +59,7 @@ shared({caller}) actor class WorkSpace(
     public shared func info(): async (WorkSpaceInfo){
         return {
             id = Principal.fromActor(this);
-            owner = owner;
+            super = super;
             name = name;
             avatar = avatar;
             desc = desc;

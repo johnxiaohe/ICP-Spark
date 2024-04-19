@@ -21,8 +21,8 @@ import WorkSpace "workspace";
 
 // 用户的canisterid是唯一标识符，作为主键和对外关联关系字段
 shared({caller}) actor class UserSpace(
+    _name: Text,
     _owner: Principal,
-    _name: Text, 
     _avatar: Text, 
     _desc: Text, 
     _ctime: Time.Time,
@@ -230,7 +230,7 @@ shared({caller}) actor class UserSpace(
     };
 
     public shared({caller}) func follows(): async(Result.Result<[User], Text>){
-        if ( not _showfollow and not Principal.equal(caller, _owner) ){
+        if ( not _showfollow and not Principal.equal(caller, owner) ){
             return #err("permision denied");
         };
         var result: List.List<User> = List.nil();
@@ -265,7 +265,7 @@ shared({caller}) actor class UserSpace(
     };
 
     public shared({caller}) func fans(): async(Result.Result<[User], Text>){
-        if ( not _showfans and not Principal.equal(caller, _owner) ){
+        if ( not _showfans and not Principal.equal(caller, owner) ){
             return #err("permision denied");
         };
         var result: List.List<User> = List.nil();
@@ -303,7 +303,7 @@ shared({caller}) actor class UserSpace(
     };
 
     public shared({caller}) func collections(): async(Result.Result<[Collection], Text>){
-        if ( not _showcollection and not Principal.equal(caller, _owner) ){
+        if ( not _showcollection and not Principal.equal(caller, owner) ){
             return #err("permision denied");
         };
         return #ok(List.toArray(_collections));
@@ -337,7 +337,7 @@ shared({caller}) actor class UserSpace(
     };
 
     public shared({caller}) func subscribes(): async(Result.Result<[WorkSpaceInfo], Text>){
-        if ( not _showsubscribe and not Principal.equal(caller, _owner) ){
+        if ( not _showsubscribe and not Principal.equal(caller, owner) ){
             return #err("permision denied");
         };
         var result: List.List<WorkSpaceInfo> = List.nil();

@@ -1,22 +1,21 @@
 import Text "mo:base/Text";
 import List "mo:base/List";
 import Time "mo:base/Time";
-import Result "mo:base/Result";
 import Cycles "mo:base/ExperimentalCycles";
 import Principal "mo:base/Principal";
-import Bool "mo:base/Bool";
+import Debug "mo:base/Debug";
 
 import Map "mo:map/Map";
 import { phash } "mo:map/Map";
 
 import types "types";
-import UserCs "user";
-import User "user";
+import userspace "user";
 
-shared({caller}) actor class(){
+actor{
 
   type Resp<T> = types.Resp<T>;
   type User = types.User;
+  type UserActor = userspace.UserSpace;
 
   // user pid --- user info map
   let userMap = Map.new<Principal,User>();
@@ -32,15 +31,19 @@ shared({caller}) actor class(){
   system func postupgrade() {};
 
   // 录入个人信息
-  public shared({caller}) func initUserInfo(name: Text, avatar: Text, desc: Text): async(){
+  public shared({caller}) func initUserInfo(name: Text, avatar: Text, desc: Text): async Resp<User>{
     let contains = Map.has(userMap, phash, caller);
     if (contains){
-      return;
+      return {
+          code=400;
+          msg="user exist";
+          data={id=caller;avatar="";desc="";name="";pid=caller;ctime=0};
+        };
     };
-
     Cycles.add<system>(_cyclesPerUser);
     let ctime = Time.now();
-    let userActor = await UserCs.UserSpace(caller, name, avatar, desc,ctime);
+    Debug.print(debug_show(ctime));
+    let userActor = await userspace.UserSpace(name, caller, avatar, desc, ctime);
     let userActorId = Principal.fromActor(userActor);
     _ranking := List.push(caller, _ranking);
     let user:User = {
@@ -53,6 +56,11 @@ shared({caller}) actor class(){
     };
     Map.set(userMap, phash, caller, user);
     Map.set(userIdMap, phash, userActorId,caller);
+    return {
+      code=200;
+      msg="user exist";
+      data=user;
+    };
   };
 
   // user canister update callback
@@ -80,27 +88,27 @@ shared({caller}) actor class(){
   };
 
   // 查询个人基础信息
-  public shared({caller}) func queryUserInfo(): async Resp<?User> {
+  public shared({caller}) func queryUserInfo(): async Resp<User> {
     switch(Map.get(userMap, phash, caller)){
       case(null){
         return {
           code=404;
           msg="user not registed";
-          data=null;
+          data={id=caller;avatar="";desc="";name="";pid=caller;ctime=0};
         };
       };
       case(?user){
         return {
           code=200;
-          msg="user not registed";
-          data=?user;
+          msg="";
+          data=user;
         };
       };
     };
   };
 
   // 用户名称模糊查询
-  public shared func queryByName(keyword: Text): async([User]){
+  public shared func queryByName(keyword: Text): async(Resp<[User]>){
     var result : List.List<User> = List.nil();
     for (u in Map.vals(userMap)){
       let name = u.name;
@@ -108,23 +116,61 @@ shared({caller}) actor class(){
         result := List.push(u, result);
       };
     };
-    return List.toArray(result);
+    return {
+      code=200;
+      msg="";
+      data=List.toArray(result);
+    };
   };
 
   // 用户canisterid查询
-  public shared func queryById(id: Principal): async(?User){
+  public shared({caller}) func queryById(id: Principal): async(Resp<User>){
     switch(Map.get(userIdMap, phash, id)){
       case(null){
-        return null;
+        return {
+          code=404;
+          msg="user not exist";
+          data={id=caller;avatar="";desc="";name="";pid=caller;ctime=0};
+        };
       };
       case(?pid){
-        return Map.get(userMap, phash, pid);
+        switch(Map.get(userMap, phash, pid)){
+          case(null){
+            return {
+              code=404;
+              msg="user not exist";
+              data={id=caller;avatar="";desc="";name="";pid=caller;ctime=0};
+            };
+          };
+          case(?user){
+            return {
+              code=200;
+              msg="";
+              data=user;
+            };
+          };
+        };
       };
     };
   };
 
   // 用户principalid查询
-  public shared func queryByPid(pid: Principal): async(?User){
-    Map.get(userMap, phash, pid);
+  public shared({caller}) func queryByPid(pid: Principal): async(Resp<User>){
+    switch(Map.get(userMap, phash, pid)){
+      case(null){
+        return {
+          code=404;
+          msg="user not exist";
+          data={id=caller;avatar="";desc="";name="";pid=caller;ctime=0};
+        };
+      };
+      case(?user){
+        return {
+          code=200;
+          msg="";
+          data=user;
+        };
+      };
+    };
   };
 }

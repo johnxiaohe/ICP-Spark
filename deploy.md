@@ -28,7 +28,7 @@ dfx deps init --argument '(null)' internet_identity
 dfx deps deploy internet_identity
 
 #### 启动本地Leger账本容器罐
-dfx deploy icp-ledger --argument "(variant {
+dfx deploy --specified-id ryjl3-tyaaa-aaaaa-aaaba-cai icp-ledger --argument "(variant {
     Init = record {
       minting_account = \"$(dfx ledger --identity anonymous account-id)\";
       initial_values = vec {
@@ -49,6 +49,27 @@ dfx deploy icp-ledger --argument "(variant {
   })
 "
 
+dfx deploy --specified-id um5iw-rqaaa-aaaaq-qaaba-cai cycles-ledger --argument "(variant {
+    Init = record {
+      minting_account = \"$(dfx ledger --identity anonymous account-id)\";
+      initial_values = vec {
+        record {
+          \"$(dfx ledger --identity default account-id)\";
+          record {
+            e8s = 10_000_000_000 : nat64;
+          };
+        };
+      };
+      send_whitelist = vec {};
+      transfer_fee = opt record {
+        e8s = 10_000 : nat64;
+      };
+      token_symbol = opt \"cycles\";
+      token_name = opt \"local-cycles\";
+    }
+  })
+"
+
 #### 查看钱包余额
 dfx canister call icp-ledger account_balance '(record { account = '$(python3 -c 'print("vec{" + ";".join([str(b) for b in bytes.fromhex("'$(dfx ledger --identity default account-id)'")]) + "}")')'})'
 
@@ -65,7 +86,7 @@ dfx canister call icp-ledger icrc1_transfer '(record {amount=1000000; to=record{
 
 
 #### 启动业务后端容器
-dfx deploy spark_backend
+dfx deploy spark_backend --specified-id bd3sg-teaaa-aaaaa-qaaba-cai
 
 
 

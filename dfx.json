@@ -33,6 +33,11 @@
       "type": "custom",
       "candid": "https://raw.githubusercontent.com/dfinity/ic/ff10ea1dba07c0f66c66536a46a97146cf260e90/rs/rosetta-api/icp_ledger/ledger.did",
       "wasm": "https://download.dfinity.systems/ic/ff10ea1dba07c0f66c66536a46a97146cf260e90/canisters/ledger-canister.wasm.gz"
+    },
+    "cycles-ledger": {
+      "type": "custom",
+      "candid": "https://raw.githubusercontent.com/dfinity/ic/ff10ea1dba07c0f66c66536a46a97146cf260e90/rs/rosetta-api/icp_ledger/ledger.did",
+      "wasm": "https://download.dfinity.systems/ic/ff10ea1dba07c0f66c66536a46a97146cf260e90/canisters/ledger-canister.wasm.gz"
     }
   },
   "defaults": {
