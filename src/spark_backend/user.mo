@@ -338,7 +338,7 @@ shared({caller}) actor class UserSpace(
         for (uid in List.toIter<Principal>(_follows)) {
             let userActor : UserActor = actor(Principal.toText(uid));
             let user = await userActor.info();
-            result := List.push(user, result);
+            result := List.push(user.data, result);
         };
         return {
             code = 200;
@@ -392,7 +392,7 @@ shared({caller}) actor class UserSpace(
         for (uid in List.toIter<Principal>(_fans)) {
             let userActor : UserActor = actor(Principal.toText(uid));
             let user = await userActor.info();
-            result := List.push(user, result);
+            result := List.push(user.data, result);
         };
         return {
             code = 200;
@@ -591,7 +591,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared({caller}) func createWorkNs(name: Text, desc: Text, avatar: Text): async(Resp<Bool>){
+    public shared({caller}) func createWorkNs(name: Text, desc: Text, avatar: Text, model: types.ShowModel, price: Nat): async(Resp<Bool>){
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -601,7 +601,11 @@ shared({caller}) actor class UserSpace(
         };
         Cycles.add<system>(cyclesPerNamespace);
         let ctime = Time.now();
-        let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), name, avatar, desc,ctime);
+        var payPrice = price;
+        if (model == #Public or model == #Subscribe){
+            payPrice := 0;
+        };
+        let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), owner, name, avatar, desc,ctime, model, payPrice);
         let myworkspace : MyWorkspace = {wid=Principal.fromActor(workspaceActor);owner=true;start=false};
         Map.set(_workspaces, phash, myworkspace.wid, myworkspace);
         return {
@@ -660,6 +664,13 @@ shared({caller}) actor class UserSpace(
                 };
             };
             case(?wns){
+                if (wns.owner){
+                    return {
+                        code = 500;
+                        msg = "Please transfer ownership";
+                        data = false;
+                    }
+                };
                 let workActor: WorkActor = actor(Principal.toText(wid));
                 let success = await workActor.quit();
                 if (success){
@@ -721,14 +732,14 @@ shared({caller}) actor class UserSpace(
     };
 
     // 接收他人转移过来的工作空间 由workspace canister调用
-    public shared({caller}) func reciveWns(): async Result.Result<Bool, Text>{
+    public shared({caller}) func reciveWns(): async Bool{
         switch(Map.get(_workspaces, phash, caller)){
             case(null){
-                return #err("can not find target workspace");
+                return false;
             };
             case(?wns){
                 if ( wns.owner ){
-                    return #err("still owner");
+                    return false;
                 };
                 let nWns : MyWorkspace = {
                     wid=wns.wid;
@@ -736,7 +747,7 @@ shared({caller}) actor class UserSpace(
                     start=wns.start;
                 };
                 Map.set(_workspaces, phash, wns.wid, nWns);
-                return #ok(true);
+                return true;
             };
         };
     };

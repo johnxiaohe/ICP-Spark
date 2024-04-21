@@ -63,15 +63,6 @@ module{
         start: Bool;
     };
 
-    public type WorkSpaceInfo = {
-        id: Principal;
-        super: Principal;
-        name: Text;
-        avatar: Text;
-        desc: Text;
-        ctime: Time.Time;
-    };
-
     public type RecentWork = {
         wid: Principal;
         name: Text;
@@ -87,6 +78,17 @@ module{
     };
 
     // work api types -----------------------------------
+    public type WorkSpaceInfo = {
+        id: Principal;
+        super: Principal;
+        name: Text;
+        avatar: Text;
+        desc: Text;
+        ctime: Time.Time;
+        model: ShowModel;
+        price: Nat;
+    };
+
     public type Content = {
         id: Nat;
         pid: Nat;
@@ -96,17 +98,23 @@ module{
         coAuthors: List.List<Principal>;
     };
 
+    public type ShowModel = {
+        #Public;
+        #Subscribe;
+        #Payment;
+    };
+
     // actors api
     public type Spark = actor {
         userUpdateCall : shared (owner: Principal, name: Text, avatar: Text, desc: Text) -> async ();
     };
 
     public type UserActor = actor {
-        info : shared() -> async(User);
+        info : shared() -> async(Resp<User>);
         detail : shared() -> async (UserDetail);
         addFans : shared () -> async (Bool);
         delFans: shared() -> async(Bool);
-        reciveWns: shared() -> async Result.Result<Bool, Text>;
+        reciveWns: shared() -> async (Bool);
         addWorkNs: shared() -> async(Bool);
         leaveWorkNs: shared() -> async(Bool);
     };
