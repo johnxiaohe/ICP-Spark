@@ -108,11 +108,14 @@ shared({caller}) actor class WorkSpace(
 
     // 是否是成员
     private func isMember(pid: Principal): Bool{
-        return Principal.equal(pid, superPid) or Map.has(adminMap, phash, pid) or Map.has(memberMap, phash, pid);
+        return Principal.equal(pid, superPid) or Map.has(adminMap, phash, pid);
+    };
+    private func isMemberByUid(uid: Principal): Bool{
+        Map.has(memberIdMap, phash, uid);
     };
 
-    private func isSuper(uid: Principal): Bool{
-        return Principal.equal(uid, superUid)
+    private func isSuper(id: Principal): Bool{
+        return Principal.equal(id, superUid) or Principal.equal(id, superPid);
     };
 
     private func isSubscriberByPid(pid: Principal): Bool{
@@ -171,6 +174,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
+    // 获取当前用户在空间中的角色
     public shared({caller}) func role(): async Resp<Text>{
         if (Principal.equal(caller, superPid)){
             return {
@@ -200,39 +204,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func cycles(): async Nat{
-        return Cycles.balance();
-    };
-
-    public shared func balance(token: Text): async Resp<Nat>{
-        switch(tokenMap.get(token)){
-            case(null){
-                return {
-                    code = 404;
-                    msg = "token not found";
-                    data = 0;
-                };
-            };
-            case(?ledger){
-                return {
-                    code = 200;
-                    msg = "";
-                    data = await ledger.icrc1_balance_of({owner=Principal.fromActor(this); subaccount=null});
-                };
-            };
-        };
-    };
-
-    // 由用户调用的 空间统计信息管理方法 -------------------------------------------------
-    public shared func income(): async Resp<Nat> {
-        return {
-            code = 200;
-            msg = "";
-            data = 0;
-        };
-    };
-
-    // 由用户canister调用的  空间退出、空间转让
+    // 由管理者canister调用的  空间退出、空间转让 ---------------------------
     public shared({caller}) func quit(): async(Bool){
         if (isSuper(caller)){
             return false;
@@ -275,7 +247,155 @@ shared({caller}) actor class WorkSpace(
         return false;
     };
 
-    // 由消费者canister调用的  订阅、取消订阅
+    public shared({caller}) func addMember(uid: Principal, role: Text): async(Resp<Bool>){
+        if(isMemberByUid(uid)){
+            return {
+                code = 400;
+                msg = "user member exists";
+                data = false;
+            };
+        };
+        if (not isAdmin(caller)){
+            return {
+                code = 403;
+                msg = "permission denied";
+                data = false;
+            };
+        };
+        let userActor: UserActor = actor(Principal.toText(uid));
+        let userResp = await userActor.info();
+        let pid = userResp.data.pid;
+        Map.set(memberIdMap, phash, uid, pid);
+        if (role == "admin"){
+            Map.set(adminMap, phash, pid, uid);
+        }else if (role == "member"){
+            Map.set(memberMap, phash, pid, uid);
+        }else{
+            return {
+                code = 400;
+                msg = "role not exist";
+                data = false;
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = true;
+        };
+    };
+
+    public shared({caller}) func delMember(uid: Principal): async(Resp<Bool>){
+        if(not isAdmin(caller)){
+            return {
+                code = 403;
+                msg = "permission denied";
+                data = false;
+            };
+        };
+        if (isSuper(uid)){
+            return {
+                code = 403;
+                msg = "super admin can not del";
+                data = false;
+            };
+        };
+        if(not isMemberByUid(uid)){
+            return {
+                code = 404;
+                msg = "member not found";
+                data = false;
+            };
+        };
+        switch(Map.get(memberIdMap, phash, uid)){
+            case(null){
+                return {
+                    code = 400;
+                    msg = "user not found";
+                    data = false;
+                };
+            };
+            case(?pid){
+                // 仅超管可以删管理员
+                if(isAdmin(pid) and not isSuper(caller)){
+                    return {
+                        code = 403;
+                        msg = "only super admin can do that";
+                        data = false;
+                    };
+                };
+                Map.delete(memberIdMap, phash, uid);
+                Map.delete(adminMap, phash, pid);
+                Map.delete(memberMap, phash, pid);
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+        };
+    };
+
+    public shared({caller}) func updatePermission(uid: Principal, role: Text): async(Resp<Bool>){
+        if(not isAdmin(caller)){
+            return {
+                code = 403;
+                msg = "permission denied";
+                data = false;
+            };
+        };
+        if(isSuper(uid)){
+            return {
+                code = 403;
+                msg = "super admin can not change";
+                data = false;
+            };
+        };
+        if(not isMemberByUid(uid)){
+            return {
+                code = 404;
+                msg = "user not found";
+                data = false;
+            };
+        };
+        switch(Map.get(memberIdMap, phash, uid)){
+            case(null){
+                return {
+                    code = 400;
+                    msg = "user not found";
+                    data = false;
+                };
+            };
+            case(?pid){
+                Map.delete(adminMap, phash, pid);
+                Map.delete(memberMap, phash, pid);
+                if(role == "admin"){
+                    if(not isSuper(caller)){
+                        return {
+                            code = 403;
+                            msg = "only super admin change admin role";
+                            data = false;
+                        };
+                    };
+                    Map.set(adminMap, phash, pid,uid);
+                }else if(role == "member"){
+                    Map.set(memberMap, phash, pid,uid);
+                }else{
+                    return {
+                        code = 400;
+                        msg = "role not exist";
+                        data = false;
+                    };
+                };
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+        };
+    };
+
+    // 由消费者canister调用的  订阅、取消订阅 ----------------------------
     public shared({caller}) func subscribe(): async (Bool){
         if (isSubscriberByUid(caller)){
             return true;
@@ -297,7 +417,7 @@ shared({caller}) actor class WorkSpace(
         return true;
     };
 
-    // 由消费者调用  查看是否有订阅
+    // 由消费者调用  查看是否有订阅 -------------------------------------
     public shared({caller}) func haveSubscribe(): async (Resp<Bool>){
         if (isSubscriberByPid(caller)){
             return {
@@ -313,7 +433,6 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-
     // 由用户直接调用的  文章信息管理方法
     public shared({caller}) func addContent(name: Text){
 
@@ -327,7 +446,43 @@ shared({caller}) actor class WorkSpace(
 
     };
 
+    public shared({caller}) func getContent(id: Nat){
+        
+    };
+
     // 由用户直接调用的 统计信息 ---------------------------------
+    // 由用户调用的 空间统计信息管理方法 -------------------------------------------------
+    public shared func income(): async Resp<Nat> {
+        return {
+            code = 200;
+            msg = "";
+            data = 0;
+        };
+    };
+
+    public shared func cycles(): async Nat{
+        return Cycles.balance();
+    };
+
+    public shared func balance(token: Text): async Resp<Nat>{
+        switch(tokenMap.get(token)){
+            case(null){
+                return {
+                    code = 404;
+                    msg = "token not found";
+                    data = 0;
+                };
+            };
+            case(?ledger){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = await ledger.icrc1_balance_of({owner=Principal.fromActor(this); subaccount=null});
+                };
+            };
+        };
+    };
+
 
     // 由用户直接调用的  空间日志 --------------------------------
 }
