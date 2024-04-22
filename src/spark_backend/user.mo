@@ -39,6 +39,7 @@ shared({caller}) actor class UserSpace(
     type Resp<T> = types.Resp<T>;
 
     type WorkSpaceInfo = types.WorkSpaceInfo;
+    type ApproveArgs = Ledger.ApproveArgs;
 
     // 第三方api actor类型声明
     type LedgerActor = Ledger.Self;
@@ -492,18 +493,51 @@ shared({caller}) actor class UserSpace(
                 data = false;
             };
         };
-        let workActor : WorkActor = actor(Principal.toText(wid)); 
-        let success = await workActor.subscribe();
-        if (success){
-            _subscribes := List.push(wid, _subscribes);
+        let workActor : WorkActor = actor(Principal.toText(wid));
+        let workResp = await workActor.info();
+        let workInfo = workResp.data;
+        if(workInfo.model == #Private){
+            return {
+                code = 403;
+                msg = "private work space";
+                data = false;
+            };
         };
-        return {
-            code = 200;
-            msg = "";
-            data = success;
+        if(workInfo.model == #Payment){
+            // 授权转账；检查余额
+            let args : ApproveArgs = {
+                fee = null;
+                memo = null;
+                from_subaccount = null;
+                created_at_time = null;
+                expected_allowance = null;
+                expires_at =null;
+                amount = workInfo.price + 1;
+                spender = {owner=caller; subaccount=null};
+            };
+            let transferResult = await icpLedger.icrc2_approve(args);
+            // check if the transfer was successfull
+            switch (transferResult) {
+                case (#Err(transferError)) {
+                    return {
+                        code = 500;
+                        msg = "Couldn't transfer funds:\n" # debug_show (transferError);
+                        data = false;
+                    };
+                };
+                case (#Ok(blockIndex)) {
+                };
+            };
         };
+        let resp = await workActor.subscribe();
+        if (resp.code != 200){
+            return resp;
+        };
+        _subscribes := List.push(wid, _subscribes);
+        return resp;
     };
 
+    // 主动取消订阅
     public shared({caller}) func unsubscribe(wid: Principal): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
@@ -513,16 +547,17 @@ shared({caller}) actor class UserSpace(
             };
         };
         let workActor : WorkActor = actor(Principal.toText(wid)); 
-        let success = await workActor.unSubscribe();
-        if (success) {
-            _subscribes := List.filter<Principal>(_subscribes, func id { not Principal.equal(id, wid) });
+        let resp = await workActor.unSubscribe();
+        if (resp.code != 200){
+            return resp;
         };
-        return {
-            code = 200;
-            msg = "";
-            data = success;
-        };
+        _subscribes := List.filter<Principal>(_subscribes, func id { not Principal.equal(id, wid) });
+        return resp;
+    };
 
+    // 被动取消订阅
+    public shared({caller}) func quitSubscribe(): async(){
+       _subscribes := List.filter<Principal>(_subscribes, func wid {Principal.equal(wid, caller)});
     };
 
     public shared({caller}) func subscribes(): async Resp<[WorkSpaceInfo]> {
@@ -537,7 +572,7 @@ shared({caller}) actor class UserSpace(
         for (wid in List.toIter<Principal>(_subscribes)) {
             let workActor : WorkActor = actor(Principal.toText(wid)); 
             let workspaceinfo = await workActor.info();
-            result := List.push(workspaceinfo, result);
+            result := List.push(workspaceinfo.data, result);
         };
         return {
             code = 200;
@@ -574,15 +609,16 @@ shared({caller}) actor class UserSpace(
         var result : List.List<MyWorkspaceResp> = List.nil();
         for (work in Map.vals(_workspaces)){
             let workActor: WorkActor = actor(Principal.toText(work.wid));
-            let workInfo :WorkSpaceInfo = await workActor.info();
-            let workResp: MyWorkspaceResp = {
+            let workResp = await workActor.info();
+            let workInfo : WorkSpaceInfo= workResp.data;
+            let mywork: MyWorkspaceResp = {
                 wid = workInfo.id;
                 name = workInfo.name;
                 desc = workInfo.desc;
                 owner = work.owner;
                 start = work.start;
             };
-            result := List.push(workResp, result);
+            result := List.push(mywork, result);
         };
         return {
             code = 200;
@@ -623,7 +659,7 @@ shared({caller}) actor class UserSpace(
         };
         // 判断是否实现 workspace方法或者 是否是canister
         let workActor: WorkActor = actor(Principal.toText(caller));
-        let workInfo :WorkSpaceInfo = await workActor.info();
+        let workInfo = await workActor.info();
 
         let wns : MyWorkspace = {
             wid=caller;

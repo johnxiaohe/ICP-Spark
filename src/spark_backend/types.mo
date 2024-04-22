@@ -94,14 +94,40 @@ module{
         pid: Nat;
         name: Text;
         content: Text;
+        order : Nat;
         utime: Time.Time;
+        uid: Principal;
         coAuthors: List.List<Principal>;
+    };
+
+    public type SummaryResp = {
+        id: Nat;
+        pid: Nat;
+        name: Text;
+        order : Nat;
+    };
+
+    public type ContentResp = {
+        id: Nat;
+        pid: Nat;
+        name: Text;
+        content: Text;
+        utime: Time.Time;
+        uAuthor: ?User;
+        coAuthors: List.List<User>;
+    };
+
+    public type Auth = {
+        uid: Principal;
+        name: Text;
+        avator: Text;
     };
 
     public type ShowModel = {
         #Public;
         #Subscribe;
         #Payment;
+        #Private;
     };
 
     // actors api
@@ -117,12 +143,13 @@ module{
         reciveWns: shared() -> async (Bool);
         addWorkNs: shared() -> async(Bool);
         leaveWorkNs: shared() -> async(Bool);
+        quitSubscribe: shared() -> async();
     };
 
     public type WorkActor = actor {
-        info: shared() -> async(WorkSpaceInfo);
-        subscribe: shared() -> async(Bool);
-        unSubscribe: shared() -> async(Bool);
+        info: shared() -> async(Resp<WorkSpaceInfo>);
+        subscribe: shared() -> async(Resp<Bool>);
+        unSubscribe: shared() -> async(Resp<Bool>);
         quit: shared() -> async(Bool);
         transfer: shared(target: Principal) -> async(Bool);
     };
