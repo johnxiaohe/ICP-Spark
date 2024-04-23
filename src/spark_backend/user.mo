@@ -11,7 +11,7 @@ import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
 
 import Map "mo:map/Map";
-import { phash } "mo:map/Map";
+import { phash;thash } "mo:map/Map";
 
 import Ledger "ledgers";
 import configs "configs";
@@ -63,13 +63,13 @@ shared({caller}) actor class UserSpace(
     private stable var _showsubscribe: Bool = true;
 
     // 用户交互数据
-    private stable var _follows: List.List<Principal> = List.nil();
-    private stable var _fans: List.List<Principal> = List.nil();
+    private stable var _follows: List.List<Text> = List.nil();
+    private stable var _fans: List.List<Text> = List.nil();
     private stable var _collections: List.List<Collection> = List.nil();
-    private stable var _subscribes: List.List<Principal> = List.nil();
+    private stable var _subscribes: List.List<Text> = List.nil();
 
-    // 用户创作数据
-    let _workspaces = Map.new<Principal,MyWorkspace>();
+    // 用户参与的空间
+    let _workspaces = Map.new<Text,MyWorkspace>();
     // 最近创作记录
     private stable var _RECENT_SIZE : Nat = 10;
     private stable var _recentWorks : List.List<RecentWork> = List.nil();
@@ -91,7 +91,7 @@ shared({caller}) actor class UserSpace(
             return {
                 code=403;
                 msg="permision denied";
-                data={id=caller;avatar="";desc="";name="";pid=caller;ctime=0};
+                data={id=Principal.toText(caller);avatar="";desc="";name="";pid=Principal.toText(caller);ctime=0};
             };
         };
         name := newName;
@@ -102,8 +102,8 @@ shared({caller}) actor class UserSpace(
             code=200;
             msg="";
             data={
-                id=Principal.fromActor(this);
-                pid=owner;
+                id=Principal.toText(Principal.fromActor(this));
+                pid=Principal.toText(owner);
                 name=name;
                 avatar=avatar;
                 desc=desc;
@@ -117,8 +117,8 @@ shared({caller}) actor class UserSpace(
             code=200;
             msg="";
             data={
-                id=Principal.fromActor(this);
-                pid=owner;
+                id=Principal.toText(Principal.fromActor(this));
+                pid=Principal.toText(owner);
                 name=name;
                 avatar=avatar;
                 desc=desc;
@@ -132,8 +132,8 @@ shared({caller}) actor class UserSpace(
             code=200;
             msg="";
             data={
-                id=Principal.fromActor(this);
-                pid=owner;
+                id=Principal.toText(Principal.fromActor(this));
+                pid=Principal.toText(owner);
                 name=name;
                 avatar=avatar;
                 desc=desc;
@@ -185,7 +185,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared({caller}) func withdrawals(token: Text, amount: Nat, reciver: Principal): async Resp<Nat>{
+    public shared({caller}) func withdrawals(token: Text, amount: Nat, reciver: Text): async Resp<Nat>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -207,7 +207,7 @@ shared({caller}) actor class UserSpace(
                     amount = amount;
                     from_subaccount = null;
                     fee = null;
-                    to = { owner = reciver; subaccount = null };
+                    to = { owner = Principal.fromText(reciver); subaccount = null };
                     created_at_time = null;
                 };
                 try {
@@ -245,7 +245,7 @@ shared({caller}) actor class UserSpace(
 
     // cycles 管理 api --------------------------------------
     // 为指定容器添加Cycles，仅限本人操作. 返回当前cycles
-    public shared({caller}) func addCycles(target: Principal): async Resp<Nat>{
+    public shared({caller}) func addCycles(target: Text): async Resp<Nat>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -283,7 +283,7 @@ shared({caller}) actor class UserSpace(
 
 
     // a follow b => a.follow b.fans relation: uid -- uid
-    public shared({caller}) func addFollow(uid: Principal): async Resp<Bool>{
+    public shared({caller}) func addFollow(uid: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -292,7 +292,7 @@ shared({caller}) actor class UserSpace(
             };
         };
         // add target fans relation
-        let userActor : UserActor = actor(Principal.toText(uid));
+        let userActor : UserActor = actor(uid);
         let success = await userActor.addFans();
         if (success){
             // add follow relation
@@ -305,7 +305,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared({caller}) func unFollow(target: Principal): async Resp<Bool> {
+    public shared({caller}) func unFollow(uid: Text): async Resp<Bool> {
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -314,11 +314,11 @@ shared({caller}) actor class UserSpace(
             };
         };
         // add target fans relation
-        let userActor : UserActor = actor(Principal.toText(target));
+        let userActor : UserActor = actor(uid);
         let success = await userActor.delFans();
         if (success){
             // find and del target
-            _follows := List.filter<Principal>(_follows, func uid { not Principal.equal(uid, target) });
+            _follows := List.filter<Text>(_follows, func target { not Text.equal(uid, target) });
         };
         return {
             code = 200;
@@ -336,8 +336,8 @@ shared({caller}) actor class UserSpace(
             };
         };
         var result: List.List<User> = List.nil();
-        for (uid in List.toIter<Principal>(_follows)) {
-            let userActor : UserActor = actor(Principal.toText(uid));
+        for (uid in List.toIter<Text>(_follows)) {
+            let userActor : UserActor = actor(uid);
             let user = await userActor.info();
             result := List.push(user.data, result);
         };
@@ -369,7 +369,7 @@ shared({caller}) actor class UserSpace(
         if (Principal.equal(caller,owner)){
             return false;
         };
-        _fans := List.push(caller, _fans);
+        _fans := List.push(Principal.toText(caller), _fans);
         return true;
     };
 
@@ -377,7 +377,7 @@ shared({caller}) actor class UserSpace(
         if (Principal.equal(caller,owner)){
             return false;
         };
-        _fans := List.filter<Principal>(_fans, func uid { not Principal.equal(uid, caller) });
+        _fans := List.filter<Text>(_fans, func uid { not Text.equal(uid, Principal.toText(caller)) });
         return true;
     };
 
@@ -390,8 +390,8 @@ shared({caller}) actor class UserSpace(
             };
         };
         var result: List.List<User> = List.nil();
-        for (uid in List.toIter<Principal>(_fans)) {
-            let userActor : UserActor = actor(Principal.toText(uid));
+        for (uid in List.toIter<Text>(_fans)) {
+            let userActor : UserActor = actor(uid);
             let user = await userActor.info();
             result := List.push(user.data, result);
         };
@@ -419,7 +419,7 @@ shared({caller}) actor class UserSpace(
     };
 
     // 收藏、取消收藏、收藏列表
-    public shared({caller}) func collection(wid: Principal, wName: Text, index: Nat, name: Text): async Resp<Bool>{
+    public shared({caller}) func collection(wid: Text, index: Nat): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -427,7 +427,7 @@ shared({caller}) actor class UserSpace(
                 data = false;
             };
         };
-        let waitCollection : Collection = {wid=wid;wName=wName;index=index;name=name};
+        let waitCollection : Collection = {wid=wid;wName="";index=index;name=""};
         _collections := List.push(waitCollection, _collections);
         return {
             code = 200;
@@ -436,7 +436,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared({caller}) func unCollection(wid: Principal, index:Nat): async Resp<Bool>{
+    public shared({caller}) func unCollection(wid: Text, index:Nat): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -445,7 +445,7 @@ shared({caller}) actor class UserSpace(
             };
         };
         // find and del target
-        _collections := List.filter<Collection>(_collections, func c { not Principal.equal(c.wid,wid) and c.index != index });
+        _collections := List.filter<Collection>(_collections, func c { not Text.equal(c.wid,wid) and c.index != index });
         return {
             code = 200;
             msg = "";
@@ -461,10 +461,22 @@ shared({caller}) actor class UserSpace(
                 data = [];
             };
         };
+        var result : List.List<Collection> = List.nil();
+        for (c in List.toIter(_collections)){
+            let wActor : WorkActor = actor(c.wid);
+            let cresp = await wActor.collectionCall(c.index);
+            let rc = {
+                wid=c.wid;
+                index=c.index;
+                wName= cresp.data.wName;
+                name= cresp.data.name;
+            };
+            result := List.push( rc, result);
+        };
         return {
             code = 200;
             msg = "";
-            data = List.toArray(_collections);
+            data = List.toArray(result);
         };
     };
 
@@ -485,7 +497,7 @@ shared({caller}) actor class UserSpace(
     };
 
     // 订阅列表、添加、删除订阅。关联标识为目标workspace的 priciaplid
-    public shared({caller}) func subscribe(wid: Principal): async Resp<Bool>{
+    public shared({caller}) func subscribe(wid: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -493,7 +505,7 @@ shared({caller}) actor class UserSpace(
                 data = false;
             };
         };
-        let workActor : WorkActor = actor(Principal.toText(wid));
+        let workActor : WorkActor = actor(wid);
         let workResp = await workActor.info();
         let workInfo = workResp.data;
         if(workInfo.model == #Private){
@@ -513,7 +525,7 @@ shared({caller}) actor class UserSpace(
                 expected_allowance = null;
                 expires_at =null;
                 amount = workInfo.price + 1;
-                spender = {owner=caller; subaccount=null};
+                spender = {owner=Principal.fromText(wid); subaccount=null};
             };
             let transferResult = await icpLedger.icrc2_approve(args);
             // check if the transfer was successfull
@@ -538,7 +550,7 @@ shared({caller}) actor class UserSpace(
     };
 
     // 主动取消订阅
-    public shared({caller}) func unsubscribe(wid: Principal): async Resp<Bool>{
+    public shared({caller}) func unsubscribe(wid: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -546,18 +558,18 @@ shared({caller}) actor class UserSpace(
                 data = false;
             };
         };
-        let workActor : WorkActor = actor(Principal.toText(wid)); 
+        let workActor : WorkActor = actor(wid); 
         let resp = await workActor.unSubscribe();
         if (resp.code != 200){
             return resp;
         };
-        _subscribes := List.filter<Principal>(_subscribes, func id { not Principal.equal(id, wid) });
+        _subscribes := List.filter<Text>(_subscribes, func id { not Text.equal(id, wid) });
         return resp;
     };
 
     // 被动取消订阅
     public shared({caller}) func quitSubscribe(): async(){
-       _subscribes := List.filter<Principal>(_subscribes, func wid {Principal.equal(wid, caller)});
+       _subscribes := List.filter<Text>(_subscribes, func wid { not Text.equal(wid, Principal.toText(caller))});
     };
 
     public shared({caller}) func subscribes(): async Resp<[WorkSpaceInfo]> {
@@ -569,8 +581,8 @@ shared({caller}) actor class UserSpace(
             };
         };
         var result: List.List<WorkSpaceInfo> = List.nil();
-        for (wid in List.toIter<Principal>(_subscribes)) {
-            let workActor : WorkActor = actor(Principal.toText(wid)); 
+        for (wid in List.toIter<Text>(_subscribes)) {
+            let workActor : WorkActor = actor(wid); 
             let workspaceinfo = await workActor.info();
             result := List.push(workspaceinfo.data, result);
         };
@@ -608,7 +620,7 @@ shared({caller}) actor class UserSpace(
         };
         var result : List.List<MyWorkspaceResp> = List.nil();
         for (work in Map.vals(_workspaces)){
-            let workActor: WorkActor = actor(Principal.toText(work.wid));
+            let workActor: WorkActor = actor(work.wid);
             let workResp = await workActor.info();
             let workInfo : WorkSpaceInfo= workResp.data;
             let mywork: MyWorkspaceResp = {
@@ -642,8 +654,8 @@ shared({caller}) actor class UserSpace(
             payPrice := 0;
         };
         let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), owner, name, avatar, desc,ctime, model, payPrice);
-        let myworkspace : MyWorkspace = {wid=Principal.fromActor(workspaceActor);owner=true;start=false};
-        Map.set(_workspaces, phash, myworkspace.wid, myworkspace);
+        let myworkspace : MyWorkspace = {wid=Principal.toText(Principal.fromActor(workspaceActor));owner=true;start=false};
+        Map.set(_workspaces, thash, myworkspace.wid, myworkspace);
         return {
             code =200;
             msg = "";
@@ -653,36 +665,38 @@ shared({caller}) actor class UserSpace(
 
     // 加入工作空间，被动
     public shared({caller}) func addWorkNs(): async(Bool){
-        let contains = Map.has(_workspaces, phash, caller);
+        let callerPid = Principal.toText(caller);
+        let contains = Map.has(_workspaces, thash, callerPid);
         if (contains){
             return true;
         };
         // 判断是否实现 workspace方法或者 是否是canister
-        let workActor: WorkActor = actor(Principal.toText(caller));
+        let workActor: WorkActor = actor(callerPid);
         let workInfo = await workActor.info();
 
         let wns : MyWorkspace = {
-            wid=caller;
+            wid=callerPid;
             owner=false;
             start=false;
         };
-        Map.set(_workspaces, phash, caller, wns);
+        Map.set(_workspaces, thash, callerPid, wns);
         return true;
     };
 
     // 退出工作空间，被动
     public shared({caller}) func leaveWorkNs(): async(Bool){
-        let contains = Map.has(_workspaces, phash, caller);
+        let callerPid = Principal.toText(caller);
+        let contains = Map.has(_workspaces, thash, callerPid);
         if (not contains){
             return true;
         };
-        removeRecentData(caller);
-        Map.delete(_workspaces, phash, caller);
+        removeRecentData(callerPid);
+        Map.delete(_workspaces, thash, callerPid);
         return true;
     };
 
     // 退出工作空间 主动
-    public shared({caller}) func quitWorkNs(wid: Principal): async Resp<Bool>{
+    public shared({caller}) func quitWorkNs(wid: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -691,7 +705,7 @@ shared({caller}) actor class UserSpace(
             };
         };
         // 退出指定工作空间: 删除工作空间映射，通知指定工作空间
-        switch(Map.get(_workspaces, phash, wid)){
+        switch(Map.get(_workspaces, thash, wid)){
             case(null){
                 return {
                     code = 404;
@@ -700,17 +714,19 @@ shared({caller}) actor class UserSpace(
                 };
             };
             case(?wns){
-                if (wns.owner){
+                let workActor: WorkActor = actor(wid);
+                let wInfoResp = await workActor.info();
+                if (Text.equal(wInfoResp.data.super, Principal.toText(Principal.fromActor(this)))){
                     return {
                         code = 500;
                         msg = "Please transfer ownership";
                         data = false;
                     }
                 };
-                let workActor: WorkActor = actor(Principal.toText(wid));
+                
                 let success = await workActor.quit();
                 if (success){
-                    Map.delete(_workspaces, phash, wid);
+                    Map.delete(_workspaces, thash, wid);
                     removeRecentData(wid);
                 };
                 return {
@@ -723,7 +739,7 @@ shared({caller}) actor class UserSpace(
     };
 
     // 转移工作空间owner身份
-    public shared({caller}) func transferWorkOwner(wid: Principal, target: Principal): async Resp<Bool>{
+    public shared({caller}) func transferWorkOwner(wid: Text, target: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -732,7 +748,7 @@ shared({caller}) actor class UserSpace(
             };
         };
 
-        switch(Map.get(_workspaces, phash, wid)){
+        switch(Map.get(_workspaces, thash, wid)){
             case(null){
                 return {
                     code = 404;
@@ -741,14 +757,15 @@ shared({caller}) actor class UserSpace(
                 };
             };
             case(?wns){
-                if ( not wns.owner ){
+                let workActor: WorkActor = actor(wid);
+                let wInfoResp = await workActor.info();
+                if (Text.equal(wInfoResp.data.super, Principal.toText(Principal.fromActor(this)))){
                     return {
-                        code = 404;
+                        code = 403;
                         msg = "you are not this workspace owner";
                         data = false;
-                    };
+                    }
                 };
-                let workActor: WorkActor = actor(Principal.toText(target));
                 let success = await workActor.transfer(target);
                 if (success){
                     let nWns : MyWorkspace = {
@@ -756,7 +773,7 @@ shared({caller}) actor class UserSpace(
                         owner=false;
                         start=wns.start;
                     };
-                    Map.set(_workspaces, phash, wid, nWns);
+                    Map.set(_workspaces, thash, wid, nWns);
                 };
                 return {
                     code = 200;
@@ -769,7 +786,8 @@ shared({caller}) actor class UserSpace(
 
     // 接收他人转移过来的工作空间 由workspace canister调用
     public shared({caller}) func reciveWns(): async Bool{
-        switch(Map.get(_workspaces, phash, caller)){
+        let callerPid = Principal.toText(caller);
+        switch(Map.get(_workspaces, thash, callerPid)){
             case(null){
                 return false;
             };
@@ -782,22 +800,22 @@ shared({caller}) actor class UserSpace(
                     owner=true;
                     start=wns.start;
                 };
-                Map.set(_workspaces, phash, wns.wid, nWns);
+                Map.set(_workspaces, thash, wns.wid, nWns);
                 return true;
             };
         };
     };
 
     // 最近工作记录管理
-    public shared({caller}) func addRecentWork(wid:Principal, name: Text, isowner: Bool): async(Resp<[RecentWork]>){
+    public shared({caller}) func addRecentWork(wid:Text): async(Resp<Bool>){
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
                 msg = "permision denied";
-                data = [];
+                data = false;
             };
         };
-        let recent :RecentWork = {wid=wid;name=name;owner=isowner};
+        let recent :RecentWork = {wid=wid;name="";owner=false};
         _recentWorks := List.push(recent, _recentWorks);
         if (Nat.greater(List.size(_recentWorks), _RECENT_SIZE)){
             let sub: Nat = List.size(_recentWorks) - _RECENT_SIZE;
@@ -806,7 +824,7 @@ shared({caller}) actor class UserSpace(
         return { 
             code = 200;
             msg = "";
-            data = List.toArray(_recentWorks);
+            data = true;
         };
     };
 
@@ -818,22 +836,33 @@ shared({caller}) actor class UserSpace(
                 data = [];
             };
         };
+        var result : List.List<RecentWork> = List.nil();
+        for (rw in List.toIter(_recentWorks)){
+            let wActor : WorkActor = actor(rw.wid);
+            let wResp = await wActor.info(); 
+            let rwresp = {
+                wid = rw.wid;
+                name = wResp.data.name;
+                owner = Text.equal(Principal.toText(Principal.fromActor(this)), wResp.data.super);
+            };
+            result := List.push( rwresp, result);
+        };
         return { 
             code = 200;
             msg = "";
-            data = List.toArray(_recentWorks);
+            data = List.toArray(result);
         };
     };
 
-    public shared({caller}) func addRecentEdit(wid: Principal, wname: Text, cid: Nat, cname: Text): async(Resp<[RecentEdit]>){
+    public shared({caller}) func addRecentEdit(wid: Text, index: Nat): async(Resp<Bool>){
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
                 msg = "permision denied";
-                data = [];
+                data = false;
             };
         };
-        let recent : RecentEdit = {wid=wid;wname=wname;cid=cid;cname=cname;etime=Time.now()};
+        let recent : RecentEdit = {wid=wid;wname="";index=index;cname="";etime=Time.now()};
         _recentEdits := List.push(recent, _recentEdits);
         if (Nat.greater(List.size(_recentEdits), _RECENT_SIZE)){
             let sub: Nat = List.size(_recentEdits) - _RECENT_SIZE;
@@ -842,7 +871,7 @@ shared({caller}) actor class UserSpace(
         return { 
             code = 200;
             msg = "";
-            data = List.toArray(_recentEdits);
+            data = true;
         };
     };
 
@@ -854,17 +883,30 @@ shared({caller}) actor class UserSpace(
                 data = [];
             };
         };
+        var result : List.List<RecentEdit> = List.nil();
+        for (re in List.toIter(_recentEdits)){
+            let wActor : WorkActor = actor(re.wid);
+            let wResp = await wActor.collectionCall(re.index); 
+            let reresp = {
+                wid = re.wid;
+                wname = wResp.data.wName;
+                index = re.index;
+                cname = wResp.data.name;
+                etime = re.etime;
+            };
+            result := List.push( reresp, result);
+        };
         return { 
             code = 200;
             msg = "";
-            data = List.toArray(_recentEdits);
+            data = List.toArray(result);
         };
     };
 
     // 退出工作空间后，需要删除对应的最近工作记录
-    private func removeRecentData(wid: Principal){
-        _recentEdits := List.filter<RecentEdit>(_recentEdits, func edit {not Principal.equal(wid, edit.wid)});
-        _recentWorks := List.filter<RecentWork>(_recentWorks, func ns {not Principal.equal(wid, ns.wid)});
+    private func removeRecentData(wid: Text){
+        _recentEdits := List.filter<RecentEdit>(_recentEdits, func edit {not Text.equal(wid, edit.wid)});
+        _recentWorks := List.filter<RecentWork>(_recentWorks, func ns {not Text.equal(wid, ns.wid)});
     };
 
 }

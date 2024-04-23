@@ -9,7 +9,7 @@ import HashMap "mo:base/HashMap";
 import Error "mo:base/Error";
 
 import Map "mo:map/Map";
-import { phash;nhash } "mo:map/Map";
+import { phash;nhash;thash } "mo:map/Map";
 import Set "mo:map/Set";
 
 import configs "configs";
@@ -41,6 +41,7 @@ shared({caller}) actor class WorkSpace(
     
     // workspace 类型声明
     type Content = types.Content;
+    type Collection = types.Collection;
     type ContentResp = types.ContentResp;
     type SummaryResp = types.SummaryResp;
     type WorkSpaceInfo = types.WorkSpaceInfo;
@@ -64,8 +65,8 @@ shared({caller}) actor class WorkSpace(
     tokenMap.put("CYCLES", cyclesLedger);
 
 
-    private stable var superUid : Principal = _creater; // user canister id
-    private stable var superPid : Principal = _createrPid;
+    private stable var superUid : Text = Principal.toText(_creater); // user canister id
+    private stable var superPid : Text = Principal.toText(_createrPid);
     private stable var name : Text = _name;
     private stable var avatar : Text = _avatar;
     private stable var desc : Text = _desc;
@@ -76,16 +77,16 @@ shared({caller}) actor class WorkSpace(
     // 成员管理数据, workspace的api接口由用户直接调用；部分callback由 user canister 调用
     // 需要判断 pid / uid 用户的成员角色
     // pid --- uid
-    private stable var memberMap = Map.new<Principal,Principal>();
-    private stable var adminMap = Map.new<Principal,Principal>();
+    private stable var memberMap = Map.new<Text,Text>();
+    private stable var adminMap = Map.new<Text,Text>();
     // uid --- pid
-    private stable var memberIdMap = Map.new<Principal,Principal>();
+    private stable var memberIdMap = Map.new<Text,Text>();
 
     // 订阅用户记录
     // pid --- uid
-    private stable var consumerPidMap = Map.new<Principal,Principal>();
+    private stable var consumerPidMap = Map.new<Text,Text>();
     // uid --- pid
-    private stable var consumerUidMap = Map.new<Principal,Principal>();
+    private stable var consumerUidMap = Map.new<Text,Text>();
 
     // 内容管理数据
     private stable var _contentIndex : Nat = 0;
@@ -105,40 +106,40 @@ shared({caller}) actor class WorkSpace(
 
     // 内部调用的查询判断私有方法   ----------------------------------------------------------
     // 是否是管理员  pid: user principal id
-    private func isAdmin(pid: Principal): Bool{
-        return Principal.equal(pid, superPid) or Map.has(adminMap, phash, pid);
+    private func isAdmin(pid: Text): Bool{
+        return Text.equal(pid, superPid) or Map.has(adminMap, thash, pid);
     };
 
     // 是否是成员
-    private func isMember(pid: Principal): Bool{
-        return Principal.equal(pid, superPid) or Map.has(adminMap, phash, pid) or Map.has(memberMap, phash, pid);
+    private func isMember(pid: Text): Bool{
+        return Text.equal(pid, superPid) or Map.has(adminMap, thash, pid) or Map.has(memberMap, thash, pid);
     };
-    private func isMemberByUid(uid: Principal): Bool{
-        Map.has(memberIdMap, phash, uid);
-    };
-
-    private func isSuper(id: Principal): Bool{
-        return Principal.equal(id, superUid) or Principal.equal(id, superPid);
+    private func isMemberByUid(uid: Text): Bool{
+        Map.has(memberIdMap, thash, uid);
     };
 
-    private func isSubscriberByPid(pid: Principal): Bool{
-        Map.has(consumerPidMap, phash, pid);
+    private func isSuper(id: Text): Bool{
+        return Text.equal(id, superUid) or Text.equal(id, superPid);
     };
-    private func isSubscriberByUid(uid: Principal): Bool{
-        Map.has(consumerUidMap, phash, uid);
+
+    private func isSubscriberByPid(pid: Text): Bool{
+        Map.has(consumerPidMap, thash, pid);
+    };
+    private func isSubscriberByUid(uid: Text): Bool{
+        Map.has(consumerUidMap, thash, uid);
     };
 
     // 删除订阅只能由user canister调用　
-    private func delSubscribe(uid: Principal){
-        switch(Map.get(consumerUidMap, phash, uid)){
+    private func delSubscribe(uid: Text){
+        switch(Map.get(consumerUidMap, thash, uid)){
             case(null){
 
             };
             case(?pid){
-                Map.delete(consumerPidMap, phash, pid);
+                Map.delete(consumerPidMap, thash, pid);
             };
         };
-        Map.delete(consumerUidMap, phash, uid);
+        Map.delete(consumerUidMap, thash, uid);
     };
 
     // 由用户直接调用的 空间基础信息管理方法 ---------------------------------------------------------------
@@ -147,7 +148,7 @@ shared({caller}) actor class WorkSpace(
                 code = 200;
                 msg = "";
                 data = {
-                    id = Principal.fromActor(this);
+                    id = Principal.toText(Principal.fromActor(this));
                     super = superUid;
                     name = name;
                     avatar = avatar;
@@ -160,11 +161,20 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func update(newName: Text, newAvatar: Text, newDesc: Text): async Resp<WorkSpaceInfo>{
-        if (not isAdmin(caller)){
+        if (not isAdmin(Principal.toText(caller))){
             return {
                 code = 403;
                 msg = "permision denied";
-                data = {id=caller;super=caller;name="";avatar="";desc="";ctime=ctime;model=#Public;price=0;};
+                data = {
+                    id=Principal.toText(caller);
+                    super=Principal.toText(caller);
+                    name="";
+                    avatar="";
+                    desc="";
+                    ctime=ctime;
+                    model=#Public;
+                    price=0;
+                };
             };
         };
         name := newName;
@@ -173,16 +183,25 @@ shared({caller}) actor class WorkSpace(
         return {
             code = 200;
             msg = "";
-            data = {id=Principal.fromActor(this);super=superUid;name=name;avatar=avatar;desc=desc;ctime=ctime;model=showModel;price=price};
+            data = {
+                id= Principal.toText(Principal.fromActor(this));
+                super= superUid;
+                name=name;
+                avatar=avatar;
+                desc=desc;
+                ctime=ctime;
+                model=showModel;
+                price=price
+            };
         };
     };
 
-    public shared({caller}) func updateShowModel(newShowModel: types.ShowModel, newPrice: Nat): async Resp<WorkSpaceInfo>{
-        if(not isSuper(caller)){
+    public shared({caller}) func updateShowModel(newShowModel: types.ShowModel, newPrice: Nat): async Resp<Bool>{
+        if(not isSuper(Principal.toText(caller))){
             return {
                 code = 403;
                 msg = "permision denied";
-                data = {id=caller;super=caller;name="";avatar="";desc="";ctime=ctime;model=#Public;price=0;};
+                data = false;
             };
         };
         // 公开度在缩小，则需要判断是否合法
@@ -191,12 +210,12 @@ shared({caller}) actor class WorkSpace(
                 return {
                     code = 400;
                     msg = "payment model can not change to private";
-                    data = {id=caller;super=caller;name="";avatar="";desc="";ctime=ctime;model=#Public;price=0;};
+                    data = false;
                 };
             }else{
                 // clear consumers
                 for (uid in Map.keys(consumerUidMap)){
-                    let userActor : UserActor = actor(Principal.toText(uid));
+                    let userActor : UserActor = actor(uid);
                     await userActor.quitSubscribe();
                 };
                 Map.clear(consumerPidMap);
@@ -210,27 +229,28 @@ shared({caller}) actor class WorkSpace(
         return {
             code = 200;
             msg = "";
-            data = {id=Principal.fromActor(this);super=superUid;name=name;avatar=avatar;desc=desc;ctime=ctime;model=showModel;price=price};
+            data = true;
         };
     };
 
     // 获取当前用户在空间中的角色
     public shared({caller}) func role(): async Resp<Text>{
-        if (Principal.equal(caller, superPid)){
+        let pid = Principal.toText(caller);
+        if (Text.equal(pid, superPid)){
             return {
                 code = 200;
                 msg = "";
                 data = "owner";
             }
         };
-        if (isAdmin(caller)){
+        if (isAdmin(pid)){
             return {
                 code = 200;
                 msg = "";
                 data = "admin";
             }
         };
-        if (isMember(caller)){
+        if (isMember(pid)){
             return {
                 code = 200;
                 msg = "";
@@ -246,39 +266,39 @@ shared({caller}) actor class WorkSpace(
 
     // 由管理者canister调用的  空间退出、空间转让、成员管理 ---------------------------
     public shared({caller}) func quit(): async(Bool){
-        if (isSuper(caller)){
+        let callerPid = Principal.toText(caller);
+        if (isSuper(callerPid)){
             return false;
         };
-        if(Map.has(memberIdMap, phash, caller)){
-            switch(Map.get(memberIdMap, phash, caller)){
-                case(null){};
-                case(?pid){
-                    Map.delete(memberIdMap, phash, caller);
-                    Map.delete(adminMap, phash, pid);
-                    Map.delete(memberMap, phash, pid);
-                };
+        switch(Map.get(memberIdMap, thash, callerPid)){
+            case(null){};
+            case(?pid){
+                Map.delete(memberIdMap, thash, callerPid);
+                Map.delete(adminMap, thash, pid);
+                Map.delete(memberMap, thash, pid);
             };
-            return true;
         };
-        return false;
+        return true;
     };
 
     // update super admin
-    public shared({caller}) func transfer(uid: Principal): async(Bool){
-        if(isSuper(caller)){
-            switch(Map.get(memberIdMap, phash, uid)){
+    public shared({caller}) func transfer(uid: Text): async(Bool){
+        if(isSuper(Principal.toText(caller))){
+            switch(Map.get(memberIdMap, thash, uid)){
                 case(null){return false;};
                 case(?pid){
                     if(isAdmin(pid)){
-                        let userActor : UserActor = actor(Principal.toText(uid));
+                        let userActor : UserActor = actor(uid);
                         let result: Bool = await userActor.reciveWns();
                         if (not result){
                             return false;
                         };
-                        Map.set(memberIdMap, phash, superUid, superPid);
-                        Map.set(memberMap, phash, superPid, superUid);
+                        Map.set(memberIdMap, thash, superUid, superPid);
+                        Map.set(memberMap, thash, superPid, superUid);
                         superUid := uid;
                         superPid := pid;
+                        Map.delete(adminMap, thash, superPid);
+                        Map.delete(memberIdMap, thash, superUid);
                         return true;
                     };
                     return false;
@@ -288,10 +308,10 @@ shared({caller}) actor class WorkSpace(
         return false;
     };
 
-    public shared func memers(): async(Resp<[User]>){
+    public shared func members(): async(Resp<[User]>){
         var result : List.List<User> = List.nil();
         for(uid in Map.vals(memberMap)){
-            let userActor: UserActor = actor(Principal.toText(uid));
+            let userActor: UserActor = actor(uid);
             let userResp = await userActor.info();
             let userInfo : User = userResp.data;
             result := List.push(userInfo, result);
@@ -305,12 +325,12 @@ shared({caller}) actor class WorkSpace(
 
     public shared func admins(): async(Resp<[User]>){
         var result : List.List<User> = List.nil();
-        let superActor: UserActor = actor(Principal.toText(superUid));
+        let superActor: UserActor = actor(superUid);
         let superResp = await superActor.info();
         let superInfo : User = superResp.data;
         result := List.push(superInfo, result);
         for(uid in Map.vals(adminMap)){
-            let userActor: UserActor = actor(Principal.toText(uid));
+            let userActor: UserActor = actor(uid);
             let userResp = await userActor.info();
             let userInfo : User = userResp.data;
             result := List.push(userInfo, result);
@@ -322,7 +342,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func addMember(uid: Principal, role: Text): async(Resp<Bool>){
+    public shared({caller}) func addMember(uid: Text, role: Text): async(Resp<Bool>){
         if(isMemberByUid(uid)){
             return {
                 code = 400;
@@ -330,21 +350,21 @@ shared({caller}) actor class WorkSpace(
                 data = false;
             };
         };
-        if (not isAdmin(caller)){
+        if (not isAdmin(Principal.toText(caller))){
             return {
                 code = 403;
                 msg = "permission denied";
                 data = false;
             };
         };
-        let userActor: UserActor = actor(Principal.toText(uid));
+        let userActor: UserActor = actor(uid);
         let userResp = await userActor.info();
         let pid = userResp.data.pid;
-        Map.set(memberIdMap, phash, uid, pid);
+        Map.set(memberIdMap, thash, uid, pid);
         if (role == "admin"){
-            Map.set(adminMap, phash, pid, uid);
+            Map.set(adminMap, thash, pid, uid);
         }else if (role == "member"){
-            Map.set(memberMap, phash, pid, uid);
+            Map.set(memberMap, thash, pid, uid);
         }else{
             return {
                 code = 400;
@@ -359,8 +379,8 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func delMember(uid: Principal): async(Resp<Bool>){
-        if(not isAdmin(caller)){
+    public shared({caller}) func delMember(uid: Text): async(Resp<Bool>){
+        if(not isAdmin(Principal.toText(caller))){
             return {
                 code = 403;
                 msg = "permission denied";
@@ -381,7 +401,7 @@ shared({caller}) actor class WorkSpace(
                 data = false;
             };
         };
-        switch(Map.get(memberIdMap, phash, uid)){
+        switch(Map.get(memberIdMap, thash, uid)){
             case(null){
                 return {
                     code = 400;
@@ -391,16 +411,16 @@ shared({caller}) actor class WorkSpace(
             };
             case(?pid){
                 // 仅超管可以删管理员
-                if(isAdmin(pid) and not isSuper(caller)){
+                if(isAdmin(pid) and not isSuper(Principal.toText(caller))){
                     return {
                         code = 403;
                         msg = "only super admin can do that";
                         data = false;
                     };
                 };
-                Map.delete(memberIdMap, phash, uid);
-                Map.delete(adminMap, phash, pid);
-                Map.delete(memberMap, phash, pid);
+                Map.delete(memberIdMap, thash, uid);
+                Map.delete(adminMap, thash, pid);
+                Map.delete(memberMap, thash, pid);
                 return {
                     code = 200;
                     msg = "";
@@ -410,9 +430,8 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    // 更新 空间公开度
-    public shared({caller}) func updatePermission(uid: Principal, role: Text): async(Resp<Bool>){
-        if(not isAdmin(caller)){
+    public shared({caller}) func updatePermission(uid: Text, role: Text): async(Resp<Bool>){
+        if(not isAdmin(Principal.toText(caller))){
             return {
                 code = 403;
                 msg = "permission denied";
@@ -433,7 +452,7 @@ shared({caller}) actor class WorkSpace(
                 data = false;
             };
         };
-        switch(Map.get(memberIdMap, phash, uid)){
+        switch(Map.get(memberIdMap, thash, uid)){
             case(null){
                 return {
                     code = 400;
@@ -442,19 +461,19 @@ shared({caller}) actor class WorkSpace(
                 };
             };
             case(?pid){
-                Map.delete(adminMap, phash, pid);
-                Map.delete(memberMap, phash, pid);
                 if(role == "admin"){
-                    if(not isSuper(caller)){
+                    if(not isSuper(Principal.toText(caller))){
                         return {
                             code = 403;
                             msg = "only super admin change admin role";
                             data = false;
                         };
                     };
-                    Map.set(adminMap, phash, pid,uid);
+                    Map.delete(memberMap, thash, pid);
+                    Map.set(adminMap, thash, pid,uid);
                 }else if(role == "member"){
-                    Map.set(memberMap, phash, pid,uid);
+                    Map.delete(adminMap, thash, pid);
+                    Map.set(memberMap, thash, pid,uid);
                 }else{
                     return {
                         code = 400;
@@ -473,7 +492,7 @@ shared({caller}) actor class WorkSpace(
 
     // 由消费者canister调用的  订阅、取消订阅 ----------------------------
     public shared({caller}) func subscribe(): async (Resp<Bool>){
-        if (isSubscriberByUid(caller)){
+        if (isSubscriberByUid(Principal.toText(caller))){
             return {
                 code = 400;
                 msg = "subscribed";
@@ -517,8 +536,8 @@ shared({caller}) actor class WorkSpace(
                     };
                 };
                 case (#Ok(blockIndex)) {
-                    Map.set(consumerPidMap, phash, userInfo.pid, userInfo.id);
-                    Map.set(consumerUidMap, phash, userInfo.id, userInfo.pid);
+                    Map.set(consumerPidMap, thash, userInfo.pid, userInfo.id);
+                    Map.set(consumerUidMap, thash, userInfo.id, userInfo.pid);
                     // todo: log
                     return {
                         code = 200;
@@ -536,8 +555,8 @@ shared({caller}) actor class WorkSpace(
                 };
             };
         };
-        Map.set(consumerPidMap, phash, userInfo.pid, userInfo.id);
-        Map.set(consumerUidMap, phash, userInfo.id, userInfo.pid);
+        Map.set(consumerPidMap, thash, userInfo.pid, userInfo.id);
+        Map.set(consumerUidMap, thash, userInfo.id, userInfo.pid);
         // todo: log
         return {
             code = 200;
@@ -547,14 +566,14 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func unSubscribe(): async (Resp<Bool>){
-        if (not isSubscriberByUid(caller)){
+        if (not isSubscriberByUid(Principal.toText(caller))){
             return {
                 code = 400;
                 msg = "not subscriber";
                 data = false;
             };
         };
-        delSubscribe(caller);
+        delSubscribe(Principal.toText(caller));
         return {
             code = 200;
             msg = "";
@@ -562,9 +581,38 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
+    public shared func collectionCall(index: Nat): async (Resp<Collection>){
+        switch(Map.get(contentMap, nhash, index)){
+            case(null){
+                return {
+                    code = 404;
+                    msg = "content not found";
+                    data = {
+                        wid=Principal.toText(Principal.fromActor(this)); 
+                        wName=name;
+                        index=index;
+                        name="content not found"
+                    };
+                };
+            };
+            case(?content){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = {
+                        wid=Principal.toText(Principal.fromActor(this)); 
+                        wName=name;
+                        index=index;
+                        name=content.name
+                    };
+                };
+            };
+        };
+    };
+
     // 由消费者调用  查看是否有订阅 -------------------------------------
     public shared({caller}) func haveSubscribe(): async (Resp<Bool>){
-        if (isSubscriberByPid(caller)){
+        if (isSubscriberByPid(Principal.toText(caller))){
             return {
                 code = 200;
                 msg = "";
@@ -580,25 +628,26 @@ shared({caller}) actor class WorkSpace(
 
     // 由用户直接调用的  创作内容管理相关api
     public shared({caller}) func createContent(name: Text, pid : Nat, order: Nat): async (Resp<Content>){
-        if (not isMember(caller)){
+        let callerPid = Principal.toText(caller);
+        if (not isMember(callerPid)){
             return {
                 code = 403;
                 msg = "permission denied";
-                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=caller;coAuthors=List.nil()}
+                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
             };
         };
         _contentIndex := _contentIndex + 1;
         let index = _contentIndex;
-        var authors : List.List<Principal> = List.nil();
-        let content = {
+        var authors : List.List<Text> = List.nil();
+        let content: Content = {
             id = index;
             pid = pid;
             name = name;
             content = "";
             order = order;
             utime = Time.now();
-            uid = caller;
-            coAuthors = List.push(caller, authors);
+            uid = callerPid;
+            coAuthors = List.push(callerPid, authors);
         };
 
         var ids : List.List<Nat> = List.nil();
@@ -622,7 +671,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func changeLocal(id: Nat, pid: Nat, order: Nat): async (Resp<Bool>){
-        if (not isMember(caller)){
+        if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;
                 msg = "permission denied";
@@ -687,11 +736,12 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func updateContent(id: Nat, name: Text, content: Text): async (Resp<Content>){
-        if (not isMember(caller)){
+        let callerPid = Principal.toText(caller);
+        if (not isMember(callerPid)){
             return {
                 code = 403;
                 msg = "permission denied";
-                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=caller;coAuthors=List.nil()}
+                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
             };
         };
         switch(Map.get(contentMap,nhash, id)){
@@ -699,12 +749,12 @@ shared({caller}) actor class WorkSpace(
                 return {
                     code = 404;
                     msg = "content not found";
-                    data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=caller;coAuthors=List.nil()}
+                    data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
                 };
             };
             case(?content){
-                var coAuthors : List.List<Principal> = List.nil();
-                coAuthors := List.filter<Principal>(content.coAuthors, func uid {not Principal.equal(uid, caller)});
+                var coAuthors : List.List<Text> = List.nil();
+                coAuthors := List.filter<Text>(content.coAuthors, func uid {not Text.equal(uid, callerPid)});
 
                 let newContent : Content = {
                     id = content.id;
@@ -713,8 +763,8 @@ shared({caller}) actor class WorkSpace(
                     content = content.content;
                     order = content.order;
                     utime = Time.now();
-                    uid = caller;
-                    coAuthors = List.push(caller, coAuthors);
+                    uid = callerPid;
+                    coAuthors = List.push(callerPid, coAuthors);
                 };
                 Map.set(contentMap, nhash, content.id, newContent);
 
@@ -730,7 +780,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func delContent(id: Nat): async (Resp<Bool>){
-        if (not isMember(caller)){
+        if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;
                 msg = "permission denied";
@@ -763,7 +813,7 @@ shared({caller}) actor class WorkSpace(
     public shared({caller}) func getContent(id: Nat): async (Resp<ContentResp>){
         // 判断是否是成员 或者是否订阅
         if (showModel != #Public){
-            if(not isMember(caller) and not isSubscriberByPid(caller)){
+            if(not isMember(Principal.toText(caller)) and not isSubscriberByPid(Principal.toText(caller))){
                 return {
                     code = 403;
                     msg = "permission denied";
@@ -780,11 +830,11 @@ shared({caller}) actor class WorkSpace(
                 };
             };
             case(?content){
-                let uAuthorActor : UserActor = actor(Principal.toText(content.uid));
+                let uAuthorActor : UserActor = actor(content.uid);
                 let uAhthResp = await uAuthorActor.info();
                 var coAuthors : List.List<User> = List.nil();
                 for (uid in List.toIter(content.coAuthors)){
-                    let coAuthorActor : UserActor = actor(Principal.toText(uid));
+                    let coAuthorActor : UserActor = actor(uid);
                     let coAuthorResp = await coAuthorActor.info();
                     coAuthors := List.push(coAuthorResp.data, coAuthors);
                 };
@@ -809,7 +859,7 @@ shared({caller}) actor class WorkSpace(
     public shared({caller}) func getSummery(pid: Nat): async (Resp<[SummaryResp]>){
         // 判断是否是成员,仅私有空间不能查看目录
         if (showModel == #Private){
-            if(not isMember(caller)){
+            if(not isMember(Principal.toText(caller))){
                 return {
                     code = 403;
                     msg = "permission denied";

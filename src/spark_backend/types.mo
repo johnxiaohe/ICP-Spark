@@ -16,8 +16,8 @@ module{
 
     // user api types --------------------------------
     public type User = {
-        id: Principal; // user canister id
-        pid: Principal; // user principal id
+        id: Text; // user canister id
+        pid: Text; // user principal id
         name: Text;
         avatar: Text;
         desc: Text;
@@ -25,8 +25,8 @@ module{
     };
 
     public type UserDetail = {
-        id: Principal; // user canister id
-        pid: Principal; // user principal id
+        id: Text; // user canister id
+        pid: Text; // user principal id
         name: Text;
         avatar: Text;
         desc: Text;
@@ -43,20 +43,20 @@ module{
 
     // artical
     public type Collection = {
-        wid: Principal;
+        wid: Text;
         wName: Text;
         index: Nat;
         name: Text;
     };
 
     public type MyWorkspace = {
-        wid: Principal;
+        wid: Text;
         owner: Bool;
         start: Bool;
     };
 
     public type MyWorkspaceResp = {
-        wid: Principal;
+        wid: Text;
         name: Text;
         desc: Text;
         owner: Bool;
@@ -64,23 +64,23 @@ module{
     };
 
     public type RecentWork = {
-        wid: Principal;
+        wid: Text;
         name: Text;
         owner: Bool;
     };
 
     public type RecentEdit = {
-        wid: Principal;
+        wid: Text;
         wname: Text;
-        cid: Nat;
+        index: Nat;
         cname: Text;
         etime: Time.Time;
     };
 
     // work api types -----------------------------------
     public type WorkSpaceInfo = {
-        id: Principal;
-        super: Principal;
+        id: Text;
+        super: Text;
         name: Text;
         avatar: Text;
         desc: Text;
@@ -96,8 +96,8 @@ module{
         content: Text;
         order : Nat;
         utime: Time.Time;
-        uid: Principal;
-        coAuthors: List.List<Principal>;
+        uid: Text;
+        coAuthors: List.List<Text>;
     };
 
     public type SummaryResp = {
@@ -118,7 +118,7 @@ module{
     };
 
     public type Auth = {
-        uid: Principal;
+        uid: Text;
         name: Text;
         avator: Text;
     };
@@ -150,7 +150,8 @@ module{
         info: shared() -> async(Resp<WorkSpaceInfo>);
         subscribe: shared() -> async(Resp<Bool>);
         unSubscribe: shared() -> async(Resp<Bool>);
+        collectionCall: shared(index: Nat) -> async(Resp<Collection>);
         quit: shared() -> async(Bool);
-        transfer: shared(target: Principal) -> async(Bool);
+        transfer: shared(target: Text) -> async(Bool);
     };
 }
