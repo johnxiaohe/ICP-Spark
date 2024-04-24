@@ -94,7 +94,7 @@ module{
         pid: Nat;
         name: Text;
         content: Text;
-        order : Nat;
+        sort : Nat;
         utime: Time.Time;
         uid: Text;
         coAuthors: List.List<Text>;
@@ -104,7 +104,7 @@ module{
         id: Nat;
         pid: Nat;
         name: Text;
-        order : Nat;
+        sort : Nat;
     };
 
     public type ContentResp = {
@@ -115,6 +115,7 @@ module{
         utime: Time.Time;
         uAuthor: ?User;
         coAuthors: List.List<User>;
+        viewCount: Nat;
     };
 
     public type Auth = {
@@ -128,6 +129,49 @@ module{
         #Subscribe;
         #Payment;
         #Private;
+    };
+
+    public type Log = {
+        time: Time.Time;
+        info: Text;
+        opeater: Text;
+    };
+
+    public type FundsLog = {
+        time: Time.Time;
+        info: Text;
+        opeater: Text;
+        opType: Text;
+        token: Text;
+        balance: Nat;
+    };
+
+    public type ContentLog = {
+        time : Time.Time;
+        opeater : Text;
+        opType : Text;
+        index : Nat;
+        name : Text;
+    };
+
+    public type EditorRanking = {
+        pid: Text;
+        count: Nat;
+    };
+
+    public type ViewRanking = {
+        id: Nat;
+        name : Text;
+        count : Nat;
+    };
+
+    public type SpaceData = {
+        income: Nat;
+        outgiving: Nat;
+        editcount: Nat;
+        viewcount: Nat;
+        membercount: Nat;
+        subscribecount: Nat;
     };
 
     // actors api
@@ -152,6 +196,5 @@ module{
         unSubscribe: shared() -> async(Resp<Bool>);
         collectionCall: shared(index: Nat) -> async(Resp<Collection>);
         quit: shared() -> async(Bool);
-        transfer: shared(target: Text) -> async(Bool);
     };
 }

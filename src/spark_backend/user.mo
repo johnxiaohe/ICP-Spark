@@ -627,7 +627,7 @@ shared({caller}) actor class UserSpace(
                 wid = workInfo.id;
                 name = workInfo.name;
                 desc = workInfo.desc;
-                owner = work.owner;
+                owner = Text.equal(Principal.toText(Principal.fromActor(this)), workInfo.super);
                 start = work.start;
             };
             result := List.push(mywork, result);
@@ -733,52 +733,6 @@ shared({caller}) actor class UserSpace(
                     code = 403;
                     msg ="can not find target workspace";
                     data = false;
-                };
-            };
-        };
-    };
-
-    // 转移工作空间owner身份
-    public shared({caller}) func transferWorkOwner(wid: Text, target: Text): async Resp<Bool>{
-        if (not Principal.equal(caller,owner)){
-            return {
-                code = 403;
-                msg = "permision denied";
-                data = false;
-            };
-        };
-
-        switch(Map.get(_workspaces, thash, wid)){
-            case(null){
-                return {
-                    code = 404;
-                    msg = "can not find target workspace";
-                    data = false;
-                };
-            };
-            case(?wns){
-                let workActor: WorkActor = actor(wid);
-                let wInfoResp = await workActor.info();
-                if (Text.equal(wInfoResp.data.super, Principal.toText(Principal.fromActor(this)))){
-                    return {
-                        code = 403;
-                        msg = "you are not this workspace owner";
-                        data = false;
-                    }
-                };
-                let success = await workActor.transfer(target);
-                if (success){
-                    let nWns : MyWorkspace = {
-                        wid=wns.wid;
-                        owner=false;
-                        start=wns.start;
-                    };
-                    Map.set(_workspaces, thash, wid, nWns);
-                };
-                return {
-                    code = 200;
-                    msg = "";
-                    data = success;
                 };
             };
         };

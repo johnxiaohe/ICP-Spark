@@ -2,19 +2,18 @@ import Nat "mo:base/Nat";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
 import List "mo:base/List";
+import Bool "mo:base/Bool";
+import Error "mo:base/Error";
+import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
-import Bool "mo:base/Bool";
-import HashMap "mo:base/HashMap";
-import Error "mo:base/Error";
 
 import Map "mo:map/Map";
-import { phash;nhash;thash } "mo:map/Map";
-import Set "mo:map/Set";
+import { nhash;thash } "mo:map/Map";
 
-import configs "configs";
-import Ledger "ledgers";
 import types "types";
+import Ledger "ledgers";
+import configs "configs";
 
 // 用户在做 订阅、取消订阅、转移空间、退出空间时均使用用户caniser代为调用
 // 用户在浏览、更新空间内容时，可以由用户自己调用
@@ -41,16 +40,24 @@ shared({caller}) actor class WorkSpace(
     
     // workspace 类型声明
     type Content = types.Content;
-    type Collection = types.Collection;
     type ContentResp = types.ContentResp;
     type SummaryResp = types.SummaryResp;
     type WorkSpaceInfo = types.WorkSpaceInfo;
+    type Log = types.Log;
+    type FundsLog = types.FundsLog;
+    type ContentLog = types.ContentLog;
+    type EditorRanking = types.EditorRanking;
+    type ViewRanking = types.ViewRanking;
+    type SpaceData = types.SpaceData;
 
     // 第三方类型声明
     type Resp<T> = types.Resp<T>;
     type User = types.User;
+
+    type Collection = types.Collection;
     type UserDetail = types.UserDetail;
     type TransferFromArgs = Ledger.TransferFromArgs;
+    type TransferArgs = Ledger.TransferArgs;
     
     // actor 类型声明
     type LedgerActor = Ledger.Self;
@@ -63,7 +70,6 @@ shared({caller}) actor class WorkSpace(
     private let tokenMap = HashMap.HashMap<Text, LedgerActor>(3, Text.equal, Text.hash);
     tokenMap.put("ICP", icpLedger);
     tokenMap.put("CYCLES", cyclesLedger);
-
 
     private stable var superUid : Text = Principal.toText(_creater); // user canister id
     private stable var superPid : Text = Principal.toText(_createrPid);
@@ -92,16 +98,34 @@ shared({caller}) actor class WorkSpace(
     private stable var _contentIndex : Nat = 0;
     private stable var contentIndex = Map.new<Nat, List.List<Nat>>();
     private stable var contentMap = Map.new<Nat, Content>();
+    private stable var contentViewMap = Map.new<Nat, Nat>();
+    private stable var contentEditMap = Map.new<Nat, Nat>();
+    private stable var userEditMap = Map.new<Text, Nat>();
 
     // 操作日志数据
-    private stable var _memberlog : List.List<Text> = List.nil();
-    private stable var _fundslog : List.List<Text> = List.nil();
-    private stable var _contentlog : List.List<Text> = List.nil();
+    // 创建、转让、更新canister元数据。成员加入、更新和退出
+    private stable var _syslog : List.List<Log> = List.nil();
+    var zeroLog: Log = {
+        time = Time.now();
+        info = "created workspace; name: " # name;
+        opeater = superPid;
+    };
+    _syslog := List.push(zeroLog, _syslog);
+    // 内容收入、收入分配日志
+    private stable var _fundslog : List.List<FundsLog> = List.nil();
+    private stable var _consumerlog : List.List<Log> = List.nil();
+    // 内容创建、更新
+    private stable var _contentlog = Map.new<Nat, List.List<ContentLog>>();
+    
 
     // 统计  ICP
+    // 总收入
     private stable var _income : Nat = 0;
+    // 已分配
     private stable var _outgiving: Nat = 0;
+    // 总浏览
     private stable var _viewcount : Nat = 0;
+    // 总编辑数
     private stable var _editcount : Nat = 0;
 
     // 内部调用的查询判断私有方法   ----------------------------------------------------------
@@ -129,6 +153,59 @@ shared({caller}) actor class WorkSpace(
         Map.has(consumerUidMap, thash, uid);
     };
 
+    // pid \ loginfo
+    private func pushSysLog(opeater: Text, info: Text){
+        let log : Log = {
+            time = Time.now();
+            info = info;
+            opeater = opeater;
+        };
+        _syslog := List.push(log, _syslog);
+    };
+
+    private func pushConsumerLog(opeater: Text, info: Text){
+        let log : Log = {
+            time = Time.now();
+            info = info;
+            opeater = opeater;
+        };
+        _consumerlog := List.push(log, _consumerlog);
+    };
+
+    private func pushFundsLog(opeater: Text, info: Text, opType: Text, token: Text, price: Nat, balance: Nat){
+        let log : FundsLog = {
+            time = Time.now();
+            info = info;
+            opeater = opeater;
+            opType = opType;
+            token = token;
+            price = price;
+            balance = balance;
+        };
+        _fundslog := List.push(log, _fundslog);
+    };
+
+    private func pushContentLog(opeater: Text, opType: Text, index: Nat, name: Text){
+        let log : ContentLog = {
+            time = Time.now();
+            opeater = opeater;
+            opType = opType;
+            index = index;
+            name = name;
+        };
+        var newLogs : List.List<ContentLog> = List.nil();
+        newLogs := List.push(log, newLogs);
+        switch(Map.get(_contentlog, nhash, index)){
+            case(null){
+                Map.set(_contentlog, nhash, index, newLogs);
+            };
+            case(?logs){
+                newLogs := List.append(newLogs, logs);
+                Map.set(_contentlog, nhash, index, newLogs);
+            }
+        }
+    };
+
     // 删除订阅只能由user canister调用　
     private func delSubscribe(uid: Text){
         switch(Map.get(consumerUidMap, thash, uid)){
@@ -137,6 +214,7 @@ shared({caller}) actor class WorkSpace(
             };
             case(?pid){
                 Map.delete(consumerPidMap, thash, pid);
+                pushConsumerLog(pid, "unsubscribed workspace")
             };
         };
         Map.delete(consumerUidMap, thash, uid);
@@ -161,13 +239,14 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func update(newName: Text, newAvatar: Text, newDesc: Text): async Resp<WorkSpaceInfo>{
-        if (not isAdmin(Principal.toText(caller))){
+        let callerPid = Principal.toText(caller);
+        if (not isAdmin(callerPid)){
             return {
                 code = 403;
                 msg = "permision denied";
                 data = {
-                    id=Principal.toText(caller);
-                    super=Principal.toText(caller);
+                    id=callerPid;
+                    super=callerPid;
                     name="";
                     avatar="";
                     desc="";
@@ -180,6 +259,9 @@ shared({caller}) actor class WorkSpace(
         name := newName;
         avatar := newAvatar;
         desc := newDesc;
+
+        pushSysLog(callerPid, "update workspace info; name: " # name);
+
         return {
             code = 200;
             msg = "";
@@ -226,6 +308,9 @@ shared({caller}) actor class WorkSpace(
         if(showModel == #Payment){
             price := newPrice;
         };
+
+        pushSysLog( Principal.toText(caller) , "update workspace show model");
+
         return {
             code = 200;
             msg = "";
@@ -266,46 +351,65 @@ shared({caller}) actor class WorkSpace(
 
     // 由管理者canister调用的  空间退出、空间转让、成员管理 ---------------------------
     public shared({caller}) func quit(): async(Bool){
-        let callerPid = Principal.toText(caller);
-        if (isSuper(callerPid)){
+        let callerUid = Principal.toText(caller);
+        if (isSuper(callerUid)){
             return false;
         };
-        switch(Map.get(memberIdMap, thash, callerPid)){
+        switch(Map.get(memberIdMap, thash, callerUid)){
             case(null){};
             case(?pid){
-                Map.delete(memberIdMap, thash, callerPid);
+                Map.delete(memberIdMap, thash, callerUid);
                 Map.delete(adminMap, thash, pid);
                 Map.delete(memberMap, thash, pid);
+                pushSysLog(pid, "quit workspace by self");
             };
         };
         return true;
     };
 
     // update super admin
-    public shared({caller}) func transfer(uid: Text): async(Bool){
-        if(isSuper(Principal.toText(caller))){
-            switch(Map.get(memberIdMap, thash, uid)){
-                case(null){return false;};
-                case(?pid){
-                    if(isAdmin(pid)){
-                        let userActor : UserActor = actor(uid);
-                        let result: Bool = await userActor.reciveWns();
-                        if (not result){
-                            return false;
-                        };
-                        Map.set(memberIdMap, thash, superUid, superPid);
-                        Map.set(memberMap, thash, superPid, superUid);
-                        superUid := uid;
-                        superPid := pid;
-                        Map.delete(adminMap, thash, superPid);
-                        Map.delete(memberIdMap, thash, superUid);
-                        return true;
-                    };
-                    return false;
-                }
+    public shared({caller}) func transfer(uid: Text): async(Resp<Bool>){
+        let callerPid = Principal.toText(caller);
+        if (not isSuper(callerPid)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
             };
         };
-        return false;
+        switch(Map.get(memberIdMap, thash, uid)){
+            case(null){
+                return {
+                    code = 404;
+                    msg = "target user not found in members";
+                    data = false;
+                };
+            };
+            case(?pid){
+                let userActor : UserActor = actor(uid);
+                let result: Bool = await userActor.reciveWns();
+                if (not result){
+                    return {
+                        code = 500;
+                        msg = "target user revice workspace failed";
+                        data = false;
+                    };
+                };
+                Map.set(memberIdMap, thash, superUid, superPid);
+                Map.set(adminMap, thash, superPid, superUid);
+                superUid := uid;
+                superPid := pid;
+                Map.delete(adminMap, thash, superPid);
+                Map.delete(memberMap, thash, superPid);
+                Map.delete(memberIdMap, thash, superUid);
+                pushSysLog(callerPid, "transfered owner to {" # superPid # "}");
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+        };
     };
 
     public shared func members(): async(Resp<[User]>){
@@ -372,6 +476,9 @@ shared({caller}) actor class WorkSpace(
                 data = false;
             };
         };
+
+        pushSysLog(Principal.toText(caller), "add member: {" # pid # "} with role: " # role);
+
         return {
             code = 200;
             msg = "";
@@ -418,9 +525,19 @@ shared({caller}) actor class WorkSpace(
                         data = false;
                     };
                 };
+                let userActor : UserActor = actor (uid);
+                let result = await userActor.leaveWorkNs();
+                if (not result){
+                    return {
+                        code = 500;
+                        msg = "del member failed";
+                        data = false;
+                    };
+                };
                 Map.delete(memberIdMap, thash, uid);
                 Map.delete(adminMap, thash, pid);
                 Map.delete(memberMap, thash, pid);
+                pushSysLog(Principal.toText(caller), "del member: {" # pid # "}");
                 return {
                     code = 200;
                     msg = "";
@@ -481,6 +598,9 @@ shared({caller}) actor class WorkSpace(
                         data = false;
                     };
                 };
+
+                pushSysLog(Principal.toText(caller), "update member : {" # pid # "} with role: " # role);
+
                 return {
                     code = 200;
                     msg = "";
@@ -512,6 +632,8 @@ shared({caller}) actor class WorkSpace(
         let userInfo : User = userResp.data;
         // todo: transferfrom 将用户canister 钱转移到自己账户中
         let fee = await icpLedger.icrc1_fee();
+
+        var msg = "";
         if(showModel == #Payment and price > 0){
             let transferFromArgs : TransferFromArgs = {
                 from = {owner=caller; subaccount=null};
@@ -538,12 +660,9 @@ shared({caller}) actor class WorkSpace(
                 case (#Ok(blockIndex)) {
                     Map.set(consumerPidMap, thash, userInfo.pid, userInfo.id);
                     Map.set(consumerUidMap, thash, userInfo.id, userInfo.pid);
-                    // todo: log
-                    return {
-                        code = 200;
-                        msg = "blockIndex: " # Nat.toText(blockIndex);
-                        data = true;
-                    };
+                    msg := "blockIndex: " # Nat.toText(blockIndex);
+                    pushFundsLog(userInfo.pid, "subscribed workspace", "income", "ICP", price, await icpLedger.icrc1_balance_of({owner=Principal.fromActor(this);subaccount=null}));
+                    _income := _income + price;
                 };
             };
             } catch (error : Error) {
@@ -557,10 +676,12 @@ shared({caller}) actor class WorkSpace(
         };
         Map.set(consumerPidMap, thash, userInfo.pid, userInfo.id);
         Map.set(consumerUidMap, thash, userInfo.id, userInfo.pid);
-        // todo: log
+        
+        pushConsumerLog(userInfo.pid, "subscribed workspace");
+        
         return {
             code = 200;
-            msg = "";
+            msg = msg;
             data = true;
         };
     };
@@ -574,6 +695,7 @@ shared({caller}) actor class WorkSpace(
             };
         };
         delSubscribe(Principal.toText(caller));
+
         return {
             code = 200;
             msg = "";
@@ -627,13 +749,13 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 由用户直接调用的  创作内容管理相关api
-    public shared({caller}) func createContent(name: Text, pid : Nat, order: Nat): async (Resp<Content>){
+    public shared({caller}) func createContent(name: Text, pid : Nat, sort: Nat): async (Resp<Content>){
         let callerPid = Principal.toText(caller);
         if (not isMember(callerPid)){
             return {
                 code = 403;
                 msg = "permission denied";
-                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
+                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil();sort=0;}
             };
         };
         _contentIndex := _contentIndex + 1;
@@ -644,7 +766,7 @@ shared({caller}) actor class WorkSpace(
             pid = pid;
             name = name;
             content = "";
-            order = order;
+            sort = sort;
             utime = Time.now();
             uid = callerPid;
             coAuthors = List.push(callerPid, authors);
@@ -662,6 +784,7 @@ shared({caller}) actor class WorkSpace(
         Map.set(contentMap, nhash, index, content);
 
         // todo : add log push portal
+        pushContentLog(callerPid,"create",index,name);
 
         return {
             code = 200;
@@ -670,7 +793,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func changeLocal(id: Nat, pid: Nat, order: Nat): async (Resp<Bool>){
+    public shared({caller}) func changeLocal(id: Nat, pid: Nat, sort: Nat): async (Resp<Bool>){
         if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;
@@ -717,14 +840,16 @@ shared({caller}) actor class WorkSpace(
                 let newContent : Content = {
                     id = content.id;
                     pid = pid;
-                    name = name;
+                    name = content.name;
                     content = content.content;
-                    order = order;
+                    sort = sort;
                     utime = content.utime;
                     uid = content.uid;
                     coAuthors = content.coAuthors;
                 };
                 Map.set(contentMap, nhash, content.id, newContent);
+                // todo : add log push portal
+                pushContentLog(Principal.toText(caller), "sort", content.id, content.name);
                 return {
                     code = 200;
                     msg = "";
@@ -741,7 +866,7 @@ shared({caller}) actor class WorkSpace(
             return {
                 code = 403;
                 msg = "permission denied";
-                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
+                data = {id=0;pid=0;name="";content="";sort=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
             };
         };
         switch(Map.get(contentMap,nhash, id)){
@@ -749,7 +874,7 @@ shared({caller}) actor class WorkSpace(
                 return {
                     code = 404;
                     msg = "content not found";
-                    data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
+                    data = {id=0;pid=0;name="";content="";sort=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
                 };
             };
             case(?content){
@@ -761,7 +886,7 @@ shared({caller}) actor class WorkSpace(
                     pid = content.pid;
                     name = name;
                     content = content.content;
-                    order = content.order;
+                    sort = content.sort;
                     utime = Time.now();
                     uid = callerPid;
                     coAuthors = List.push(callerPid, coAuthors);
@@ -769,6 +894,24 @@ shared({caller}) actor class WorkSpace(
                 Map.set(contentMap, nhash, content.id, newContent);
 
                 // todo : add log push portal
+                _editcount := _editcount + 1;
+                pushContentLog(Principal.toText(caller), "update", content.id, content.name);
+                switch(Map.get(contentEditMap, nhash, content.id)){
+                    case(null){
+                        Map.set(contentEditMap, nhash, content.id, 1);
+                    };
+                    case(?count){
+                        Map.set(contentEditMap, nhash, content.id, count + 1);
+                    };
+                };
+                switch(Map.get(userEditMap, thash, callerPid)){
+                    case(null){
+                        Map.set(userEditMap, thash, callerPid, 1);
+                    };
+                    case(?count){
+                        Map.set(userEditMap, thash, callerPid, count + 1);
+                    };
+                };
 
                 return {
                     code = 200;
@@ -791,17 +934,19 @@ shared({caller}) actor class WorkSpace(
             case(null){};
             case(?content){
                 Map.delete(contentMap, nhash, id);
+                // todo : add log push portal
+                pushContentLog(Principal.toText(caller), "delete", id, content.name);
                 switch(Map.get(contentIndex, nhash, content.pid)){
                     case(null){};
                     case(?ids){
                         var newIds: List.List<Nat> = List.nil();
                         newIds := List.filter<Nat>(ids, func x { x != id});
                         Map.set(contentIndex, nhash, content.pid, newIds);
+
                     };
                 };
             };
         };
-        // todo : add log push portal
 
         return {
             code = 200;
@@ -817,7 +962,7 @@ shared({caller}) actor class WorkSpace(
                 return {
                     code = 403;
                     msg = "permission denied";
-                    data = {id=0;pid=0;name="";content="";utime=Time.now();uAuthor=null;coAuthors=List.nil()};
+                    data = {id=0;pid=0;name="";content="";utime=Time.now();uAuthor=null;coAuthors=List.nil();viewCount = 0};
                 };
             };
         };
@@ -826,7 +971,7 @@ shared({caller}) actor class WorkSpace(
                 return {
                     code = 404;
                     msg = "content not found";
-                    data = {id=0;pid=0;name="";content="";utime=Time.now();uAuthor=null;coAuthors=List.nil()};
+                    data = {id=0;pid=0;name="";content="";utime=Time.now();uAuthor=null;coAuthors=List.nil();viewCount = 0};
                 };
             };
             case(?content){
@@ -838,6 +983,16 @@ shared({caller}) actor class WorkSpace(
                     let coAuthorResp = await coAuthorActor.info();
                     coAuthors := List.push(coAuthorResp.data, coAuthors);
                 };
+                var viewCount = 0;
+                switch(Map.get(contentViewMap, nhash, content.id)){
+                    case(null){
+                        viewCount := viewCount + 1;
+                    };
+                    case(?count){
+                        viewCount := count + 1;
+                        Map.set(contentViewMap, nhash, content.id, viewCount);
+                    }
+                };
                 let resp : ContentResp ={
                     id = content.id;
                     pid = content.pid;
@@ -846,7 +1001,9 @@ shared({caller}) actor class WorkSpace(
                     utime = content.utime;
                     uAuthor = ?uAhthResp.data;
                     coAuthors = coAuthors;
+                    viewCount = viewCount;
                 };
+                _viewcount := _viewcount + 1;
                 return {
                     code = 200;
                     msg = "";
@@ -885,7 +1042,7 @@ shared({caller}) actor class WorkSpace(
                                 id = content.id;
                                 pid = content.pid;
                                 name = content.name;
-                                order = content.order;
+                                sort = content.sort;
                             };
                             summarys := List.push( summary, summarys);
                         };
@@ -900,12 +1057,87 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    // 由用户调用的 空间统计信息管理方法 -------------------------------------------------
-    public shared func income(): async Resp<Nat> {
+    public shared({caller}) func searchSummery(keyword: Text): async (Resp<[SummaryResp]>){
+        // 判断是否是成员,仅私有空间不能查看目录
+        if (showModel == #Private){
+            if(not isMember(Principal.toText(caller))){
+                return {
+                    code = 403;
+                    msg = "permission denied";
+                    data =[];
+                };
+            };
+        };
+        var result : List.List<SummaryResp> = List.nil();
+        for (content in Map.vals(contentMap)){
+            if(Text.contains(content.name, #text keyword)){
+                let resp : SummaryResp = {
+                    id = content.id;
+                    pid = content.pid;
+                    name = content.name;
+                    sort = content.sort;
+                };
+                result := List.push(resp, result);
+            };
+        };
         return {
             code = 200;
             msg = "";
-            data = 0;
+            data = List.toArray(result);
+        };
+    };
+
+    // 由用户调用的 空间统计信息管理方法 -------------------------------------------------
+    public shared func count(): async Resp<SpaceData>{
+        return{
+            code = 200;
+            msg = "";
+            data = {
+                income = _income;
+                outgiving = _outgiving;
+                editcount = _editcount;
+                viewcount = _viewcount;
+                membercount = Map.size(memberIdMap) + 1;
+                subscribecount = Map.size(consumerPidMap);
+            };
+        };
+    };
+
+    public shared func editRanking(): async Resp<[EditorRanking]>{
+        var result : List.List<EditorRanking> = List.nil();
+        Map.forEach<Text,Nat>(userEditMap, func (pid,count)  {
+            let ranking: EditorRanking = {
+                pid = pid;
+                count = count;
+            };
+            result := List.push(ranking, result);
+        });
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
+        };
+    };
+
+    public shared func viewRanking(): async Resp<[ViewRanking]> {
+        var result : List.List<ViewRanking> = List.nil();
+        Map.forEach<Nat,Nat>(contentViewMap, func (id,count)  {
+            switch(Map.get(contentMap, nhash, id)){
+                case(null){};
+                case(?content){
+                    let ranking: ViewRanking = {
+                        id = content.id;
+                        name = content.name;
+                        count = count;
+                    };
+                    result := List.push(ranking, result);
+                };
+            }
+        });
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
         };
     };
 
@@ -931,7 +1163,155 @@ shared({caller}) actor class WorkSpace(
             };
         };
     };
+    public shared func fee(token: Text): async Resp<Nat>{
+        switch(tokenMap.get(token)){
+            case(null){
+                return {
+                    code = 404;
+                    msg = "token not found";
+                    data = 0;
+                };
+            };
+            case(?ledger){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = await ledger.icrc1_fee();
+                };
+            };
+        };
+    };
 
+    public shared({caller}) func outgiving(uid: Text, amount: Nat): async Resp<Bool>{
+        if(not isSuper(Principal.toText(caller))){
+            return {
+                code = 403;
+                msg = "permission denied";
+                data = false;
+            };
+        };
+        let balance = await icpLedger.icrc1_balance_of({owner=Principal.fromActor(this);subaccount=null});
+        let fee = await icpLedger.icrc1_fee();
+        if (balance < (amount+fee)){
+            return {
+                code = 400;
+                msg = "balance is not enought";
+                data = false;
+            };
+        };
+
+        let transferArgs : TransferArgs = {
+            memo = null;
+            amount = amount;
+            from_subaccount = null;
+            fee = ?fee;
+            to = { owner = Principal.fromText(uid); subaccount = null };
+            created_at_time = null;
+        };
+        try {
+            // initiate the transfer
+            let transferResult = await icpLedger.icrc1_transfer(transferArgs);
+
+            // check if the transfer was successfull
+            switch (transferResult) {
+                case (#Err(transferError)) {
+                    return {
+                        code = 500;
+                        msg =  "Couldn't transfer funds:\n" # debug_show (transferError);
+                        data = false;
+                    };
+                };
+                case (#Ok(blockIndex)) {
+                    _outgiving := _outgiving + amount + fee;
+
+                    pushFundsLog(Principal.toText(caller), "out giving", "outgiving", "ICP", amount, await icpLedger.icrc1_balance_of({owner=Principal.fromActor(this);subaccount=null}));
+                    
+                    return {
+                        code = 200;
+                        msg = "";
+                        data = true;
+                    };
+                };
+            };
+        } catch (error : Error) {
+            // catch any errors that might occur during the transfer
+            return {
+                code = 500;
+                msg = "Reject message: " # Error.message(error);
+                data = false;
+            };
+        };
+    };
 
     // 由用户直接调用的  空间日志 --------------------------------
+    public shared({caller}) func contentLog(id: Nat): async Resp<[ContentLog]>{
+        if (not isMember(Principal.toText(caller))){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
+        };
+        switch(Map.get(_contentlog, nhash, id)){
+            case(null){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = [];
+                };
+            };
+            case(?logs){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = List.toArray(logs);
+                };
+            };
+        };
+    };
+
+    public shared({caller}) func fundsLog(): async Resp<[FundsLog]>{
+        if (not isMember(Principal.toText(caller))){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(_fundslog);
+        };
+    };
+
+    public shared({caller}) func consumerLog(): async Resp<[Log]>{
+        if (not isMember(Principal.toText(caller))){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(_consumerlog);
+        }
+    };
+    
+    public shared({caller}) func sysLog(): async Resp<[Log]>{
+        if (not isMember(Principal.toText(caller))){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(_syslog);
+        };
+    };
 }
