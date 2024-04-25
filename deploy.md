@@ -87,6 +87,7 @@ dfx canister call icp-ledger icrc1_transfer '(record {amount=1000000; to=record{
 
 #### 启动业务后端容器
 dfx deploy spark_backend --specified-id bd3sg-teaaa-aaaaa-qaaba-cai
+dfx deploy spark_portal --specified-id bkyz2-fmaaa-aaaaa-qaaaq-cai
 
 
 

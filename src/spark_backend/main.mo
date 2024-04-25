@@ -3,10 +3,10 @@ import List "mo:base/List";
 import Time "mo:base/Time";
 import Cycles "mo:base/ExperimentalCycles";
 import Principal "mo:base/Principal";
-import Debug "mo:base/Debug";
+// import Debug "mo:base/Debug";
 
 import Map "mo:map/Map";
-import { phash;thash } "mo:map/Map";
+import { thash } "mo:map/Map";
 
 import types "types";
 import userspace "user";
@@ -42,7 +42,7 @@ actor{
     };
     Cycles.add<system>(_cyclesPerUser);
     let ctime = Time.now();
-    Debug.print(debug_show(ctime));
+    // Debug.print(debug_show(ctime));
     let userActor = await userspace.UserSpace(name, caller, avatar, desc, ctime);
     let userActorId = Principal.fromActor(userActor);
     _ranking := List.push( Principal.toText(caller), _ranking);

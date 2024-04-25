@@ -4,6 +4,10 @@
       "main": "src/spark_backend/main.mo",
       "type": "motoko"
     },
+    "spark_portal": {
+      "main": "src/spark_backend/portal.mo",
+      "type": "motoko"
+    },
     "spark_user": {
       "main": "src/spark_backend/user.mo",
       "type": "motoko"

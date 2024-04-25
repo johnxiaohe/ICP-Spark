@@ -4,9 +4,11 @@ import List "mo:base/List";
 import Bool "mo:base/Bool";
 import Text "mo:base/Text";
 import Timer "mo:base/Timer";
+import Debug "mo:base/Debug";
+import Time "mo:base/Time";
 
 import Map "mo:map/Map";
-import { nhash;thash } "mo:map/Map";
+import { thash } "mo:map/Map";
 
 import types "types";
 import Quicksort "quicksort";
@@ -34,6 +36,17 @@ shared({caller}) actor class(){
     private stable var latests : List.List<Text> = List.nil();
     // 最热映射，拉取完毕后，排序替换到hots
     private stable var hots : [Text] = [];
+
+    // do {
+    //     Map.set(traits, thash, "aaa", {index=0;wid="aaa";name="aaa";desc="";plate="";tag=["aaa"];view=10;like=0});
+    //     Map.set(traits, thash, "abc", {index=0;wid="abc";name="abc";desc="";plate="";tag=["abc"];view=7;like=0});
+    //     Map.set(traits, thash, "ccc", {index=0;wid="ccc";name="ccc";desc="";plate="";tag=["ccc"];view=20;like=0});
+    //     Map.set(traits, thash, "ddd", {index=0;wid="ddd";name="ddd";desc="";plate="";tag=["ddd"];view=5;like=0});
+    //     latests := List.push("aaa", latests);
+    //     latests := List.push("bbb", latests);
+    //     latests := List.push("ccc", latests);
+    //     latests := List.push("ddd", latests);
+    // };
 
     public shared func push(trait: ContentTrait): async(Bool){
         let uuid = getUUid(trait.wid, trait.index);
@@ -92,11 +105,19 @@ shared({caller}) actor class(){
     };
 
     // 最新排序
-    public shared func latest(size: Nat, offset: Nat): async(Resp<[ContentTrait]>){
-        var from = offset;
-        var to = Nat.sub(Nat.add(offset , size) , 1);
+    public shared func latest(page: Nat, size: Nat): async(Resp<[ContentTrait]>){
+        var from = page * size;
+        var to = from + size;
+        if (to > List.size(latests)){
+            to := List.size(latests);
+        };
+        Debug.print(debug_show(from));
+        Debug.print(debug_show(to));
         var result : List.List<ContentTrait> = List.nil();
-        for (uuid in Array.slice<Text>(List.toArray(latests), from, to)){
+        let arr = List.toArray(latests);
+        Debug.print(debug_show(arr));
+        for (uuid in Array.slice<Text>(arr, from, to)){
+            Debug.print(debug_show(uuid));
             switch(Map.get(traits, thash, uuid)){
                 case(null){};
                 case(?trait){
@@ -145,9 +166,10 @@ shared({caller}) actor class(){
     };
 
     private func pullViews(): async (){
-
+        // Debug.print(debug_show(Time.now()));
     };
 
+    // 定时拉取view 数据 并且排序
     ignore Timer.recurringTimer<system>(#seconds (10) , func () : async(){ await pullViews(); sortHots();});
 
 }
