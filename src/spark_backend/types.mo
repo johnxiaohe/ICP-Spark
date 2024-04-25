@@ -174,6 +174,18 @@ module{
         subscribecount: Nat;
     };
 
+    // portal models
+    public type ContentTrait = {
+        index : Nat;
+        wid : Text;
+        name : Text;
+        plate : Text;
+        desc : Text;
+        tag : [Text];
+        view: Nat;
+        like: Nat;
+    };
+
     // actors api
     public type Spark = actor {
         userUpdateCall : shared (owner: Principal, name: Text, avatar: Text, desc: Text) -> async ();
@@ -196,5 +208,9 @@ module{
         unSubscribe: shared() -> async(Resp<Bool>);
         collectionCall: shared(index: Nat) -> async(Resp<Collection>);
         quit: shared() -> async(Bool);
+    };
+
+    public type PortalActor = actor {
+        push: shared(ContentTrait) -> async();
     };
 }

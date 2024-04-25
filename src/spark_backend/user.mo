@@ -76,7 +76,7 @@ shared({caller}) actor class UserSpace(
     private stable var _recentEdits : List.List<RecentEdit> = List.nil();
 
     // 全局 actor api client 预创建
-    let spark : types.Spark = actor (configs.SPARK_CANISTER_ID);
+    let spark : types.Spark = actor (configs.SPARK_MAIN_ID);
     let icpLedger: LedgerActor = actor(configs.ICP_LEGDER_ID);
     let cyclesLedger: LedgerActor = actor(configs.CYCLES_LEGDER_ID);
 

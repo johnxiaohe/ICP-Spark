@@ -58,12 +58,16 @@ shared({caller}) actor class WorkSpace(
     type UserDetail = types.UserDetail;
     type TransferFromArgs = Ledger.TransferFromArgs;
     type TransferArgs = Ledger.TransferArgs;
+
+    type ContentTrait = types.ContentTrait;
     
     // actor 类型声明
     type LedgerActor = Ledger.Self;
     type UserActor = types.UserActor;
+    type PortalActor = types.PortalActor;
 
     // 全局 actor api client 预创建
+    let portal : PortalActor = actor(configs.SPARK_PORTAL_ID);
     let icpLedger: LedgerActor = actor(configs.ICP_LEGDER_ID);
     let cyclesLedger: LedgerActor = actor(configs.CYCLES_LEGDER_ID);
     // token类型 actor 预存，用于 转账和余额查询等
@@ -116,7 +120,6 @@ shared({caller}) actor class WorkSpace(
     private stable var _consumerlog : List.List<Log> = List.nil();
     // 内容创建、更新
     private stable var _contentlog = Map.new<Nat, List.List<ContentLog>>();
-    
 
     // 统计  ICP
     // 总收入
@@ -755,7 +758,7 @@ shared({caller}) actor class WorkSpace(
             return {
                 code = 403;
                 msg = "permission denied";
-                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil();sort=0;}
+                data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil();sort=0;};
             };
         };
         _contentIndex := _contentIndex + 1;
@@ -783,7 +786,7 @@ shared({caller}) actor class WorkSpace(
         Map.set(contentIndex, nhash, pid, ids);
         Map.set(contentMap, nhash, index, content);
 
-        // todo : add log push portal
+        // todo : add log
         pushContentLog(callerPid,"create",index,name);
 
         return {
@@ -866,7 +869,7 @@ shared({caller}) actor class WorkSpace(
             return {
                 code = 403;
                 msg = "permission denied";
-                data = {id=0;pid=0;name="";content="";sort=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
+                data = {id=0;pid=0;name="";content="";sort=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil();}
             };
         };
         switch(Map.get(contentMap,nhash, id)){
@@ -874,7 +877,7 @@ shared({caller}) actor class WorkSpace(
                 return {
                     code = 404;
                     msg = "content not found";
-                    data = {id=0;pid=0;name="";content="";sort=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil()}
+                    data = {id=0;pid=0;name="";content="";sort=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil();}
                 };
             };
             case(?content){
@@ -893,7 +896,7 @@ shared({caller}) actor class WorkSpace(
                 };
                 Map.set(contentMap, nhash, content.id, newContent);
 
-                // todo : add log push portal
+                // log
                 _editcount := _editcount + 1;
                 pushContentLog(Principal.toText(caller), "update", content.id, content.name);
                 switch(Map.get(contentEditMap, nhash, content.id)){
@@ -919,6 +922,49 @@ shared({caller}) actor class WorkSpace(
                     data = newContent;
                 };
             };
+        };
+    };
+
+    // 更新内容时提示是否要发布至广场（如非Public空间不会变更可见性，用户需订阅或者付费才能看到具体内容）
+    public shared({caller}) func pushContentTrait(index: Nat, name: Text, desc: Text, plate: Text, tag: [Text]): async(Resp<Bool>){
+        let callerPid = Principal.toText(caller);
+        if (not isMember(callerPid)){
+            return {
+                code = 403;
+                msg = "permission denied";
+                data =false;
+            };
+        };
+        if (showModel == #Private){
+            return {
+                code = 403;
+                msg = "private model workspace can not public content";
+                data =false;
+            };
+        };
+        var view = 0;
+        switch(Map.get(contentViewMap, nhash, index)){
+            case(null){};
+            case(?count){
+                view := count;
+            };
+        };
+        
+        let trait : ContentTrait = {
+            index = index;
+            wid = Principal.toText(Principal.fromActor(this));
+            name = name;
+            desc = desc;
+            plate = plate;
+            tag = tag;
+            like = 0;
+            view = view;
+        };
+        await portal.push(trait);
+        return {
+            code = 200;
+            msg = "";
+            data =true;
         };
     };
 
