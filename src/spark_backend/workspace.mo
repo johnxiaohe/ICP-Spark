@@ -104,6 +104,7 @@ shared({caller}) actor class WorkSpace(
     private stable var _contentIndex : Nat = 0;
     private stable var contentIndex = Map.new<Nat, List.List<Nat>>();
     private stable var contentMap = Map.new<Nat, Content>();
+    private stable var traitMap = Map.new<Nat, ContentTrait>();
     private stable var contentViewMap = Map.new<Nat, Nat>();
     private stable var contentEditMap = Map.new<Nat, Nat>();
     private stable var userEditMap = Map.new<Text, Nat>();
@@ -156,6 +157,28 @@ shared({caller}) actor class WorkSpace(
     };
     private func isSubscriberByUid(uid: Text): Bool{
         Map.has(consumerUidMap, thash, uid);
+    };
+
+    private func getMemberUid(pid: Text): Text{
+        if(Text.equal(pid,superPid)){
+            return superUid;
+        };
+        switch(Map.get(adminMap, thash, pid)){
+            case(null){
+                return "";
+            };
+            case(?uid){
+                return uid;
+            };
+        };
+        switch(Map.get(memberMap, thash, pid)){
+            case(null){
+                return "";
+            };
+            case(?uid){
+                return uid;
+            };
+        };
     };
 
     // pid \ loginfo
@@ -307,6 +330,7 @@ shared({caller}) actor class WorkSpace(
                 };
                 Map.clear(consumerPidMap);
                 Map.clear(consumerUidMap);
+                // clear portal
             };
         };
         showModel := newShowModel;
@@ -754,17 +778,23 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 由用户直接调用的  创作内容管理相关api
-    public shared({caller}) func createContent(name: Text, pid : Nat, sort: Nat): async (Resp<Content>){
+    public shared({caller}) func createContent(name: Text, parentId : Nat, sort: Nat): async (Resp<Content>){
         let callerPid = Principal.toText(caller);
-        if (not isMember(callerPid)){
+        let callerUid = getMemberUid(callerPid);
+        if (Text.equal(callerUid, "")){
             return {
                 code = 403;
                 msg = "permission denied";
                 data = {id=0;pid=0;name="";content="";order=0;utime=Time.now();uid=Principal.toText(caller);coAuthors=List.nil();sort=0;};
             };
         };
+        // pid id 循环
         _contentIndex := _contentIndex + 1;
         let index = _contentIndex;
+        var pid = parentId;
+        if (index == parentId){
+            pid := 0;
+        };
         var authors : List.List<Text> = List.nil();
         let content: Content = {
             id = index;
@@ -773,8 +803,8 @@ shared({caller}) actor class WorkSpace(
             content = "";
             sort = sort;
             utime = Time.now();
-            uid = callerPid;
-            coAuthors = List.push(callerPid, authors);
+            uid = callerUid;
+            coAuthors = List.push(callerUid, authors);
         };
 
         var ids : List.List<Nat> = List.nil();
@@ -927,8 +957,35 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    // 更新内容时提示是否要发布至广场（如非Public空间不会变更可见性，用户需订阅或者付费才能看到具体内容）
-    public shared({caller}) func pushContentTrait(index: Nat, name: Text, desc: Text, plate: Text, tag: [Text]): async(Resp<Bool>){
+    // 更新内容时提示是否要发布至广场(如非Public空间不会变更可见性，用户需订阅或者付费才能看到具体内容)
+    public shared({caller}) func updateTrait(index: Nat, name: Text, desc: Text, plate: Text, tag: [Text]): async(Resp<Bool>){
+        let callerPid = Principal.toText(caller);
+        if (not isMember(callerPid)){
+            return {
+                code = 403;
+                msg = "permission denied";
+                data =false;
+            };
+        };
+        let trait : ContentTrait = {
+            index = index;
+            wid = Principal.toText(Principal.fromActor(this));
+            name = name;
+            desc = desc;
+            plate = plate;
+            tag = tag;
+            like = 0;
+            view = 0;
+        };
+        Map.set(traitMap, nhash, index, trait);
+        return {
+            code = 200;
+            msg = "";
+            data =true;
+        };
+    };
+
+    public shared({caller}) func pushPortal(index: Nat): async(Resp<Bool>){
         let callerPid = Principal.toText(caller);
         if (not isMember(callerPid)){
             return {
@@ -944,6 +1001,7 @@ shared({caller}) actor class WorkSpace(
                 data =false;
             };
         };
+
         var view = 0;
         switch(Map.get(contentViewMap, nhash, index)){
             case(null){};
@@ -951,22 +1009,76 @@ shared({caller}) actor class WorkSpace(
                 view := count;
             };
         };
-        
-        let trait : ContentTrait = {
-            index = index;
-            wid = Principal.toText(Principal.fromActor(this));
-            name = name;
-            desc = desc;
-            plate = plate;
-            tag = tag;
-            like = 0;
-            view = view;
+        switch(Map.get(traitMap, nhash, index)){
+            case(null){
+                return {
+                    code = 404;
+                    msg = "trait not found";
+                    data = false;
+                };
+            };
+            case(?trait){
+                let newTrait : ContentTrait = {
+                    index = trait.index;
+                    wid = trait.wid;
+                    name = trait.name;
+                    desc = trait.desc;
+                    plate = trait.plate;
+                    tag = trait.tag;
+                    like = 0;
+                    view = view;
+                };
+                await portal.push(newTrait);
+            };
         };
-        await portal.push(trait);
         return {
             code = 200;
             msg = "";
-            data =true;
+            data = true;
+        };
+    };
+
+    public shared({caller}) func getTrait(index: Nat): async (Resp<ContentTrait>){
+        let callerPid = Principal.toText(caller);
+        if (showModel == #Private and not isMember(callerPid)){
+            return {
+                code = 403;
+                msg = "private model workspacet";
+                data ={index=0;wid="";name="";desc="";plate="";tag=[];like=0;view=0;};
+            };
+        };
+        var view = 0;
+        switch(Map.get(contentViewMap, nhash, index)){
+            case(null){};
+            case(?count){
+                view := count;
+            };
+        };
+        switch(Map.get(traitMap, nhash, index)){
+            case(null){
+                return {
+                    code = 404;
+                    msg = "trait not found";
+                    data = {index=0;wid="";name="";desc="";plate="";tag=[];like=0;view=0;};
+                };
+            };
+            case(?trait){
+                let newTrait : ContentTrait = {
+                    index = trait.index;
+                    wid = trait.wid;
+                    name = trait.name;
+                    desc = trait.desc;
+                    plate = trait.plate;
+                    tag = trait.tag;
+                    like = 0;
+                    view = view;
+                };
+                return {
+                    code = 200;
+                    msg = "";
+                    data = newTrait;
+                };
+            };
         };
     };
 
@@ -1076,6 +1188,32 @@ shared({caller}) actor class WorkSpace(
                 };
             }
         }
+    };
+
+    // summary all
+    public shared({caller}) func summary(): async (Resp<[SummaryResp]>){
+        if (showModel == #Private and not isMember(Principal.toText(caller))){
+            return {
+                code = 403;
+                msg = "workspace is private";
+                data = [];
+            };
+        };
+        var result : List.List<SummaryResp> = List.nil();
+        for(content in Map.vals(contentMap)){
+            let summary : SummaryResp = {
+                id = content.id;
+                pid = content.pid;
+                name = content.name;
+                sort = content.sort;
+            };
+            result := List.push( summary, result);
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
+        };
     };
 
     public shared({caller}) func getSummery(pid: Nat): async (Resp<[SummaryResp]>){
@@ -1380,4 +1518,4 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-}
+};
