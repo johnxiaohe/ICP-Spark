@@ -4,6 +4,7 @@ import Time "mo:base/Time";
 import List "mo:base/List";
 import Bool "mo:base/Bool";
 import Error "mo:base/Error";
+import Array "mo:base/Array";
 import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
@@ -60,6 +61,7 @@ shared({caller}) actor class WorkSpace(
     type TransferArgs = Ledger.TransferArgs;
 
     type ContentTrait = types.ContentTrait;
+    type ViewResp = types.ViewResp;
     
     // actor 类型声明
     type LedgerActor = Ledger.Self;
@@ -968,6 +970,23 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
+    public shared func views(indexs: [Nat]): async([ViewResp]){
+        var result : List.List<ViewResp> = List.nil();
+        for(index in Array.vals(indexs)){
+            var view = 0;
+            switch(Map.get(contentViewMap, nhash, index)){
+                case(null){};
+                case(?viewnumber){view := viewnumber};
+            };
+            let viewResp : ViewResp = {
+                index = index;
+                view = view;
+            };
+            result := List.push( viewResp, result);
+        };
+        return List.toArray(result);
+    };
+
     public shared({caller}) func delContent(id: Nat): async (Resp<Bool>){
         if (not isMember(Principal.toText(caller))){
             return {
@@ -1360,4 +1379,5 @@ shared({caller}) actor class WorkSpace(
             data = List.toArray(_syslog);
         };
     };
+
 }

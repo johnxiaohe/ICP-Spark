@@ -186,6 +186,11 @@ module{
         like: Nat;
     };
 
+    public type ViewResp = {
+        index: Nat;
+        view: Nat;
+    };
+
     // actors api
     public type Spark = actor {
         userUpdateCall : shared (owner: Principal, name: Text, avatar: Text, desc: Text) -> async ();
@@ -208,6 +213,7 @@ module{
         unSubscribe: shared() -> async(Resp<Bool>);
         collectionCall: shared(index: Nat) -> async(Resp<Collection>);
         quit: shared() -> async(Bool);
+        views: shared(indexs: [Nat]) -> async([ViewResp]);
     };
 
     public type PortalActor = actor {

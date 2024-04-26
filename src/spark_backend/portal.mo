@@ -6,6 +6,9 @@ import Text "mo:base/Text";
 import Timer "mo:base/Timer";
 import Debug "mo:base/Debug";
 import Time "mo:base/Time";
+import Iter "mo:base/Iter";
+import Error "mo:base/Error";
+import Principal "mo:base/Principal";
 
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
@@ -20,6 +23,8 @@ import Quicksort "quicksort";
 shared({caller}) actor class(){
 
     type ContentTrait = types.ContentTrait;
+    type ViewResp = types.ViewResp;
+    type Log = types.Log;
 
     type Resp<T> = types.Resp<T>;
 
@@ -32,10 +37,14 @@ shared({caller}) actor class(){
 
     // 内容信息Map wid:id
     private stable var traits = Map.new<Text, ContentTrait>();
+    // 缓存 workspace和推送过来的内容index，方便批量更新view，减少cycles损耗
+    private stable var wids = Map.new<Text, List.List<Nat>>();
     // 最新推送 wid:id
     private stable var latests : List.List<Text> = List.nil();
     // 最热映射，拉取完毕后，排序替换到hots
     private stable var hots : [Text] = [];
+
+    private var errlogs : List.List<Log> = List.nil();
 
     // do {
     //     Map.set(traits, thash, "aaa", {index=0;wid="aaa";name="aaa";desc="";plate="";tag=["aaa"];view=10;like=0});
@@ -48,7 +57,15 @@ shared({caller}) actor class(){
     //     latests := List.push("ddd", latests);
     // };
 
-    public shared func push(trait: ContentTrait): async(Bool){
+    public shared({caller}) func push(trait: ContentTrait): async(Bool){
+        let callerWid = Principal.toText(caller);
+        Debug.print(debug_show(callerWid));
+        if ( not Text.equal(callerWid, trait.wid)){
+            return false;
+        };
+        let workActor : WorkActor = actor (callerWid);
+        ignore await workActor.info();
+
         let uuid = getUUid(trait.wid, trait.index);
         // 更新推送数据 以及根据tag等内容归类
         switch(Map.get(traits, thash, uuid)){
@@ -56,12 +73,34 @@ shared({caller}) actor class(){
                 latests := List.push(uuid, latests);
                 // 初始化存储数据
                 Map.set(traits, thash, uuid, trait);
+                // 不存在的添加 wids映射
+                addWids(trait.wid, trait.index);
             };
             case(?oldTrait){
                 Map.set(traits, thash, uuid, trait);
             };
         };
         return true;
+    };
+
+    private func addWids(wid: Text, index: Nat) {
+        var newIndexs : List.List<Nat> = List.nil();
+        switch(Map.get(wids, thash, wid)){
+            case(null){
+                newIndexs := List.push(index, newIndexs);
+                Map.set(wids, thash, wid, newIndexs);
+            };
+            case(?indexs){
+                switch(List.find<Nat>(indexs, func x {Nat.equal(x,index)})) {
+                    case(null) {
+                        newIndexs := indexs;
+                        newIndexs := List.push(index, newIndexs);
+                        Map.set(wids, thash, wid, newIndexs);
+                    };
+                    case(?id) {};
+                };
+            };
+        };
     };
 
     public shared func getTrait(wid: Text, index: Nat): async(Resp<ContentTrait>) {
@@ -84,10 +123,10 @@ shared({caller}) actor class(){
         };
     };
 
-    // 热度排序
-    public shared func hot(size: Nat, offset: Nat): async(Resp<[ContentTrait]>){
+    // 热度排序 slice方法  前闭后开
+    public shared func hot(offset: Nat, size: Nat): async(Resp<[ContentTrait]>){
         var from = offset;
-        var to = Nat.sub(Nat.add(offset , size) , 1);
+        var to = offset + size;
         var result : List.List<ContentTrait> = List.nil();
         for (uuid in Array.slice<Text>(hots, from, to)){
             switch(Map.get(traits, thash, uuid)){
@@ -97,6 +136,7 @@ shared({caller}) actor class(){
                 };
             };
         };
+        result := List.reverse(result);
         return {
             code = 200;
             msg = "";
@@ -105,26 +145,27 @@ shared({caller}) actor class(){
     };
 
     // 最新排序
-    public shared func latest(page: Nat, size: Nat): async(Resp<[ContentTrait]>){
-        var from = page * size;
-        var to = from + size;
+    public shared func latest(offset: Nat, size: Nat): async(Resp<[ContentTrait]>){
+        var from = offset;
+        var to = offset + size;
         if (to > List.size(latests)){
             to := List.size(latests);
         };
-        Debug.print(debug_show(from));
-        Debug.print(debug_show(to));
         var result : List.List<ContentTrait> = List.nil();
         let arr = List.toArray(latests);
-        Debug.print(debug_show(arr));
+        // 顺序正确，正序输出，但是便利后推送到List里相当于reverse 一次
         for (uuid in Array.slice<Text>(arr, from, to)){
-            Debug.print(debug_show(uuid));
+            // Debug.print(debug_show(uuid));
             switch(Map.get(traits, thash, uuid)){
-                case(null){};
+                case(null){
+                    result := List.push( {index=0;wid="";name="not found";desc="no found";plate="";tag=[];view=0;like=0}, result);
+                };
                 case(?trait){
                     result := List.push( trait, result);
                 };
             };
         };
+        result := List.reverse(result);
         return {
             code = 200;
             msg = "";
@@ -147,6 +188,14 @@ shared({caller}) actor class(){
         };
     };
 
+    public shared func queryLogs (): async(Resp<[Log]>){
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(errlogs);
+        };
+    };
+
     private func getUUid(wid: Text, index: Nat): Text{
         return wid # ":" # Nat.toText(index);
     };
@@ -166,10 +215,42 @@ shared({caller}) actor class(){
     };
 
     private func pullViews(): async (){
+        for((wid, indexs) in Map.entries(wids)){
+            try{
+                let workActor : WorkActor = actor (wid);
+                let views: [ViewResp] = await workActor.views(List.toArray(indexs));
+                for (newView in Array.vals<ViewResp>(views)){
+                    let uuid = getUUid(wid, newView.index);
+                    switch(Map.get(traits, thash, uuid)) {
+                        case(null) {  };
+                        case(?trait) {
+                            if (not Nat.equal(trait.view, newView.view)){
+                                var newTrait = {
+                                    wid = wid;
+
+                                    index = trait.index;
+                                    name = trait.name;
+                                    desc = trait.desc;
+                                    plate = trait.plate;
+                                    tag = trait.tag;
+
+                                    like = trait.like;
+                                    view = newView.view;
+                                };
+                                Map.set(traits,thash, wid, newTrait);
+                            };
+                         };
+                    };
+                };
+            }catch (error : Error){
+                let info = "pull view error : " # Error.message(error);
+                errlogs := List.push({time=Time.now();info=info;opeater=wid}, errlogs);
+            };
+        };
         // Debug.print(debug_show(Time.now()));
     };
 
-    // 定时拉取view 数据 并且排序
+    // 定时拉取view 数据 并且排序 10S 一次
     ignore Timer.recurringTimer<system>(#seconds (10) , func () : async(){ await pullViews(); sortHots();});
 
 }
