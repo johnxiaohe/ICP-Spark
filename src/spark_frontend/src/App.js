@@ -4,7 +4,10 @@ import Layout from '@/components/Layout'
 import Home from '@/pages/Home'
 import Post from '@/pages/Post'
 import New from '@/pages/New'
+import Settings from '@/pages/Settings'
 import UserCenter from '@/pages/UserCenter'
+import Workspaces from '@/pages/Workspaces'
+import WorkspaceDetail from '@/pages/Workspaces/Detail'
 import { useAuth } from './Hooks/useAuth'
 
 function App() {
@@ -44,6 +47,30 @@ function App() {
         element={
           <Layout>
             <New />
+          </Layout>
+        }
+      />
+      <Route
+        path="settings"
+        element={
+          <Layout>
+            <Settings />
+          </Layout>
+        }
+      />
+      <Route
+        path="spaces"
+        element={
+          <Layout>
+            <Workspaces />
+          </Layout>
+        }
+      />
+      <Route
+        path="space/:id"
+        element={
+          <Layout>
+            <WorkspaceDetail />
           </Layout>
         }
       />

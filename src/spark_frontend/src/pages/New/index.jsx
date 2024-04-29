@@ -8,16 +8,18 @@ import { Input, Button } from 'antd'
 
 Quill.register('modules/cursors', QuillCursors)
 
-const New = () => {
+const New = (props) => {
+  const { id } = props
   const [myEditor, setMyEditor] = useState(null)
   const [content, setContent] = useState('')
   const [editors, setEditors] = useState([])
+  const [myProvider, setMyProvider] = useState(null)
   const initEditor = () => {
     const ydoc = new Y.Doc()
     const provider = new WebsocketProvider(
       'wss://demos.yjs.dev/ws', // use the public ws server
       // `ws${location.protocol.slice(4)}//${location.host}/ws`, // alternatively: use the local ws server (run `npm start` in root directory)
-      'quill-demo-6',
+      `icp-demo-${id}`,
       ydoc,
     )
     const ytext = ydoc.getText('quill')
@@ -43,6 +45,7 @@ const New = () => {
 
     const binding = new QuillBinding(ytext, editor, provider.awareness)
     // window.example = { provider, ydoc, ytext, binding, Y }
+    setMyProvider(provider)
     provider.awareness.setLocalStateField('user', {
       name: 'Typing Jimmy' + Math.random(10),
       color: 'blue',
@@ -59,10 +62,13 @@ const New = () => {
 
   useEffect(() => {
     initEditor()
+    return () => {
+      myProvider.destroy()
+    }
   }, [])
 
   return (
-    <div className=" w-2/3 max-w-7xl min-w-[800px] h-full overflow-y-scroll ml-auto mr-auto border border-gray-200 rounded-md bg-white pl-10 pr-10">
+    <div className=" w-2/3 max-w-7xl min-w-[800px] h-full overflow-y-scroll ml-auto mr-auto border border-gray-200 rounded-md bg-white">
       <Input
         className="border-0 text-2xl mt-5 mb-5 pl-10 pr-10"
         placeholder="New post title here..."

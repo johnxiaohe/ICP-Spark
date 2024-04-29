@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
-import { Layout, Menu, Dropdown, Button } from 'antd'
-import { DownOutlined } from '@ant-design/icons'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Layout, Menu, Dropdown, Button, Typography } from 'antd'
 import { useAuth } from '@/Hooks/useAuth'
+import CommonAvatar from '@/components/CommonAvatar'
 
+const { Paragraph } = Typography
 const { Header } = Layout
 
 function CommonHeader(props) {
   const location = useLocation()
-  const { login, logout, principalId, isLoggedIn } = useAuth()
+  const navigate = useNavigate()
+  const { login, logout, authUserInfo, isLoggedIn } = useAuth()
   const [currentRoute, setCurrentRoute] = useState('relevant')
 
   useEffect(() => {
@@ -43,29 +45,47 @@ function CommonHeader(props) {
       />
       {isLoggedIn ? (
         <div className="w-40 flex justify-end items-center">
-          <Link to={`/user/${principalId}`}>
-            <Button>User Center</Button>
-          </Link>
+          <Button onClick={() => navigate('/new')}>Creation Center</Button>
+
           <Dropdown
             menu={{
               items: [
                 {
                   key: '1',
                   label: (
-                    <Button type="link" onClick={logout}>
-                      Logout
-                    </Button>
+                    <Link to={`/user/${authUserInfo.id}`}>
+                      {}
+                      <span className=" text-blue-400">{`@${authUserInfo?.id?.substring(
+                        0,
+                        5,
+                      )}...${authUserInfo?.id?.substr(-3)}`}</span>
+                    </Link>
                   ),
+                },
+                {
+                  key: '2',
+                  label: <Link to={'/settings'}>Settings</Link>,
+                },
+                {
+                  key: '3',
+                  label: <Link to={'/spaces'}>Workspaces</Link>,
+                },
+                {
+                  key: '4',
+                  label: <a onClick={logout}>Logout</a>,
                 },
               ],
             }}
             placement="bottomRight"
             trigger="click"
             className="w-40 flex justify-end"
+            arrow
           >
             <Button type="link" className="text-white flex items-center">
-              {`${principalId.substring(0, 5)}...${principalId.substr(-3)}`}
-              <DownOutlined />
+              <CommonAvatar
+                name={authUserInfo.name || authUserInfo.id}
+                src={authUserInfo.avatar}
+              />
             </Button>
           </Dropdown>
         </div>
