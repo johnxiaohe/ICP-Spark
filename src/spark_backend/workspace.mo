@@ -829,7 +829,9 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func changeLocal(id: Nat, pid: Nat, sort: Nat): async (Resp<Bool>){
-        if (not isMember(Principal.toText(caller))){
+        let callerPid = Principal.toText(caller);
+        // let callerUid = getMemberUid(callerPid);
+        if (not isMember(callerPid)){
             return {
                 code = 403;
                 msg = "permission denied";
@@ -895,8 +897,9 @@ shared({caller}) actor class WorkSpace(
 
     };
 
-    public shared({caller}) func updateContent(id: Nat, name: Text, content: Text): async (Resp<Content>){
+    public shared({caller}) func updateContent(id: Nat, newName: Text, newContent: Text): async (Resp<Content>){
         let callerPid = Principal.toText(caller);
+        let callerUid = getMemberUid(callerPid);
         if (not isMember(callerPid)){
             return {
                 code = 403;
@@ -916,17 +919,17 @@ shared({caller}) actor class WorkSpace(
                 var coAuthors : List.List<Text> = List.nil();
                 coAuthors := List.filter<Text>(content.coAuthors, func uid {not Text.equal(uid, callerPid)});
 
-                let newContent : Content = {
+                let saveContent : Content = {
                     id = content.id;
                     pid = content.pid;
-                    name = name;
-                    content = content.content;
+                    name = newName;
+                    content = newContent;
                     sort = content.sort;
                     utime = Time.now();
-                    uid = callerPid;
-                    coAuthors = List.push(callerPid, coAuthors);
+                    uid = callerUid;
+                    coAuthors = List.push(callerUid, coAuthors);
                 };
-                Map.set(contentMap, nhash, content.id, newContent);
+                Map.set(contentMap, nhash, content.id, saveContent);
 
                 // log
                 _editcount := _editcount + 1;
@@ -951,7 +954,7 @@ shared({caller}) actor class WorkSpace(
                 return {
                     code = 200;
                     msg = "";
-                    data = newContent;
+                    data = saveContent;
                 };
             };
         };
