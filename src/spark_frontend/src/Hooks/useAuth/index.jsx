@@ -2,8 +2,10 @@ import React, { createContext, useState, useContext } from 'react'
 import { AuthClient } from '@dfinity/auth-client'
 import { HttpAgent } from '@dfinity/agent'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { createActor } from '../../../../declarations/spark_backend'
-// import { createActor as iCreateActor } from '../../../../declarations/icp_ledger_canister'
+import { createActor as createMainActor } from '../../../../declarations/spark_backend'
+import { createActor as createUserActor } from '../../../../declarations/spark_user'
+import { createActor as createSpaceActor } from '../../../../declarations/spark_workspace'
+import { responseFormat } from '@/utils/dataFormat'
 
 const days = BigInt(1)
 const hours = BigInt(24)
@@ -34,10 +36,11 @@ export const AuthProvider = ({ children }) => {
   const [authClient, setAuthClient] = useState(null)
   const [principalId, setPrincipalId] = useState('')
   const [agent, setAgent] = useState(null)
-  const [actor, setActor] = useState(null)
-  const [cActor, setCActor] = useState(null)
+  const [mainActor, setMainActor] = useState(null)
+  const [userActor, setUserActor] = useState(null)
+  const [spaceActor, setSpaceActor] = useState(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [userInfo, setUserInfo] = useState({})
+  const [authUserInfo, setAuthUserInfo] = useState({})
 
   const init = async () => {
     console.log('init========')
@@ -52,27 +55,33 @@ export const AuthProvider = ({ children }) => {
 
   const handleAuthenticated = async (authClient) => {
     console.log('handleAuthenticated========')
-    setIsLoggedIn(true)
     const identity = authClient.getIdentity()
     const agent = new HttpAgent({ identity })
-    // await agent.fetchRootKey()
-    // setAgent(agent)
-    // console.log(agent)
-    const _actor = createActor(process.env.CANISTER_ID_SPARK_BACKEND, {
-      agent,
-    })
-    // const _cActor = iCreateActor(process.env.CANISTER_ID_ICP_LEDGER_CANISTER, {
-    //   agent,
-    // })
-    setActor(_actor)
-    // setCActor(_cActor)
+    setAgent(agent)
     const _principalId = identity.getPrincipal().toText()
     setPrincipalId(_principalId)
     console.log(_principalId)
+    const _mainActor = createMainActor(process.env.CANISTER_ID_SPARK_BACKEND, {
+      agent,
+    })
+    setMainActor(_mainActor)
+    await getAuthUserInfo(_mainActor, agent)
     setIsLoggedIn(true)
-    const _userInfo = await _actor.queryUserInfo()
-    console.log('userInfo:::', _userInfo)
-    setUserInfo(_userInfo)
+  }
+
+  const getAuthUserInfo = async (actor, agent) => {
+    let result = await actor.queryUserInfo()
+    result = responseFormat(result)
+    console.log('userInfo:::', result)
+    if (result.code === 200 || result.code === 404) {
+      setAuthUserInfo({ ...result.data })
+      const _userActor = createUserActor(result.data.id, {
+        agent,
+      })
+      setUserActor(_userActor)
+    } else {
+      setAuthUserInfo({})
+    }
   }
 
   const login = async () => {
@@ -90,6 +99,14 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const updateUserInfo = async (...args) => {
+    const _userActor = createUserActor(process.env.CANISTER_ID_SPARK_USER, {
+      agent,
+    })
+    const result = await _userActor.updateInfo(...args)
+    return result
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -97,9 +114,13 @@ export const AuthProvider = ({ children }) => {
         logout,
         init,
         principalId,
-        actor,
-        cActor,
+        mainActor,
+        userActor,
         isLoggedIn,
+        authUserInfo,
+        agent,
+        getAuthUserInfo,
+        updateUserInfo,
       }}
     >
       {children}
