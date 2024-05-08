@@ -4,6 +4,7 @@ import Time "mo:base/Time";
 import List "mo:base/List";
 import Text "mo:base/Text";
 import Bool "mo:base/Bool";
+import Blob "mo:base/Blob";
 import Error "mo:base/Error";
 import Result "mo:base/Result";
 import HashMap "mo:base/HashMap";
@@ -13,10 +14,11 @@ import Cycles "mo:base/ExperimentalCycles";
 import Map "mo:map/Map";
 import { phash;thash } "mo:map/Map";
 
+import ic "ic";
+import types "types";
+import Utils "utils";
 import Ledger "ledgers";
 import configs "configs";
-import types "types";
-
 import WorkSpace "workspace";
 
 // 用户的canisterid是唯一标识符，作为主键和对外关联关系字段
@@ -27,6 +29,9 @@ shared({caller}) actor class UserSpace(
     _desc: Text, 
     _ctime: Time.Time,
 ) = this{
+
+    type ICActor = ic.ICActor;
+    let IC: ICActor = actor(configs.IC_ID);
 
     // 用户接口api类型声明
     type User = types.User;
@@ -40,11 +45,14 @@ shared({caller}) actor class UserSpace(
 
     type WorkSpaceInfo = types.WorkSpaceInfo;
     type ApproveArgs = Ledger.ApproveArgs;
+    type UserPreSaveInfo = types.UserPreSaveInfo;
 
     // 第三方api actor类型声明
     type LedgerActor = Ledger.Self;
     type UserActor = types.UserActor;
     type WorkActor = types.WorkActor;
+    type SparkActor = types.SparkActor;
+    type CyclesManageActor = types.CyclesManageActor;
 
     // 常量声明
     private stable var cyclesPerNamespace: Nat = 20_000_000_000; // 0.02t cycles for each token canister
@@ -76,7 +84,8 @@ shared({caller}) actor class UserSpace(
     private stable var _recentEdits : List.List<RecentEdit> = List.nil();
 
     // 全局 actor api client 预创建
-    let spark : types.Spark = actor (configs.SPARK_MAIN_ID);
+    let spark : SparkActor = actor (configs.SPARK_MAIN_ID);
+    let cyclesmanage : CyclesManageActor = actor (configs.CYCLES_MANAGER_ID);
     let icpLedger: LedgerActor = actor(configs.ICP_LEGDER_ID);
     let cyclesLedger: LedgerActor = actor(configs.CYCLES_LEGDER_ID);
 
@@ -150,6 +159,10 @@ shared({caller}) actor class UserSpace(
         };
     };
 
+    public shared func status(): async (ic.CanisterStatus){
+        return await IC.canister_status(Principal.fromActor(this));
+    };
+
     public query func canisterMemory() : async Resp<Nat> {
         return {
             code = 200;
@@ -172,6 +185,25 @@ shared({caller}) actor class UserSpace(
                     code = 200;
                     msg = "";
                     data = await ledger.icrc1_balance_of({owner=Principal.fromActor(this); subaccount=null});
+                };
+            };
+        };
+    };
+
+    public shared func fee(token: Text): async Resp<Nat>{
+        switch(tokenMap.get(token)){
+            case(null){
+                return {
+                    code = 404;
+                    msg = "token not found";
+                    data = 0;
+                };
+            };
+            case(?ledger){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = await ledger.icrc1_fee();
                 };
             };
         };
@@ -202,11 +234,13 @@ shared({caller}) actor class UserSpace(
                 };
             };
             case(?ledger){
+                let feeResp = await fee(token);
+                let feeAmount = feeResp.data;
                 let transferArgs : Ledger.TransferArgs = {
                     memo = null;
                     amount = amount;
                     from_subaccount = null;
-                    fee = null;
+                    fee = ?feeAmount;
                     to = { owner = Principal.fromText(reciver); subaccount = null };
                     created_at_time = null;
                 };
@@ -244,7 +278,7 @@ shared({caller}) actor class UserSpace(
     };
 
     // cycles 管理 api --------------------------------------
-    // 为指定容器添加Cycles，仅限本人操作. 返回当前cycles
+    // 为指定容器添加Cycles，仅限本人操作. 返回当前cycles;仅支持为user canister、自己的workspace canister充值
     public shared({caller}) func addCycles(target: Text): async Resp<Nat>{
         if (not Principal.equal(caller,owner)){
             return {
@@ -261,26 +295,59 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    // 预存cycles到 cycles管理容器，并设置自动充值阈值
-    public shared({caller}) func presaveCycles(presaveAmount: Nat, addAmount: Nat, trigger: Nat): async Resp<Nat>{
-        // todo 
+    // 预存ICP
+    public shared({caller}) func presaveICP(amount: Nat): async Resp<Bool>{
+        if (not Principal.equal(caller,owner)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
+        };
+        // let feeResp = await fee("ICP");
+        // let feeAmount = feeResp.data;
+        // let transferArgs : Ledger.TransferArgs = {
+        //     memo = null;
+        //     amount = amount;
+        //     from_subaccount = null;
+        //     fee = ?feeAmount;
+        //     to = { owner = Principal.fromText(configs.CYCLES_MANAGER_ID); subaccount = Blob.fromArray(Utils.principalToSubAccount(Principal.fromActor(this)))};
+        //     created_at_time = null;
+        // };
+        return {
+            code = 403;
+            msg = "permision denied";
+            data = false;
+        };
+    };
+
+    // 获取预存信息
+    public shared({caller}) func presaveInfo(): async Resp<UserPreSaveInfo>{
+        if(not Principal.equal(caller, owner)){
+            return {
+                code = 403;
+                msg = "permission denied";
+                data =   {uid="";account="";cycles=0;icp=0;presaveLogs=List.nil()};
+            };
+        };
+        return await cyclesmanage.preSaveInfo();
+    };
+
+    public shared({caller}) func monitorCanister(): async Resp<Bool> {
         return {
             code = 200;
             msg = "";
-            data = 0;
-        }
+            data = false;
+        };
     };
 
-    // 获取预存余额
-    public shared({caller}) func presaveBalance(): async Resp<Nat>{
-        // todo 
+    public shared({caller}) func unMonitor(): async Resp<Bool>{
         return {
             code = 200;
             msg = "";
-            data = 0;
-        }
+            data = false;
+        };
     };
-
 
     // a follow b => a.follow b.fans relation: uid -- uid
     public shared({caller}) func addFollow(uid: Text): async Resp<Bool>{
@@ -654,7 +721,24 @@ shared({caller}) actor class UserSpace(
             payPrice := 0;
         };
         let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), owner, name, avatar, desc,ctime, model, payPrice);
-        let myworkspace : MyWorkspace = {wid=Principal.toText(Principal.fromActor(workspaceActor));owner=true;start=false};
+        let workspaceActorId = Principal.fromActor(workspaceActor);
+
+        // add controllers
+        let controllers: ?[Principal] = ?[Principal.fromActor(this), Principal.fromText(configs.BLACK_HOLE_ID)];
+        let settings : ic.CanisterSettings = {
+        controllers = controllers;
+        compute_allocation = null;
+        freezing_threshold = null;
+        memory_allocation = null;
+        };
+        let params: ic.UpdateSettingsParams = {
+            canister_id = workspaceActorId;
+            settings = settings;
+        };
+        await IC.update_settings(params);
+
+        // add workspace relation
+        let myworkspace : MyWorkspace = {wid=Principal.toText(workspaceActorId);owner=true;start=false};
         Map.set(_workspaces, thash, myworkspace.wid, myworkspace);
         return {
             code =200;
@@ -671,9 +755,9 @@ shared({caller}) actor class UserSpace(
             return true;
         };
         // 判断是否实现 workspace方法或者 是否是canister
-        let workActor: WorkActor = actor(callerPid);
-        let workInfo = await workActor.info();
-
+        if (not Utils.isCanister(caller)){
+            return false;
+        };
         let wns : MyWorkspace = {
             wid=callerPid;
             owner=false;
@@ -769,7 +853,10 @@ shared({caller}) actor class UserSpace(
                 data = false;
             };
         };
-        let recent :RecentWork = {wid=wid;name="";owner=false};
+        // filter old memo
+        _recentWorks := List.filter<RecentWork>(_recentWorks, func rc {not Text.equal(rc.wid, wid)});
+
+        let recent :RecentWork = {wid=wid;name="";owner=false;time=Time.now();};
         _recentWorks := List.push(recent, _recentWorks);
         if (Nat.greater(List.size(_recentWorks), _RECENT_SIZE)){
             let sub: Nat = List.size(_recentWorks) - _RECENT_SIZE;
@@ -798,6 +885,7 @@ shared({caller}) actor class UserSpace(
                 wid = rw.wid;
                 name = wResp.data.name;
                 owner = Text.equal(Principal.toText(Principal.fromActor(this)), wResp.data.super);
+                time = rw.time;
             };
             result := List.push( rwresp, result);
         };
@@ -816,6 +904,9 @@ shared({caller}) actor class UserSpace(
                 data = false;
             };
         };
+        // filter old memo
+        _recentEdits := List.filter<RecentEdit>(_recentEdits, func rc {not Text.equal(rc.wid, wid) and not Nat.equal(rc.index, index)});
+
         let recent : RecentEdit = {wid=wid;wname="";index=index;cname="";etime=Time.now()};
         _recentEdits := List.push(recent, _recentEdits);
         if (Nat.greater(List.size(_recentEdits), _RECENT_SIZE)){

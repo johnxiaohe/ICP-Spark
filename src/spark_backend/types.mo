@@ -67,6 +67,7 @@ module{
         wid: Text;
         name: Text;
         owner: Bool;
+        time: Time.Time;
     };
 
     public type RecentEdit = {
@@ -191,8 +192,35 @@ module{
         view: Nat;
     };
 
+    // cyclesmanage
+    public type UserPreSaveInfo = {
+        uid: Text; // user canister id
+        account: Text;
+        cycles: Nat; // cycles (self after cycles balance - before cycles balance)
+        icp: Nat;
+        presaveLogs: List.List<Text>;
+    };
+
+    public type CanisterInfo = {
+        name : Text;
+        cid: Text;
+    };
+
+    public type Rule = {
+        amount: Nat;
+        threshold: Nat;
+    };
+
+    public type CanisterMetaData = {
+        cid: Text;
+        currentCycles: Nat;
+        historyCycles: List.List<Nat>;
+        rules: List.List<Rule>;
+        topUpLogs: List.List<Text>;
+    };
+
     // actors api
-    public type Spark = actor {
+    public type SparkActor = actor {
         userUpdateCall : shared (owner: Principal, name: Text, avatar: Text, desc: Text) -> async ();
     };
 
@@ -218,5 +246,9 @@ module{
 
     public type PortalActor = actor {
         push: shared(ContentTrait) -> async();
+    };
+
+    public type CyclesManageActor = actor {
+        preSaveInfo: shared() -> async (Resp<UserPreSaveInfo>);
     };
 }

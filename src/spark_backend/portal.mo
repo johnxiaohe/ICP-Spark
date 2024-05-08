@@ -127,6 +127,9 @@ shared({caller}) actor class(){
     public shared func hot(offset: Nat, size: Nat): async(Resp<[ContentTrait]>){
         var from = offset;
         var to = offset + size;
+        if (to > Array.size(hots)){
+            to := Array.size(hots);
+        };
         var result : List.List<ContentTrait> = List.nil();
         for (uuid in Array.slice<Text>(hots, from, to)){
             switch(Map.get(traits, thash, uuid)){
@@ -250,7 +253,7 @@ shared({caller}) actor class(){
         // Debug.print(debug_show(Time.now()));
     };
 
-    // 定时拉取view 数据 并且排序 10S 一次
-    ignore Timer.recurringTimer<system>(#seconds (10) , func () : async(){ await pullViews(); sortHots();});
+    // 定时拉取view 数据 并且排序 300S 一次
+    ignore Timer.recurringTimer<system>(#seconds (300) , func () : async(){ await pullViews(); sortHots();});
 
 }

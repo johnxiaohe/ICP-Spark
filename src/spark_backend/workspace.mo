@@ -8,10 +8,12 @@ import Array "mo:base/Array";
 import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
+import Option "mo:base/Option";
 
 import Map "mo:map/Map";
 import { nhash;thash } "mo:map/Map";
 
+import ic "ic";
 import types "types";
 import Ledger "ledgers";
 import configs "configs";
@@ -38,6 +40,9 @@ shared({caller}) actor class WorkSpace(
     _showModel: types.ShowModel,
     _price : Nat,
 ) = this{
+
+    type ICActor = ic.ICActor;
+    let IC: ICActor = actor(configs.IC_ID);
     
     // workspace 类型声明
     type Content = types.Content;
@@ -163,22 +168,11 @@ shared({caller}) actor class WorkSpace(
         if(Text.equal(pid,superPid)){
             return superUid;
         };
-        switch(Map.get(adminMap, thash, pid)){
-            case(null){
-                return "";
-            };
-            case(?uid){
-                return uid;
-            };
+        var uid = Option.get<Text>(Map.get(adminMap, thash, pid), "");
+        if (Text.equal(uid, "")){
+            uid := Option.get<Text>(Map.get(memberMap, thash, pid), "");
         };
-        switch(Map.get(memberMap, thash, pid)){
-            case(null){
-                return "";
-            };
-            case(?uid){
-                return uid;
-            };
-        };
+        return uid;
     };
 
     // pid \ loginfo
@@ -347,6 +341,10 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
+    public shared func status(): async (ic.CanisterStatus){
+        return await IC.canister_status(Principal.fromActor(this));
+    };
+
     // 获取当前用户在空间中的角色
     public shared({caller}) func role(): async Resp<Text>{
         let pid = Principal.toText(caller);
@@ -432,6 +430,19 @@ shared({caller}) actor class WorkSpace(
                 Map.delete(memberMap, thash, superPid);
                 Map.delete(memberIdMap, thash, superUid);
                 pushSysLog(callerPid, "transfered owner to {" # superPid # "}");
+                // 添加控制器（用户、cycles监控黑洞）
+                let controllers: ?[Principal] = ?[Principal.fromText(superUid), Principal.fromText(configs.BLACK_HOLE_ID)];
+                let settings : ic.CanisterSettings = {
+                controllers = controllers;
+                compute_allocation = null;
+                freezing_threshold = null;
+                memory_allocation = null;
+                };
+                let params: ic.UpdateSettingsParams = {
+                    canister_id = Principal.fromActor(this);
+                    settings = settings;
+                };
+                await IC.update_settings(params);
                 return {
                     code = 200;
                     msg = "";
@@ -491,8 +502,11 @@ shared({caller}) actor class WorkSpace(
             };
         };
         let userActor: UserActor = actor(uid);
+        // todo: call user add workspace
         let userResp = await userActor.info();
         let pid = userResp.data.pid;
+
+        ignore await userActor.addWorkNs();
         Map.set(memberIdMap, thash, uid, pid);
         if (role == "admin"){
             Map.set(adminMap, thash, pid, uid);
@@ -900,7 +914,7 @@ shared({caller}) actor class WorkSpace(
     public shared({caller}) func updateContent(id: Nat, newName: Text, newContent: Text): async (Resp<Content>){
         let callerPid = Principal.toText(caller);
         let callerUid = getMemberUid(callerPid);
-        if (not isMember(callerPid)){
+        if (not isMember(callerPid) or Text.equal(callerUid, "")){
             return {
                 code = 403;
                 msg = "permission denied";
@@ -1005,13 +1019,6 @@ shared({caller}) actor class WorkSpace(
             };
         };
 
-        var view = 0;
-        switch(Map.get(contentViewMap, nhash, index)){
-            case(null){};
-            case(?count){
-                view := count;
-            };
-        };
         switch(Map.get(traitMap, nhash, index)){
             case(null){
                 return {
@@ -1021,7 +1028,7 @@ shared({caller}) actor class WorkSpace(
                 };
             };
             case(?trait){
-                let newTrait : ContentTrait = {
+                let pushTrait : ContentTrait = {
                     index = trait.index;
                     wid = trait.wid;
                     name = trait.name;
@@ -1029,9 +1036,9 @@ shared({caller}) actor class WorkSpace(
                     plate = trait.plate;
                     tag = trait.tag;
                     like = 0;
-                    view = view;
+                    view = Option.get<Nat>(Map.get(contentViewMap, nhash, index), 0);
                 };
-                await portal.push(newTrait);
+                await portal.push(pushTrait);
             };
         };
         return {
@@ -1088,11 +1095,7 @@ shared({caller}) actor class WorkSpace(
     public shared func views(indexs: [Nat]): async([ViewResp]){
         var result : List.List<ViewResp> = List.nil();
         for(index in Array.vals(indexs)){
-            var view = 0;
-            switch(Map.get(contentViewMap, nhash, index)){
-                case(null){};
-                case(?viewnumber){view := viewnumber};
-            };
+            let view = Option.get<Nat>(Map.get(contentViewMap, nhash, index), 0);
             let viewResp : ViewResp = {
                 index = index;
                 view = view;
@@ -1163,16 +1166,12 @@ shared({caller}) actor class WorkSpace(
                     let coAuthorResp = await coAuthorActor.info();
                     coAuthors := List.push(coAuthorResp.data, coAuthors);
                 };
-                var viewCount = 0;
-                switch(Map.get(contentViewMap, nhash, content.id)){
-                    case(null){
-                        viewCount := viewCount + 1;
-                    };
-                    case(?count){
-                        viewCount := count + 1;
-                        Map.set(contentViewMap, nhash, content.id, viewCount);
-                    }
-                };
+
+                var viewCount = Option.get<Nat>(Map.get(contentViewMap, nhash, content.id), 0);
+                viewCount := viewCount + 1;
+                Map.set(contentViewMap, nhash, content.id, viewCount);
+
+                _viewcount := _viewcount + 1;
                 let resp : ContentResp ={
                     id = content.id;
                     pid = content.pid;
@@ -1183,14 +1182,14 @@ shared({caller}) actor class WorkSpace(
                     coAuthors = coAuthors;
                     viewCount = viewCount;
                 };
-                _viewcount := _viewcount + 1;
+                
                 return {
                     code = 200;
                     msg = "";
                     data = resp;
                 };
-            }
-        }
+            };
+        };
     };
 
     // summary all

@@ -8,10 +8,15 @@ import Principal "mo:base/Principal";
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
 
+import ic "ic";
+import configs "configs";
 import types "types";
 import userspace "user";
 
 actor{
+
+  type ICActor = ic.ICActor;
+  let IC: ICActor = actor(configs.IC_ID);
 
   type Resp<T> = types.Resp<T>;
   type User = types.User;
@@ -45,6 +50,22 @@ actor{
     // Debug.print(debug_show(ctime));
     let userActor = await userspace.UserSpace(name, caller, avatar, desc, ctime);
     let userActorId = Principal.fromActor(userActor);
+
+    // 添加控制器（用户、cycles监控黑洞）
+    let controllers: ?[Principal] = ?[caller, Principal.fromText(configs.BLACK_HOLE_ID)];
+    let settings : ic.CanisterSettings = {
+      controllers = controllers;
+      compute_allocation = null;
+      freezing_threshold = null;
+      memory_allocation = null;
+    };
+    let params: ic.UpdateSettingsParams = {
+        canister_id = userActorId;
+        settings = settings;
+    };
+    await IC.update_settings(params);
+
+    // 添加业务关联记录
     _ranking := List.push( Principal.toText(caller), _ranking);
     let user:User = {
       id=Principal.toText(userActorId);
