@@ -1,5 +1,6 @@
 import Prim "mo:prim";
 import Nat "mo:base/Nat";
+import Nat64 "mo:base/Nat64";
 import Time "mo:base/Time";
 import List "mo:base/List";
 import Text "mo:base/Text";
@@ -45,6 +46,7 @@ shared({caller}) actor class UserSpace(
 
     type WorkSpaceInfo = types.WorkSpaceInfo;
     type ApproveArgs = Ledger.ApproveArgs;
+    type TransferArg = Ledger.TransferArg;
     type UserPreSaveInfo = types.UserPreSaveInfo;
 
     // 第三方api actor类型声明
@@ -85,7 +87,7 @@ shared({caller}) actor class UserSpace(
 
     // 全局 actor api client 预创建
     let spark : SparkActor = actor (configs.SPARK_MAIN_ID);
-    let cyclesmanage : CyclesManageActor = actor (configs.CYCLES_MANAGER_ID);
+    // let cyclesmanage : CyclesManageActor = actor (configs.CYCLES_MANAGER_ID);
     let icpLedger: LedgerActor = actor(configs.ICP_LEGDER_ID);
     let cyclesLedger: LedgerActor = actor(configs.CYCLES_LEGDER_ID);
 
@@ -234,8 +236,7 @@ shared({caller}) actor class UserSpace(
                 };
             };
             case(?ledger){
-                let feeResp = await fee(token);
-                let feeAmount = feeResp.data;
+                let feeAmount = await ledger.icrc1_fee();
                 let transferArgs : Ledger.TransferArgs = {
                     memo = null;
                     amount = amount;
@@ -279,7 +280,91 @@ shared({caller}) actor class UserSpace(
 
     // cycles 管理 api --------------------------------------
     // 为指定容器添加Cycles，仅限本人操作. 返回当前cycles;仅支持为user canister、自己的workspace canister充值
-    public shared({caller}) func addCycles(target: Text): async Resp<Nat>{
+    // 获取预存信息
+    // public shared({caller}) func presaveInfo(): async Resp<UserPreSaveInfo>{
+    //     if(not Principal.equal(caller, owner)){
+    //         return {
+    //             code = 403;
+    //             msg = "permission denied";
+    //             data =   {uid="";account="";cycles=0;icp=0;presaveLogs=List.nil()};
+    //         };
+    //     };
+    //     return await cyclesmanage.preSaveInfo();
+    // };
+
+    // 预存ICP, 使用原始的transfer方法 从usercanister 转账ICP到指定 account identifier. amount是 icp数量 * 10^8
+    public shared({caller}) func presaveICP(amount: Nat, accountId: Text): async Resp<Nat64>{
+        if (not Principal.equal(caller,owner)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = 0;
+            };
+        };
+        let balance = await icpLedger.icrc1_balance_of({owner = Principal.fromActor(this); subaccount = null});
+        let fee = await icpLedger.icrc1_fee();
+        if(Nat.greater(amount, (balance + fee))){
+            return {
+                code = 400;
+                msg = "balance not enought";
+                data = 0;
+            };
+        };
+
+        let transferArg : TransferArg = {
+            to = Blob.fromArray(Utils.fromHex(accountId));
+            fee = {e8s = Nat64.fromNat(fee)};
+            memo = Prim.time();
+            from_subaccount = null;
+            amount = {e8s = Nat64.fromNat(amount)};
+            created_at_time = null;
+        };
+        try {
+            let result = await icpLedger.transfer(transferArg);
+            switch(result){
+                case(#Err(transferError)){
+                    return {
+                        code = 500;
+                        msg = debug_show(transferError);
+                        data = 0;
+                    };
+                };
+                case(#Ok(blockIndex)) {
+                    return {
+                        code = 200;
+                        msg = "";
+                        data = blockIndex;
+                    };
+                };
+            }
+        }catch(err : Error){
+            return {
+                code = 500;
+                msg = Error.message(err);
+                data = 0;
+            };
+        };
+    };
+
+    public shared({caller}) func refresh(): async Resp<Nat>{
+        return {
+            code = 200;
+            msg = "";
+            data = 0;
+        };
+    };
+
+    // 添加canister 到manage cycles
+    public shared({caller}) func addManageCanister(canisterId: Text, name: Text): async Resp<Bool> {
+        return {
+            code = 404;
+            msg = "";
+            data = false;
+        };
+    };
+
+    // 给指定canister 充值
+    public shared({caller}) func addCycles(canisterId: Text): async Resp<Nat>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -295,45 +380,8 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    // 预存ICP
-    public shared({caller}) func presaveICP(amount: Nat): async Resp<Bool>{
-        if (not Principal.equal(caller,owner)){
-            return {
-                code = 403;
-                msg = "permision denied";
-                data = false;
-            };
-        };
-        // let feeResp = await fee("ICP");
-        // let feeAmount = feeResp.data;
-        // let transferArgs : Ledger.TransferArgs = {
-        //     memo = null;
-        //     amount = amount;
-        //     from_subaccount = null;
-        //     fee = ?feeAmount;
-        //     to = { owner = Principal.fromText(configs.CYCLES_MANAGER_ID); subaccount = Blob.fromArray(Utils.principalToSubAccount(Principal.fromActor(this)))};
-        //     created_at_time = null;
-        // };
-        return {
-            code = 403;
-            msg = "permision denied";
-            data = false;
-        };
-    };
-
-    // 获取预存信息
-    public shared({caller}) func presaveInfo(): async Resp<UserPreSaveInfo>{
-        if(not Principal.equal(caller, owner)){
-            return {
-                code = 403;
-                msg = "permission denied";
-                data =   {uid="";account="";cycles=0;icp=0;presaveLogs=List.nil()};
-            };
-        };
-        return await cyclesmanage.preSaveInfo();
-    };
-
-    public shared({caller}) func monitorCanister(): async Resp<Bool> {
+    // 给指定canister添加监控规则
+    public shared({caller}) func monitorCanister(canisterId: Text): async Resp<Bool> {
         return {
             code = 200;
             msg = "";
@@ -341,7 +389,8 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared({caller}) func unMonitor(): async Resp<Bool>{
+    // 删除指定canister监控规则
+    public shared({caller}) func unMonitor(canisterId: Text): async Resp<Bool>{
         return {
             code = 200;
             msg = "";
@@ -349,6 +398,9 @@ shared({caller}) actor class UserSpace(
         };
     };
 
+    // 删除canister
+
+    // user meta data manage-----------------------------------
     // a follow b => a.follow b.fans relation: uid -- uid
     public shared({caller}) func addFollow(uid: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){

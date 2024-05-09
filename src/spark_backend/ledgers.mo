@@ -149,6 +149,16 @@ module {
     created_at_time : ?Nat64;
     amount : Nat;
   };
+  public type TimeStamp = { timestamp_nanos : Nat64 };
+  public type Tokens = { e8s : Nat64 };
+  public type TransferArg = {
+    to : Blob;
+    fee : Tokens;
+    memo : Nat64;
+    from_subaccount : ?Blob;
+    created_at_time : ?TimeStamp;
+    amount : Tokens;
+  };
   public type TransferError = {
     #GenericError : { message : Text; error_code : Nat };
     #TemporarilyUnavailable;
@@ -179,6 +189,14 @@ module {
     #TooOld;
     #InsufficientFunds : { balance : Nat };
   };
+  public type TransferError_1 = {
+    #TxTooOld : { allowed_window_nanos : Nat64 };
+    #BadFee : { expected_fee : Tokens };
+    #TxDuplicate : { duplicate_of : Nat64 };
+    #TxCreatedInFuture;
+    #InsufficientFunds : { balance : Tokens };
+  };
+
   public type UpgradeArgs = {
     change_index_id : ?ChangeIndexId;
     max_blocks_per_request : ?Nat64;
@@ -282,5 +300,6 @@ module {
         #Ok : BlockIndex;
         #Err : WithdrawFromError;
       };
+    transfer : shared TransferArg -> async { #Ok : Nat64; #Err : TransferError_1 }; // only icp
   }
 }

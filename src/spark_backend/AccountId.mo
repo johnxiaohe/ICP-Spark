@@ -26,10 +26,10 @@ module {
     return generate(Blob.toArray(b), sa);
   };
   public func generate(data : [Nat8], sa : ?[Nat8]) : [Nat8] {
-    var _sa : [Nat8] = sa_zero;
-    if (Option.isSome(sa)) {
-      _sa := Option.unwrap(sa);
-    };
+    var _sa : [Nat8] = Option.get(sa, sa_zero);
+    // if (Option.isSome(sa)) {
+    //   _sa := Option.unwrap(sa);
+    // };
     var hash : [Nat8] = SHA224.sha224(Array.append(Array.append(ads, data), _sa));
     var crc : [Nat8] = CRC32.crc32(hash);
     return Array.append(crc, hash);

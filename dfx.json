@@ -33,6 +33,18 @@
       "type": "pull",
       "id":"rdmx6-jaaaa-aaaaa-aaadq-cai"
     },
+    "cmc": {
+      "type": "custom",
+      "wasm": "",
+      "candid": "src/cmc/cmc.did",
+      "remote": {
+        "candid": "src/cmc/cmc.did",
+        "id": {
+          "ic": "rkp4c-7iaaa-aaaaa-aaaca-cai",
+          "local": "rkp4c-7iaaa-aaaaa-aaaca-cai"
+        }
+      }
+    },
     "icp-ledger": {
       "type": "custom",
       "candid": "https://raw.githubusercontent.com/dfinity/ic/ff10ea1dba07c0f66c66536a46a97146cf260e90/rs/rosetta-api/icp_ledger/ledger.did",

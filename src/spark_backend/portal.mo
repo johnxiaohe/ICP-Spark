@@ -6,7 +6,6 @@ import Text "mo:base/Text";
 import Timer "mo:base/Timer";
 import Debug "mo:base/Debug";
 import Time "mo:base/Time";
-import Iter "mo:base/Iter";
 import Error "mo:base/Error";
 import Principal "mo:base/Principal";
 

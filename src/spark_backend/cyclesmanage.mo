@@ -1,3 +1,4 @@
+import Nat64 "mo:base/Nat64";
 import Text "mo:base/Text";
 import List "mo:base/List";
 import Blob "mo:base/Blob";
@@ -10,7 +11,9 @@ import { thash } "mo:map/Map";
 import types "types";
 import Utils "utils";
 import ledger "ledgers";
+import CMC "canister:cmc";
 import configs "configs";
+import AccountId "AccountId";
 
 // 用户cycles预存和信息管理(提供account地址，转账ICP，兑换成等额cycles)
 // user - canister - name映射列表
@@ -20,6 +23,13 @@ import configs "configs";
 // canister 余额定时充值 定时任务
 // 删除规则、删除canister记录
 // 充值日志
+
+// 运行流程方式：
+// 用户打开gas station页面，可查看到用户accountid、cycles数量、未转换的icp数量、mint流程中的icp数量
+// 用户从其他Dapp充值ICP到提供的accountid
+// 同步
+// 定时归集用户ICP，mint更新用户blockIndex
+// 定时更新用户cycles余额
 shared (installation) actor class CyclesManage() = self {
 
     type UserPreSaveInfo = types.UserPreSaveInfo;
@@ -47,6 +57,7 @@ shared (installation) actor class CyclesManage() = self {
     let TOP_UP_CANISTER_MEMO = 0x50555054 : Nat64;
 
     type ICActor = Management;
+    type CMCActor = cmc.Self;
     type Ledger = ledger.Self;
 
 
@@ -97,11 +108,60 @@ shared (installation) actor class CyclesManage() = self {
     // user-cycles manager
     // transfer icp --- cycles (3% to self main account)
     public shared({caller}) func refresh(): async(){
-
         assert(not Principal.isAnonymous(caller));
-        let from_subaccount = Utils.principalToSubAccount(caller);
-        let icp = await ICP.icrc1_balance_of({ owner = Principal.fromActor(self); subaccount = ?Blob.fromArray(from_subaccount) });
+        switch(Map.get(userPreSaveInfoMap, thash, Principal.toText(caller))){
+            case(null){};
+            case(?userPreSaveInfo){
+                
+                let from_subaccount = Utils.principalToSubAccount(caller); // cycles manage for this user subaccount
 
+                let icpBalance = await ICP.icrc1_balance_of({ owner = Principal.fromActor(self); subaccount = ?Blob.fromArray(from_subaccount) });
+                if (icpBalance == 0){
+
+                };
+                // cut service fee
+
+                // mint cycles
+                let to_subaccount = Utils.principalToSubAccount(Principal.fromActor(self)); // cycles manage subaccount 
+                let mint_account = AccountId.fromPrincipal(CYCLE_MINTING_CANISTER, ?to_subaccount); // mint canister for cycles manage account
+                try{
+                    let result = await ICP.transfer({
+                        to = Blob.fromArray(mint_account);
+                        fee = {e8s = FEE};
+                        memo = TOP_UP_CANISTER_MEMO;
+                        from_subaccount = ?Blob.fromArray(from_subaccount);
+                        amount = {e8s = Nat64.fromNat(icpBalance) - FEE};
+                        created_at_time = null;
+                    });
+                    switch(result){
+                        case(#Err(err)){
+
+                        };
+                        case(#Ok(blockIndex)){
+                            let starting_cycles = Cycles.balance();
+                            let topupResult = await CMC.notify_top_up({
+                                block_Index  = blockIndex;
+                                canister_id = Principal.fromActor(self);
+                            });
+                            switch(topupResult){
+                                case(#Err(err)){
+
+                                };
+                                case(#Ok(result)){
+                                    let ending_cycles = Cycles.balance();
+                                    if(ending_cycles < starting_cycles){
+
+                                    };
+
+                                };
+                            }
+                        };
+                    };
+                }catch(err){
+
+                };
+            };
+        };
     };
     
     // 主动充值

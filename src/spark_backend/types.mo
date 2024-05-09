@@ -196,7 +196,7 @@ module{
     public type UserPreSaveInfo = {
         uid: Text; // user canister id
         account: Text;
-        cycles: Nat; // cycles (self after cycles balance - before cycles balance)
+        cycles: Nat; // cycles
         icp: Nat;
         presaveLogs: List.List<Text>;
     };
