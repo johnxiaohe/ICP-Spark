@@ -11,6 +11,7 @@ import Result "mo:base/Result";
 import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
+import Option "mo:base/Option";
 
 import Map "mo:map/Map";
 import { phash;thash } "mo:map/Map";
@@ -402,11 +403,42 @@ shared({caller}) actor class UserSpace(
 
     // user meta data manage-----------------------------------
     // a follow b => a.follow b.fans relation: uid -- uid
+    public shared({caller}) func hvFollowed(uid: Text): async Resp<Bool> {
+        if (not Principal.equal(caller,owner)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
+        };
+        let fuid = Option.get(List.find<Text>(_follows, func item {Text.equal(item, uid)}), "");
+        if (Text.equal(fuid, uid)){
+            return {
+                code = 200;
+                msg = "";
+                data = true;
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = false;
+        };
+    };
+
     public shared({caller}) func addFollow(uid: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
                 msg = "permision denied";
+                data = false;
+            };
+        };
+        let fuid = Option.get(List.find<Text>(_follows, func item {Text.equal(item, uid)}), "");
+        if(Text.equal(fuid, uid)){
+            return {
+                code = 400;
+                msg = "follwed";
                 data = false;
             };
         };
@@ -488,7 +520,10 @@ shared({caller}) actor class UserSpace(
         if (Principal.equal(caller,owner)){
             return false;
         };
-        _fans := List.push(Principal.toText(caller), _fans);
+        let uid = Option.get(List.find<Text>(_fans, func item {Text.equal(item, Principal.toText(caller))}), "");
+        if(Text.equal(uid , "")){
+            _fans := List.push(Principal.toText(caller), _fans);
+        };
         return true;
     };
 
@@ -538,6 +573,32 @@ shared({caller}) actor class UserSpace(
     };
 
     // 收藏、取消收藏、收藏列表
+    public shared({caller}) func hvCollectioned(wid: Text, index: Nat): async Resp<Bool> {
+        if (not Principal.equal(caller,owner)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
+        };
+        let cc = List.find<Collection>(_collections, func item {Text.equal(item.wid, wid) and Nat.equal(item.index, index)});
+        switch(cc){
+            case(null){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = false;
+                };
+            };
+            case(?cc){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+        };
+    };
     public shared({caller}) func collection(wid: Text, index: Nat): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
@@ -546,13 +607,26 @@ shared({caller}) actor class UserSpace(
                 data = false;
             };
         };
-        let waitCollection : Collection = {wid=wid;wName="";index=index;name=""};
-        _collections := List.push(waitCollection, _collections);
-        return {
-            code = 200;
-            msg = "";
-            data = true;
+        let cc = List.find<Collection>(_collections, func item {Text.equal(item.wid, wid) and Nat.equal(item.index, index)});
+        switch(cc){
+            case(null){
+                let waitCollection : Collection = {wid=wid;wName="";index=index;name=""};
+                _collections := List.push(waitCollection, _collections);
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+            case(?cc){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
         };
+
     };
 
     public shared({caller}) func unCollection(wid: Text, index:Nat): async Resp<Bool>{
@@ -616,12 +690,50 @@ shared({caller}) actor class UserSpace(
     };
 
     // 订阅列表、添加、删除订阅。关联标识为目标workspace的 priciaplid
+    public shared({caller}) func hvSubscribed(wid: Text): async Resp<Bool>{
+        if (not Principal.equal(caller,owner)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
+        };
+        let id = List.find<Text>(_subscribes, func item { Text.equal(item, wid) });
+        switch (id){
+            case(null){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = false;
+                };
+            };
+            case(?id){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+        };
+    };
+
     public shared({caller}) func subscribe(wid: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
                 msg = "permision denied";
                 data = false;
+            };
+        };
+        let id = List.find<Text>(_subscribes, func item { Text.equal(item, wid) });
+        switch (id){
+            case(null){};
+            case(?id){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
             };
         };
         let workActor : WorkActor = actor(wid);

@@ -193,12 +193,18 @@ module{
     };
 
     // cyclesmanage
+    public type PreSaveStatus = {
+        #Normal;
+        #Minting;
+        #Notifying;
+        #Down;
+    };
     public type UserPreSaveInfo = {
         uid: Text; // user canister id
         account: Text;
         cycles: Nat; // cycles
         icp: Nat;
-        presaveLogs: List.List<Text>;
+        status: PreSaveStatus;
     };
 
     public type CanisterInfo = {
@@ -217,6 +223,22 @@ module{
         historyCycles: List.List<Nat>;
         rules: List.List<Rule>;
         topUpLogs: List.List<Text>;
+    };
+
+    public type MintData = {
+        index: Nat;
+        uid: Text;
+        icp: Nat;
+        cycles: Nat;
+        mintIndex: Nat;
+        notifyIndex: Nat;
+        status: PreSaveStatus;
+    };
+
+    public type FeeLog = {
+        index : Nat; //  = mint data index
+        fee : Nat; // operation fee
+        feeIndex : Nat; // fee transition fee
     };
 
     // actors api

@@ -3,6 +3,9 @@
 #### 安装包管理工具
 sudo npm i ic-mops -g
 
+#### 安装 nns ic网络神经元拓展
+dfx extension install nns
+
 #### 初始化mops
 mops init (有 mops.toml文件后可不执行该步骤)
 
@@ -19,6 +22,9 @@ mops add base
 #### 启动ICP容器基础环境
 clean命令会以纯净模式启动，消除之前的记录
 dfx start --background --clean
+
+#### 安装神经元官方基础canister
+dfx nns install
 
 #### 拉取依赖第三方Canister资源文件
 dfx deps pull
@@ -88,6 +94,7 @@ dfx canister call icp-ledger icrc1_transfer '(record {amount=1000000; to=record{
 #### 启动业务后端容器
 dfx deploy spark_backend --specified-id bd3sg-teaaa-aaaaa-qaaba-cai
 dfx deploy spark_portal --specified-id bkyz2-fmaaa-aaaaa-qaaaq-cai
+dfx deploy cmc --specified-id rkp4c-7iaaa-aaaaa-aaaca-cai  // 成功失败都无所谓
 
 
 

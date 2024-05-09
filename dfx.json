@@ -16,6 +16,10 @@
       "main": "src/spark_backend/workspace.mo",
       "type": "motoko"
     },
+    "spark_cyclesmanage": {
+      "main": "src/spark_backend/cyclesmanage.mo",
+      "type": "motoko"
+    },
     "spark_frontend": {
       "dependencies": [
         "spark_backend"
@@ -32,18 +36,6 @@
     "internet_identity": {
       "type": "pull",
       "id":"rdmx6-jaaaa-aaaaa-aaadq-cai"
-    },
-    "cmc": {
-      "type": "custom",
-      "wasm": "",
-      "candid": "src/cmc/cmc.did",
-      "remote": {
-        "candid": "src/cmc/cmc.did",
-        "id": {
-          "ic": "rkp4c-7iaaa-aaaaa-aaaca-cai",
-          "local": "rkp4c-7iaaa-aaaaa-aaaca-cai"
-        }
-      }
     },
     "icp-ledger": {
       "type": "custom",
