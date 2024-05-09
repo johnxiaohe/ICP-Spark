@@ -3,7 +3,7 @@ import Text "mo:base/Text";
 import Principal "mo:base/Principal";
 import Nat "mo:base/Nat";
 import List "mo:base/List";
-import Result "mo:base/Result";
+// import Result "mo:base/Result";
 import Bool "mo:base/Bool";
 
 module{
@@ -196,7 +196,7 @@ module{
     public type PreSaveStatus = {
         #Normal;
         #Minting;
-        #Notifying;
+        #Notifing;
         #Down;
     };
     public type UserPreSaveInfo = {
@@ -226,17 +226,17 @@ module{
     };
 
     public type MintData = {
-        index: Nat;
         uid: Text;
         icp: Nat;
         cycles: Nat;
-        mintIndex: Nat;
-        notifyIndex: Nat;
+        mintIndex: Nat64;
         status: PreSaveStatus;
+        ctime: Time.Time;
+        dtime : Time.Time;
     };
 
     public type FeeLog = {
-        index : Nat; //  = mint data index
+        mintIndex : Nat64; //  = mint data index
         fee : Nat; // operation fee
         feeIndex : Nat; // fee transition fee
     };

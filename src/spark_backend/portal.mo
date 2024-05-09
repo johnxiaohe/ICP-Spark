@@ -4,7 +4,7 @@ import List "mo:base/List";
 import Bool "mo:base/Bool";
 import Text "mo:base/Text";
 import Timer "mo:base/Timer";
-import Debug "mo:base/Debug";
+// import Debug "mo:base/Debug";
 import Time "mo:base/Time";
 import Error "mo:base/Error";
 import Principal "mo:base/Principal";
@@ -14,6 +14,7 @@ import { thash } "mo:map/Map";
 
 import types "types";
 import Quicksort "quicksort";
+import Utils "utils";
 
 
 // 接收来自workspace 推送的内容，归类整理。
@@ -58,12 +59,13 @@ shared({caller}) actor class(){
 
     public shared({caller}) func push(trait: ContentTrait): async(Bool){
         let callerWid = Principal.toText(caller);
-        Debug.print(debug_show(callerWid));
+        // Debug.print(debug_show(callerWid));
         if ( not Text.equal(callerWid, trait.wid)){
             return false;
         };
-        let workActor : WorkActor = actor (callerWid);
-        ignore await workActor.info();
+        if(not Utils.isCanister(caller)){
+            return false;
+        };
 
         let uuid = getUUid(trait.wid, trait.index);
         // 更新推送数据 以及根据tag等内容归类
@@ -253,6 +255,13 @@ shared({caller}) actor class(){
     };
 
     // 定时拉取view 数据 并且排序 300S 一次
-    ignore Timer.recurringTimer<system>(#seconds (300) , func () : async(){ await pullViews(); sortHots();});
+    private stable var processing : Bool = false;
+    ignore Timer.recurringTimer<system>(#seconds (300) , func () : async(){
+            if(processing){return};
+            processing := true;
+            await pullViews();
+            sortHots();
+            processing := false;
+        });
 
 }

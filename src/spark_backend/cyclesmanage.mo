@@ -1,9 +1,14 @@
+import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
 import Text "mo:base/Text";
 import List "mo:base/List";
 import Blob "mo:base/Blob";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
+import Time "mo:base/Time";
+import Timer "mo:base/Timer";
+import Error "mo:base/Error";
+import Option "mo:base/Option";
 
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
@@ -41,6 +46,8 @@ shared (installation) actor class CyclesManage() = self {
     type Rule = types.Rule;
     type CanisterMetaData = types.CanisterMetaData;
     type MintData = types.MintData;
+    type Log = types.Log;
+    type FeeLog = types.FeeLog;
 
     type Management = actor { deposit_cycles : ({canister_id: Principal}) -> async (); };
 
@@ -53,7 +60,9 @@ shared (installation) actor class CyclesManage() = self {
     let FEE = 10000 : Nat64;
 
     // Minimum ICP mint : 0.05 = 5000000
-    let MIN_MINT_CIP = 5000000 : Nat64;
+    let MIN_MINT_ICP = 5000000 : Nat;
+    // CUT_FEE 0.001 ICP
+    let CUT_FEE = 100000 : Nat;
 
 
     // The current method of converting ICP to cycles is by sending ICP to the
@@ -72,8 +81,33 @@ shared (installation) actor class CyclesManage() = self {
 
     private stable var userPreSaveInfoMap = Map.new<Text,UserPreSaveInfo>();
     // 转换ICP-cycles、topupcycles
-    private stable var userPreSaveLogsMap = Map.new<Text, List.List<Text>>();
-    private stable var mintDataIndex : Nat = 0;
+    private stable var mintDataMap = Map.new<Text, MintData>();
+    private stable var mintDataLogsMap = Map.new<Text, List.List<MintData>>();
+    private stable var preSaveLogsMap = Map.new<Text, List.List<Log>>();
+    private stable var sysErrLogs : List.List<Log> = List.nil();
+    private stable var feeLogs : List.List<FeeLog> = List.nil();
+
+    func addLog(log: Log, uid: Text){
+        var newLogs : List.List<Log> = List.nil();
+        newLogs := List.push(log, newLogs);
+        switch(Map.get(preSaveLogsMap, thash, uid)){
+            case(null){
+                Map.set(preSaveLogsMap, thash, uid, newLogs);
+            };
+            case(?logs){
+                newLogs := List.append<Log>(newLogs, logs);
+                Map.set(preSaveLogsMap, thash, uid, newLogs);
+            };
+        };
+    };
+
+    // Convert Error to Text.
+    func show_error(err: Error) : Text {
+        debug_show({ error = Error.code(err); message = Error.message(err); })
+    };
+    func addSysErrLog(log: Log){
+        sysErrLogs := List.push(log, sysErrLogs);
+    };
 
     let errPreSaveInfo =  {uid="";account="";cycles=0;icp=0;status=#Normal};
     func getUserPreSaveInfo(userCanisterId: Principal): async UserPreSaveInfo{
@@ -105,7 +139,7 @@ shared (installation) actor class CyclesManage() = self {
     };
 
     // user-subaccount manager
-    public shared({caller}) func preSaveInfo(): async (Resp<UserPreSaveInfo>){
+    public shared({caller}) func aboutme(): async (Resp<UserPreSaveInfo>){
         if(Utils.isCanister(caller)){
             return {
                 code = 200;
@@ -121,25 +155,62 @@ shared (installation) actor class CyclesManage() = self {
     };
 
     // 手动预存指定ICP,添加预存信息到mint队列，修改用户状态
-    public shared({caller}) func mint(amount: Nat64): async(){
+    public shared({caller}) func mint(amount: Nat): async(Resp<Bool>){
         assert(not Principal.isAnonymous(caller));
         // 检查amount是否满足最小mint数量 (0.05ICP)
-        if (amount < MIN_MINT_CIP){
-            return;
+        if (amount < MIN_MINT_ICP){
+            return {
+                code = 400;
+                msg = "min icp mint amount : " # Nat.toText(MIN_MINT_ICP);
+                data = false;
+            };
         };
         switch(Map.get(userPreSaveInfoMap, thash, Principal.toText(caller))){
-            case(null){};
+            case(null){
+                return {
+                    code = 404;
+                    msg = "user info not found";
+                    data = false;
+                };
+            };
             case(?userInfo){
                 // 非正常状态的用户都不能再次mint
                 if(not (userInfo.status == #Normal)){
-                    return;
+                    return {
+                        code = 400;
+                        msg = "have a mint order";
+                        data = false;
+                    };
                 };
                 let from_subaccount = Utils.principalToSubAccount(caller); // cycles manage for this user subaccount
                 let icpBalance = await ICP.icrc1_balance_of({ owner = Principal.fromActor(self); subaccount = ?Blob.fromArray(from_subaccount) });
-                if (Nat64.fromNat(icpBalance) < amount){
-                    return;
+                if (icpBalance < amount){
+                    return {
+                        code = 400;
+                        msg = "balance not enought";
+                        data = false;
+                    };
                 };
-                // add mint queue; update status
+                // add mint queue
+                let mintData : MintData = {
+                    uid = userInfo.uid;
+                    icp = amount;
+                    cycles = 0;
+                    mintIndex = 0;
+                    notifyIndex = 0;
+                    status = #Minting;
+                    ctime = Time.now();
+                    dtime = Time.now();
+                };
+                Map.set(mintDataMap, thash, userInfo.uid, mintData);
+                let log : Log = {
+                    time = Time.now();
+                    info = "submit " # Nat.toText(amount) # " ICP mint cycles request";
+                    opeater = "";
+                };
+                addLog(log, userInfo.uid);
+
+                // update user status
                 let newUserInfo : UserPreSaveInfo = {
                     uid = userInfo.uid;
                     account = userInfo.account;
@@ -148,85 +219,280 @@ shared (installation) actor class CyclesManage() = self {
                     status = #Minting;
                 };
                 Map.set(userPreSaveInfoMap, thash, userInfo.uid, newUserInfo);
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+        };
+    };
+
+    // 手动充值cycles到指定canister
+    public shared({caller}) func topup(amount: Nat, cid: Text): async (Resp<Bool>){
+        assert(not Principal.isAnonymous(caller));
+        switch(Map.get(userPreSaveInfoMap, thash, Principal.toText(caller))){
+            case(null){
+                return {
+                    code = 404;
+                    msg = "user not found";
+                    data = false;
+                };
+            };
+            case(?userInfo){
+                if(Nat.less(userInfo.cycles, amount)){
+                    return {
+                        code = 200;
+                        msg = "presave cycles balance not enought";
+                        data = false;
+                    };
+                };
+                
+                // 用户充值cycles和mint cycles不冲突
+                let newUserInfo : UserPreSaveInfo = {
+                    uid = userInfo.uid;
+                    account = userInfo.account;
+                    icp = 0;
+                    cycles = (userInfo.cycles - amount);
+                    status = userInfo.status;
+                };
+                // top up
+                Cycles.add<system>(amount);
+                await IC.deposit_cycles({canister_id = Principal.fromText(cid)});
+
+                Map.set(userPreSaveInfoMap, thash, userInfo.uid, newUserInfo);
+
+                // log
+                let log : Log = {
+                    time = Time.now();
+                    info = "manual topup " # Nat.toText(amount) # " cycles to canister : " # cid # "; cycles balance: " # Nat.toText(newUserInfo.cycles);
+                    opeater = "";
+                };
+                addLog(log, userInfo.uid);
+
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
             };
         };
     };
 
     // user-monitor manager
 
-    // user-cycles manager
-    // transfer icp --- cycles (3% to self main account)
-    public shared({caller}) func refresh(): async(){
-        assert(not Principal.isAnonymous(caller));
-        switch(Map.get(userPreSaveInfoMap, thash, Principal.toText(caller))){
+    // 充值ICP到cmc canister
+    public shared({caller}) func mintCycles(mintData: MintData): async(){
+        assert(caller == Principal.fromActor(self) or caller == OWNER);
+        switch(Map.get(userPreSaveInfoMap, thash, mintData.uid)){
             case(null){};
-            case(?userPreSaveInfo){
-                
-                let from_subaccount = Utils.principalToSubAccount(caller); // cycles manage for this user subaccount
-
-                let icpBalance = await ICP.icrc1_balance_of({ owner = Principal.fromActor(self); subaccount = ?Blob.fromArray(from_subaccount) });
-                if (icpBalance == 0){
-
-                };
-                // cut service fee
-
-                // mint cycles
+            case(?userInfo){
+                let from_subaccount = Utils.principalToSubAccount(Principal.fromText(userInfo.uid)); // cycles manage for this user subaccount
                 let to_subaccount = Utils.principalToSubAccount(Principal.fromActor(self)); // cycles manage subaccount 
                 let mint_account = AccountId.fromPrincipal(CYCLE_MINTING_CANISTER, ?to_subaccount); // mint canister for cycles manage account
                 try{
+                    // 扣减去 服务费和服务费转账的手续费
+                    var amount = Nat.sub(mintData.icp, CUT_FEE);
+                    amount := Nat.sub(mintData.icp, Nat64.toNat(FEE));
+                    await cutfee(mintData);
+                    // mint transfer
                     let result = await ICP.transfer({
                         to = Blob.fromArray(mint_account);
                         fee = {e8s = FEE};
                         memo = TOP_UP_CANISTER_MEMO;
                         from_subaccount = ?Blob.fromArray(from_subaccount);
-                        amount = {e8s = Nat64.fromNat(icpBalance) - FEE};
+                        amount = {e8s = Nat64.fromNat(amount) - FEE};
                         created_at_time = null;
                     });
                     switch(result){
-                        case(#Err(err)){
-
+                        case(#Err(err)){ // 没扣减成功,等待下次重试
+                            let log : Log = {
+                                time = Time.now();
+                                info = debug_show (err);
+                                opeater = userInfo.uid;
+                            };
+                            addSysErrLog(log);
                         };
                         case(#Ok(blockIndex)){
-                            let starting_cycles = Cycles.balance();
-                            let topupResult = await CMC.notify_top_up({
-                                block_index  = blockIndex;
-                                canister_id = Principal.fromActor(self);
-                            });
-                            switch(topupResult){
-                                case(#Err(err)){
-
-                                };
-                                case(#Ok(result)){
-                                    let ending_cycles = Cycles.balance();
-                                    if(ending_cycles < starting_cycles){
-
-                                    };
-
-                                };
-                            }
+                            let newMintData : MintData = {
+                                uid = userInfo.uid;
+                                icp = mintData.icp;
+                                cycles = 0;
+                                mintIndex = blockIndex;
+                                status = #Notifing;
+                                ctime = mintData.ctime;
+                                dtime = mintData.dtime;
+                            };
+                            Map.set(mintDataMap, thash, mintData.uid, newMintData);
                         };
                     };
-                }catch(err){
-
+                }catch(err){ // 没扣减成功,等待下次重试
+                    let log : Log = {
+                        time = Time.now();
+                        info = show_error(err);
+                        opeater = userInfo.uid;
+                    };
+                    addSysErrLog(log);
                 };
             };
         };
     };
-    
-    // 主动充值
-    public shared({caller}) func topup(amount: Nat, cid: Text): async (){
-        Cycles.add<system>(amount);
-        await IC.deposit_cycles({canister_id = Principal.fromText(cid)});
 
+    public shared({caller}) func cutfee(mintData: MintData): async(){
+        assert(caller == Principal.fromActor(self) or caller == OWNER);
+        let from_subaccount = Utils.principalToSubAccount(Principal.fromText(mintData.uid)); // cycles manage for this user subaccount
+        try{
+            let result = await ICP.icrc1_transfer({
+                to = {owner = Principal.fromActor(self); subaccount = null};
+                fee = ?Nat64.toNat(FEE);
+                memo = null;
+                amount = CUT_FEE;
+                from_subaccount = ?Blob.fromArray(from_subaccount);
+                created_at_time = null;
+            });
+            switch(result){
+                case(#Err(err)){ // 没扣减成功,等待下次重试
+                    let log : Log = {
+                        time = Time.now();
+                        info = debug_show (err);
+                        opeater = mintData.uid;
+                    };
+                    addSysErrLog(log);
+                };
+                case(#Ok(blockIndex)){
+                    let log : FeeLog = {
+                        mintIndex = mintData.mintIndex;
+                        fee = CUT_FEE;
+                        feeIndex = blockIndex;
+                    };
+                    feeLogs := List.push(log, feeLogs);
+                };
+            };
+        }catch(err){
+            let log : Log = {
+                time = Time.now();
+                info = show_error(err);
+                opeater = mintData.uid;
+            };
+            addSysErrLog(log);
+        };
     };
 
-    // user deposit call back( refresh icp ledger for user subaccount )
-    public shared({caller}) func monitorCanister(cid: Text, threshold: Nat, amount: Nat): async(){
+    // 通知cmc canister 生成cycles给self
+    public shared({caller}) func notify(mintData: MintData): async(){
+        assert(caller == Principal.fromActor(self) or caller == OWNER);
+        switch(Map.get(userPreSaveInfoMap, thash, mintData.uid)){
+            case(null){};
+            case(?userInfo){
+                // let starting_cycles = Cycles.balance();
+                try{
+                    let result = await CMC.notify_top_up({
+                        block_index  = mintData.mintIndex;
+                        canister_id = Principal.fromActor(self);
+                    });
+                    switch(result){
+                        case(#Err(err)){ // 没有充值成功，等待下次充值
+                            let log : Log = {
+                                time = Time.now();
+                                info = debug_show (err);
+                                opeater = userInfo.uid;
+                            };
+                            addSysErrLog(log);
+                        };
+                        case(#Ok(topupcycles)){
+                            // let ending_cycles = Cycles.balance();
+                            // if (ending_cycles < starting_cycles) {
+                            //     // TODO: add exception log
+                            //     return;
+                            // };
+                            // let topupcycles : Nat = Nat.sub(ending_cycles, starting_cycles);
+                            let newMintData : MintData = {
+                                uid = userInfo.uid;
+                                icp = mintData.icp;
+                                cycles = topupcycles;
+                                mintIndex = mintData.mintIndex;
+                                status = #Down;
+                                ctime = mintData.ctime;
+                                dtime = Time.now();
+                            };
+                            // 删除出mintcycles队列
+                            Map.delete(mintDataMap, thash, mintData.uid);
 
+                            // 添加到用户mintdatalog中
+                            var newMintLog : List.List<MintData> = List.nil();
+                            newMintLog := List.push(newMintData, newMintLog);
+                            switch(Map.get(mintDataLogsMap, thash, userInfo.uid)){
+                                case(null){
+                                    Map.set(mintDataLogsMap, thash, userInfo.uid, newMintLog);
+                                };
+                                case(?oldLogs){
+                                    newMintLog := List.append(newMintLog, oldLogs);
+                                    Map.set(mintDataLogsMap, thash, userInfo.uid, newMintLog);
+                                };
+                            };
+
+                            // 更新用户cycles信息 和 状态
+                            let newUserInfo : UserPreSaveInfo = {
+                                uid = userInfo.uid;
+                                account = userInfo.account;
+                                cycles = Nat.add(userInfo.cycles, topupcycles);
+                                icp = userInfo.icp;
+                                status = #Normal;
+                            };
+                            Map.set(userPreSaveInfoMap, thash, userInfo.uid, newUserInfo);
+                            
+                            // 添加日志
+                            let log : Log = {
+                                time = Time.now();
+                                info = "end " # Nat.toText(mintData.icp) # " ICP mint cycles request; mint cycles: " # Nat.toText(topupcycles);
+                                opeater = "";
+                            };
+                            addLog(log, userInfo.uid);
+                        };
+                    };
+                }catch(err){ // 等待下次重试
+                    let log : Log = {
+                        time = Time.now();
+                        info = show_error(err);
+                        opeater = userInfo.uid;
+                    };
+                    addSysErrLog(log);
+                };
+            };
+        };
     };
 
-    public shared({caller}) func unMonitor(cid: Text): async(){
+    // 遍历mintDataMap，根据状态调用mintCycles或者notify。更新用户状态
+    public shared({caller}) func mintCyclesTask(): async(){
+        assert(caller == Principal.fromActor(self) or caller == OWNER);
 
+        for(mintData in Map.vals(mintDataMap)){
+            switch(mintData.status){
+                case(#Normal){
+                    Map.delete(mintDataMap, thash, mintData.uid);
+                };
+                case(#Minting){
+                    try { await mintCycles(mintData) } catch(_) {};
+                };
+                case(#Notifing){
+                    try { await notify(mintData) } catch(_) {};
+                };
+                case(#Down){
+                    Map.delete(mintDataMap, thash, mintData.uid);
+                };
+            }
+        };
     };
-    
+
+    // 定时执行用户 mintcycles任务、canister-cycles-balance检查、自动充值规则执行
+    // private stable var processing : Bool = false;
+    // ignore Timer.recurringTimer<system>(#seconds(5) , func () : async(){
+    //     if(processing){return};
+
+    //     processing := true;
+
+    //     await mintCyclesTask();
+
+    //     processing := false;
+    // });
 }
