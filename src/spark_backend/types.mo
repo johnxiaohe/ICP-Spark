@@ -215,14 +215,14 @@ module{
     public type Rule = {
         amount: Nat;
         threshold: Nat;
+        uid: Text;
     };
 
-    public type CanisterMetaData = {
+    public type CanistersResp = {
         cid: Text;
-        currentCycles: Nat;
-        historyCycles: List.List<Nat>;
-        rules: List.List<Rule>;
-        topUpLogs: List.List<Text>;
+        name : Text;
+        cycles: Nat;
+        rule: ?Rule;
     };
 
     public type MintData = {

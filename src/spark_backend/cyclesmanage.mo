@@ -19,6 +19,7 @@ import ledger "ledgers";
 import cmc "cmc";
 import configs "configs";
 import AccountId "AccountId";
+import blackhole "blackhole";
 
 // 用户cycles预存和信息管理(提供account地址，转账ICP，兑换成等额cycles)
 // user - canister - name映射列表
@@ -44,7 +45,7 @@ shared (installation) actor class CyclesManage() = self {
     type UserPreSaveInfo = types.UserPreSaveInfo;
     type CanisterInfo = types.CanisterInfo;
     type Rule = types.Rule;
-    type CanisterMetaData = types.CanisterMetaData;
+    type CanistersResp = types.CanistersResp;
     type MintData = types.MintData;
     type Log = types.Log;
     type FeeLog = types.FeeLog;
@@ -73,11 +74,13 @@ shared (installation) actor class CyclesManage() = self {
     type ICActor = Management;
     type CMCActor = cmc.Self;
     type Ledger = ledger.Self;
+    type BlackHoleActor = blackhole.Self;
 
 
     let IC: ICActor = actor(configs.IC_ID);
     let ICP: Ledger = actor(configs.ICP_LEGDER_ID);
     let CMC: CMCActor = actor(configs.CMC_ID);
+    let BlackHole : BlackHoleActor = actor(configs.BLACK_HOLE_ID);
 
     private stable var userPreSaveInfoMap = Map.new<Text,UserPreSaveInfo>();
     // 转换ICP-cycles、topupcycles
@@ -86,6 +89,11 @@ shared (installation) actor class CyclesManage() = self {
     private stable var preSaveLogsMap = Map.new<Text, List.List<Log>>();
     private stable var sysErrLogs : List.List<Log> = List.nil();
     private stable var feeLogs : List.List<FeeLog> = List.nil();
+
+    private stable var userCanisterMap = Map.new<Text, List.List<CanisterInfo>>();
+    private stable var canisterRulesMap = Map.new<Text, List.List<Rule>>();
+    private stable var canisterBalanceMap = Map.new<Text, List.List<Nat>>();
+    private stable var canisterTopupLogsMap = Map.new<Text, List.List<Log>>();
 
     func addLog(log: Log, uid: Text){
         var newLogs : List.List<Log> = List.nil();
@@ -279,7 +287,130 @@ shared (installation) actor class CyclesManage() = self {
         };
     };
 
+    // canisters manage
+    public shared({caller}) func addCanister(cid: Text, name: Text): async (Resp<Bool>) {
+        assert(not Principal.isAnonymous(caller));
+        if (not Utils.isCanister(Principal.fromText(cid))){
+            return {
+                code = 400;
+                msg = "must be canister id";
+                data = false;
+            };
+        };
+        let canisterInfo : CanisterInfo = {
+            name = name;
+            cid = cid;
+        };
+        var newCanisters : List.List<CanisterInfo> = List.nil();
+        newCanisters := List.push(canisterInfo, newCanisters);
+        switch(Map.get(userCanisterMap, thash, Principal.toText(caller))){
+            case(null){
+                Map.set(userCanisterMap, thash, Principal.toText(caller), newCanisters);
+            };
+            case(?canisters){
+                let oldCInfo = List.find<CanisterInfo>(canisters, func item { Text.equal(item.cid, cid) });
+                switch(oldCInfo){
+                    case(null){
+                        newCanisters := List.append<CanisterInfo>(newCanisters, canisters);
+                        Map.set(userCanisterMap, thash, Principal.toText(caller), newCanisters);
+                    };
+                    case(old){};
+                };
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = true;
+        };
+    };
+
+    public shared({caller}) func canisters(): async (Resp<[CanistersResp]>){
+        assert(not Principal.isAnonymous(caller));
+        switch(Map.get(userCanisterMap, thash, Principal.toText(caller))){
+            case(null){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = [];
+                }
+            };
+            case(?canisters){
+                var result : List.List<CanistersResp> = List.nil();
+                for(item in List.toIter(canisters)){
+                    let canister : CanistersResp = {
+                        cid = item.cid;
+                        name = item.name;
+                        cycles = (await BlackHole.canister_status({canister_id = Principal.fromText(item.cid)})).cycles;
+                        rule = List.find<Rule>(Option.get(Map.get(canisterRulesMap, thash, item.cid), List.nil()), func item {Text.equal(item.uid, Principal.toText(caller))});
+                    };
+                    result := List.push(canister, result);
+                };
+                return {
+                    code = 200;
+                    msg = "";
+                    data = List.toArray(result);
+                }
+            };
+        };
+
+    };
+
+    public shared({caller}) func setRule(cid: Text, amount: Nat, threshold: Nat): async(Resp<Bool>) {
+        assert(not Principal.isAnonymous(caller));
+        let newRule : Rule = {
+            amount = amount;
+            threshold = threshold;
+            uid = Principal.toText(caller);
+        };
+        var newRules : List.List<Rule> = List.nil();
+        newRules := List.push(newRule, newRules);
+
+        switch(Map.get(canisterRulesMap, thash, cid)){
+            case(null){
+                Map.set(canisterRulesMap, thash, cid, newRules);
+            };
+            case(?rules){
+                newRules := List.append<Rule>(newRules, rules);
+                Map.set(canisterRulesMap, thash, cid, newRules);
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = true;
+        };
+    };
+
+    public shared({caller}) func delRule(cid: Text): async(Resp<Bool>){
+        assert(not Principal.isAnonymous(caller));
+        switch(Map.get(canisterRulesMap, thash, cid)){
+            case(null){
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+            case(?rules){
+                var newRules : List.List<Rule> = List.nil();
+                for (rule in List.toIter(rules)){
+                    if(not Text.equal(rule.uid, Principal.toText(caller))){
+                        newRules := List.push(rule, newRules);
+                    };
+                };
+                Map.set(canisterRulesMap, thash, cid, newRules);
+                return {
+                    code = 200;
+                    msg = "";
+                    data = true;
+                };
+            };
+        };
+    };
+
     // user-monitor manager
+    // public shared({caller}) func canisterBalance
 
     // 充值ICP到cmc canister
     public shared({caller}) func mintCycles(mintData: MintData): async(){

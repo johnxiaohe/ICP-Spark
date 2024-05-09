@@ -37,6 +37,17 @@
       "type": "pull",
       "id":"rdmx6-jaaaa-aaaaa-aaadq-cai"
     },
+    "blackhole": {
+      "type": "custom",
+      "candid": "src/blackhole/blackhole.did",
+      "wasm": "src/blackhole/blackhole-opt.wasm",
+      "remote": {
+        "candid": "src/blackhole/blackhole.did",
+        "id": {
+          "ic": "e3mmv-5qaaa-aaaah-aadma-cai"
+        }
+      }
+    },
     "icp-ledger": {
       "type": "custom",
       "candid": "https://raw.githubusercontent.com/dfinity/ic/ff10ea1dba07c0f66c66536a46a97146cf260e90/rs/rosetta-api/icp_ledger/ledger.did",
