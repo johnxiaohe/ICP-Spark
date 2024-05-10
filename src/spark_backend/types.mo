@@ -222,7 +222,7 @@ module{
         cid: Text;
         name : Text;
         cycles: Nat;
-        rule: ?Rule;
+        rule: [Rule];
     };
 
     public type MintData = {
@@ -239,6 +239,11 @@ module{
         mintIndex : Nat64; //  = mint data index
         fee : Nat; // operation fee
         feeIndex : Nat; // fee transition fee
+    };
+
+    public type BalanceLog = {
+        time : Time.Time;
+        balance : Nat;
     };
 
     // actors api

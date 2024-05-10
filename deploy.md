@@ -96,6 +96,7 @@ dfx deploy spark_backend --specified-id bd3sg-teaaa-aaaaa-qaaba-cai
 dfx deploy spark_portal --specified-id bkyz2-fmaaa-aaaaa-qaaaq-cai
 <!-- dfx deploy cmc --specified-id rkp4c-7iaaa-aaaaa-aaaca-cai  // 成功失败都无所谓 -->
 dfx deploy blackhole --specified-id e3mmv-5qaaa-aaaah-aadma-cai
+dfx deploy spark_cyclesmanage --specified-id vnrqu-jiaaa-aaaap-qhirq-cai
 
 
 
@@ -103,3 +104,23 @@ dfx deploy blackhole --specified-id e3mmv-5qaaa-aaaah-aadma-cai
 #### 编译生成did文件等
 dfx generate spark_user
 dfx generate spark_workspace
+
+
+
+#### 其他命令
+
+获取canister metadata
+dfx canister status vnrqu-jiaaa-aaaap-qhirq-cai --ic
+
+删除canister
+dfx canister delete --ic  canister-id
+
+获取本地账户cycles余额
+dfx wallet balance --ic
+
+获取本地账户身份
+dfx identity list
+切换账户身份
+dfx identity use idname
+获取使用身份
+dfx identity whoami

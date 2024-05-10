@@ -40,7 +40,8 @@ import blackhole "blackhole";
 // canister定时任务（10S）
 // 先检查cycles mint队列，为用户icp mint为cycles
 // 后检查rule规则，为canister充值cycles
-shared (installation) actor class CyclesManage() = self {
+// 
+shared (installation) actor class CyclesManage(){
 
     type UserPreSaveInfo = types.UserPreSaveInfo;
     type CanisterInfo = types.CanisterInfo;
@@ -49,6 +50,7 @@ shared (installation) actor class CyclesManage() = self {
     type MintData = types.MintData;
     type Log = types.Log;
     type FeeLog = types.FeeLog;
+    type BalanceLog = types.BalanceLog;
 
     type Management = actor { deposit_cycles : ({canister_id: Principal}) -> async (); };
 
@@ -56,6 +58,7 @@ shared (installation) actor class CyclesManage() = self {
 
     // Some administrative functions are only accessible by who created this canister.
     let OWNER = installation.caller;
+    let SELF : Principal = Principal.fromText(configs.CYCLES_MANAGER_ID);
 
     // ICP fees (TODO: this ideally should come from the ledger instead of being hard coded).
     let FEE = 10000 : Nat64;
@@ -76,7 +79,6 @@ shared (installation) actor class CyclesManage() = self {
     type Ledger = ledger.Self;
     type BlackHoleActor = blackhole.Self;
 
-
     let IC: ICActor = actor(configs.IC_ID);
     let ICP: Ledger = actor(configs.ICP_LEGDER_ID);
     let CMC: CMCActor = actor(configs.CMC_ID);
@@ -90,9 +92,11 @@ shared (installation) actor class CyclesManage() = self {
     private stable var sysErrLogs : List.List<Log> = List.nil();
     private stable var feeLogs : List.List<FeeLog> = List.nil();
 
+    // 同一个canister可以被多个人添加管理
+    private stable var canisterUidsMap = Map.new<Text, List.List<Text>>();
     private stable var userCanisterMap = Map.new<Text, List.List<CanisterInfo>>();
     private stable var canisterRulesMap = Map.new<Text, List.List<Rule>>();
-    private stable var canisterBalanceMap = Map.new<Text, List.List<Nat>>();
+    private stable var canisterBalanceMap = Map.new<Text, List.List<BalanceLog>>();
     private stable var canisterTopupLogsMap = Map.new<Text, List.List<Log>>();
 
     func addLog(log: Log, uid: Text){
@@ -105,6 +109,20 @@ shared (installation) actor class CyclesManage() = self {
             case(?logs){
                 newLogs := List.append<Log>(newLogs, logs);
                 Map.set(preSaveLogsMap, thash, uid, newLogs);
+            };
+        };
+    };
+
+    func addTopUpLog(log: Log, cid: Text){
+        var newLogs : List.List<Log> = List.nil();
+        newLogs := List.push(log, newLogs);
+        switch(Map.get(canisterTopupLogsMap, thash, cid)){
+            case(null){
+                Map.set(canisterTopupLogsMap, thash, cid, newLogs);
+            };
+            case(?logs){
+                newLogs := List.append<Log>(newLogs, logs);
+                Map.set(canisterTopupLogsMap, thash, cid, newLogs);
             };
         };
     };
@@ -124,7 +142,7 @@ shared (installation) actor class CyclesManage() = self {
             case(null){
                 let info: UserPreSaveInfo = {
                     uid = uid;
-                    account = Utils.getUserSubAccountAddress(Principal.fromActor(self), userCanisterId);
+                    account = Utils.getUserSubAccountAddress(SELF, userCanisterId);
                     cycles = 0;
                     icp = 0;
                     status=#Normal;
@@ -134,7 +152,7 @@ shared (installation) actor class CyclesManage() = self {
             };
             case(?preSaveInfo){
                 let from_subaccount = Utils.principalToSubAccount(Principal.fromText(preSaveInfo.uid));
-                let icpBalance = await ICP.icrc1_balance_of({ owner = Principal.fromActor(self); subaccount = ?Blob.fromArray(from_subaccount) });
+                let icpBalance = await ICP.icrc1_balance_of({ owner = SELF; subaccount = ?Blob.fromArray(from_subaccount) });
                 return {
                     uid = preSaveInfo.uid;
                     account = preSaveInfo.account;
@@ -191,7 +209,7 @@ shared (installation) actor class CyclesManage() = self {
                     };
                 };
                 let from_subaccount = Utils.principalToSubAccount(caller); // cycles manage for this user subaccount
-                let icpBalance = await ICP.icrc1_balance_of({ owner = Principal.fromActor(self); subaccount = ?Blob.fromArray(from_subaccount) });
+                let icpBalance = await ICP.icrc1_balance_of({ owner = SELF; subaccount = ?Blob.fromArray(from_subaccount) });
                 if (icpBalance < amount){
                     return {
                         code = 400;
@@ -205,7 +223,6 @@ shared (installation) actor class CyclesManage() = self {
                     icp = amount;
                     cycles = 0;
                     mintIndex = 0;
-                    notifyIndex = 0;
                     status = #Minting;
                     ctime = Time.now();
                     dtime = Time.now();
@@ -233,6 +250,15 @@ shared (installation) actor class CyclesManage() = self {
                     data = true;
                 };
             };
+        };
+    };
+
+    public shared({caller}) func preSaveLogs(): async (Resp<[Log]>){
+        let result : List.List<Log> = Option.get(Map.get(preSaveLogsMap, thash, Principal.toText(caller)), List.nil());
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
         };
     };
 
@@ -273,10 +299,10 @@ shared (installation) actor class CyclesManage() = self {
                 // log
                 let log : Log = {
                     time = Time.now();
-                    info = "manual topup " # Nat.toText(amount) # " cycles to canister : " # cid # "; cycles balance: " # Nat.toText(newUserInfo.cycles);
+                    info = "manual topup " # Nat.toText(amount) # " cycles to canister : " # cid # "; topup by: " # userInfo.uid;
                     opeater = "";
                 };
-                addLog(log, userInfo.uid);
+                addTopUpLog(log, cid);
 
                 return {
                     code = 200;
@@ -284,6 +310,15 @@ shared (installation) actor class CyclesManage() = self {
                     data = true;
                 };
             };
+        };
+    };
+
+    public shared func topUpLogs(cid: Text): async (Resp<[Log]>){
+        let result : List.List<Log> = Option.get(Map.get(canisterTopupLogsMap, thash, cid), List.nil());
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
         };
     };
 
@@ -301,8 +336,8 @@ shared (installation) actor class CyclesManage() = self {
             name = name;
             cid = cid;
         };
-        var newCanisters : List.List<CanisterInfo> = List.nil();
-        newCanisters := List.push(canisterInfo, newCanisters);
+        // 用户canister映射
+        var newCanisters : List.List<CanisterInfo> = List.make(canisterInfo);
         switch(Map.get(userCanisterMap, thash, Principal.toText(caller))){
             case(null){
                 Map.set(userCanisterMap, thash, Principal.toText(caller), newCanisters);
@@ -314,7 +349,78 @@ shared (installation) actor class CyclesManage() = self {
                         newCanisters := List.append<CanisterInfo>(newCanisters, canisters);
                         Map.set(userCanisterMap, thash, Principal.toText(caller), newCanisters);
                     };
-                    case(old){};
+                    case(?old){};
+                };
+            };
+        };
+
+        // canister uid 映射
+        var newUids : List.List<Text> = List.make(Principal.toText(caller));
+        switch(Map.get(canisterUidsMap, thash, cid)){
+            case(null){
+                Map.set(canisterUidsMap, thash, cid, newUids);
+            };
+            case(?uids){
+                let exist = List.find<Text>(uids, func item { Text.equal(item, Principal.toText(caller)) });
+                switch(exist){
+                    case(null){
+                        newUids := List.append(newUids, uids);
+                        Map.set(canisterUidsMap, thash, cid, newUids);
+                    };
+                    case(?exist){};
+                };
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = true;
+        };
+    };
+
+    // del canister
+    public shared({caller}) func delCanister(cid: Text): async (Resp<Bool>) {
+        assert(not Principal.isAnonymous(caller));
+        if (not Utils.isCanister(Principal.fromText(cid))){
+            return {
+                code = 400;
+                msg = "must be canister id";
+                data = false;
+            };
+        };
+        // 删除用户canister映射
+        switch(Map.get(userCanisterMap, thash, Principal.toText(caller))){
+            case(null){};
+            case(?canisters){
+                let newCanisters : List.List<CanisterInfo> = List.filter<CanisterInfo>(canisters, func item { not Text.equal(item.cid, cid) });
+                Map.set(userCanisterMap, thash, Principal.toText(caller), newCanisters);
+            };
+        };
+        // 删除规则
+        switch(Map.get(canisterRulesMap, thash, cid)){
+            case(null){};
+            case(?rules){
+                let newRules = List.filter<Rule>(rules, func item { not Text.equal(item.uid, Principal.toText(caller)) });
+                if(Nat.equal(List.size(newRules), 0)){
+                    Map.delete(canisterRulesMap, thash, cid);
+                }else{
+                    Map.set(canisterRulesMap, thash, cid, newRules);
+                };
+            };
+        };
+
+        // canister uid 映射
+        switch(Map.get(canisterUidsMap, thash, cid)){
+            case(null){};
+            case(?uids){
+                let newUids = List.filter<Text>(uids, func item { not Text.equal(item, Principal.toText(caller)) });
+                if (Nat.equal(List.size(newUids), 0)){
+                    // 没有用户关联管理，则删除规则、删除余额监控
+                    Map.delete(canisterUidsMap, thash, cid);
+                    Map.delete(canisterBalanceMap, thash, cid);
+                    Map.delete(canisterRulesMap, thash, cid);
+                }else{
+                    Map.set(canisterUidsMap, thash, cid, newUids);
                 };
             };
         };
@@ -342,7 +448,7 @@ shared (installation) actor class CyclesManage() = self {
                         cid = item.cid;
                         name = item.name;
                         cycles = (await BlackHole.canister_status({canister_id = Principal.fromText(item.cid)})).cycles;
-                        rule = List.find<Rule>(Option.get(Map.get(canisterRulesMap, thash, item.cid), List.nil()), func item {Text.equal(item.uid, Principal.toText(caller))});
+                        rule = List.toArray(Option.get(Map.get(canisterRulesMap, thash, item.cid), List.nil()));
                     };
                     result := List.push(canister, result);
                 };
@@ -354,6 +460,15 @@ shared (installation) actor class CyclesManage() = self {
             };
         };
 
+    };
+
+    public shared({caller}) func canisterBalanceHistorys(cid: Text): async(Resp<[BalanceLog]>){
+        let result = Option.get(Map.get(canisterBalanceMap, thash, cid), List.nil());
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(result);
+        };
     };
 
     public shared({caller}) func setRule(cid: Text, amount: Nat, threshold: Nat): async(Resp<Bool>) {
@@ -409,17 +524,34 @@ shared (installation) actor class CyclesManage() = self {
         };
     };
 
-    // user-monitor manager
-    // public shared({caller}) func canisterBalance
+    public shared({caller}) func sysErrorLog(): async(Resp<[Log]>){
+        assert(caller == SELF or caller == OWNER);
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(sysErrLogs);
+        };
+    };
+
+    public shared({caller}) func feeLog(): async(Resp<[FeeLog]>){
+        assert(caller == SELF or caller == OWNER);
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(feeLogs);
+        };
+    };
+
+    // canister 定时任务方法： 定时获取已记录的canister balance --> 存储balance历史、查看是否有Rules，以及是否到达阈值，如到达则充值cycles。记录充值日志
 
     // 充值ICP到cmc canister
     public shared({caller}) func mintCycles(mintData: MintData): async(){
-        assert(caller == Principal.fromActor(self) or caller == OWNER);
+        assert(caller == SELF or caller == OWNER);
         switch(Map.get(userPreSaveInfoMap, thash, mintData.uid)){
             case(null){};
             case(?userInfo){
                 let from_subaccount = Utils.principalToSubAccount(Principal.fromText(userInfo.uid)); // cycles manage for this user subaccount
-                let to_subaccount = Utils.principalToSubAccount(Principal.fromActor(self)); // cycles manage subaccount 
+                let to_subaccount = Utils.principalToSubAccount(SELF); // cycles manage subaccount 
                 let mint_account = AccountId.fromPrincipal(CYCLE_MINTING_CANISTER, ?to_subaccount); // mint canister for cycles manage account
                 try{
                     // 扣减去 服务费和服务费转账的手续费
@@ -470,11 +602,11 @@ shared (installation) actor class CyclesManage() = self {
     };
 
     public shared({caller}) func cutfee(mintData: MintData): async(){
-        assert(caller == Principal.fromActor(self) or caller == OWNER);
+        assert(caller == SELF or caller == OWNER);
         let from_subaccount = Utils.principalToSubAccount(Principal.fromText(mintData.uid)); // cycles manage for this user subaccount
         try{
             let result = await ICP.icrc1_transfer({
-                to = {owner = Principal.fromActor(self); subaccount = null};
+                to = {owner = SELF; subaccount = null};
                 fee = ?Nat64.toNat(FEE);
                 memo = null;
                 amount = CUT_FEE;
@@ -511,7 +643,7 @@ shared (installation) actor class CyclesManage() = self {
 
     // 通知cmc canister 生成cycles给self
     public shared({caller}) func notify(mintData: MintData): async(){
-        assert(caller == Principal.fromActor(self) or caller == OWNER);
+        assert(caller == SELF or caller == OWNER);
         switch(Map.get(userPreSaveInfoMap, thash, mintData.uid)){
             case(null){};
             case(?userInfo){
@@ -519,7 +651,7 @@ shared (installation) actor class CyclesManage() = self {
                 try{
                     let result = await CMC.notify_top_up({
                         block_index  = mintData.mintIndex;
-                        canister_id = Principal.fromActor(self);
+                        canister_id = SELF;
                     });
                     switch(result){
                         case(#Err(err)){ // 没有充值成功，等待下次充值
@@ -595,7 +727,7 @@ shared (installation) actor class CyclesManage() = self {
 
     // 遍历mintDataMap，根据状态调用mintCycles或者notify。更新用户状态
     public shared({caller}) func mintCyclesTask(): async(){
-        assert(caller == Principal.fromActor(self) or caller == OWNER);
+        assert(caller == SELF or caller == OWNER);
 
         for(mintData in Map.vals(mintDataMap)){
             switch(mintData.status){
@@ -615,15 +747,93 @@ shared (installation) actor class CyclesManage() = self {
         };
     };
 
+    // auto monitor canister
+    // 监控更新canister余额，每八小时循环获取一次。每个canister保存最近30次记录
+    public shared({caller}) func updateCanisterCycles(): async (){
+        assert(caller == SELF or caller == OWNER);
+        for(cid in Map.keys(canisterUidsMap)){
+            let balance = (await BlackHole.canister_status({canister_id = Principal.fromText(cid)})).cycles;
+            let log : BalanceLog = {
+                time = Time.now();
+                balance = balance;
+            };
+            var newBalances: List.List<BalanceLog> = List.make<BalanceLog>(log);
+            switch(Map.get(canisterBalanceMap, thash, cid)){
+                case(null){
+                    Map.set(canisterBalanceMap, thash, cid, newBalances);
+                };
+                case(?oldBalances){
+                    newBalances := List.append(newBalances, oldBalances);
+                    if (Nat.greater(List.size(newBalances), 30)){
+                        newBalances := List.take(newBalances, 30);
+                    };
+                    Map.set(canisterBalanceMap, thash, cid, newBalances);
+                };
+            };
+        };
+    };
+
+    // 扫描规则，为匹配的canister充值cycles
+    public shared({caller}) func scanRule(): async(){
+        assert(caller == SELF or caller == OWNER);
+        // 根据规则获取用户信息和cycles余额，为canister充值
+        for((cid, rules) in Map.entries(canisterRulesMap)){
+
+            var balance = (await BlackHole.canister_status({canister_id = Principal.fromText(cid)})).cycles;
+            for (rule in List.toIter(rules)){
+                // 余额小于规定阈值
+                if (Nat.less(balance, rule.threshold)){
+                    switch(Map.get(userPreSaveInfoMap, thash, rule.uid)){
+                        case(null){};
+                        case(?userInfo){
+                            // 预存的cycles足够充值
+                            if(Nat.greater(userInfo.cycles, rule.amount)){
+                                let newUserInfo : UserPreSaveInfo = {
+                                    uid = userInfo.uid;
+                                    account = userInfo.account;
+                                    icp = 0;
+                                    cycles = (userInfo.cycles - rule.amount);
+                                    status = userInfo.status;
+                                };
+                                // top up
+                                Cycles.add<system>(rule.amount);
+                                await IC.deposit_cycles({canister_id = Principal.fromText(cid)});
+
+                                Map.set(userPreSaveInfoMap, thash, userInfo.uid, newUserInfo);
+
+                                // log
+                                let log : Log = {
+                                    time = Time.now();
+                                    info = "auto topup " # Nat.toText(rule.amount) # " cycles to canister : " # cid # "; topup by: " # userInfo.uid;
+                                    opeater = "";
+                                };
+                                addTopUpLog(log, cid);
+
+                                balance := Nat.add(balance, rule.amount);
+                            };
+                        };
+                    };
+                };
+            };
+        };
+
+    };
+
     // 定时执行用户 mintcycles任务、canister-cycles-balance检查、自动充值规则执行
-    // private stable var processing : Bool = false;
-    // ignore Timer.recurringTimer<system>(#seconds(5) , func () : async(){
-    //     if(processing){return};
+    private stable var processing : Bool = false;
+    ignore Timer.recurringTimer<system>(#seconds(5) , func () : async(){
+        if(processing){return};
 
-    //     processing := true;
+        processing := true;
 
-    //     await mintCyclesTask();
+        await mintCyclesTask();
 
-    //     processing := false;
-    // });
+        processing := false;
+    });
+
+    // 每八小时执行一次
+    ignore Timer.recurringTimer<system>(#seconds(10) , func () : async(){
+        await updateCanisterCycles();
+        await scanRule();
+    });
 }

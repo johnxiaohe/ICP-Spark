@@ -6,6 +6,5 @@ module{
     public let ICP_LEGDER_ID = "ryjl3-tyaaa-aaaaa-aaaba-cai";
     public let CYCLES_LEGDER_ID = "um5iw-rqaaa-aaaaq-qaaba-cai";
     public let BLACK_HOLE_ID = "e3mmv-5qaaa-aaaah-aadma-cai";
-    public let CYCLES_MANAGER_ID = "";
-    
+    public let CYCLES_MANAGER_ID = "vnrqu-jiaaa-aaaap-qhirq-cai";
 }
