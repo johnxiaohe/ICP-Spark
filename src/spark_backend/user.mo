@@ -57,6 +57,8 @@ shared({caller}) actor class UserSpace(
     type SparkActor = types.SparkActor;
     type CyclesManageActor = types.CyclesManageActor;
 
+    type CanistersResp = types.CanistersResp;
+
     // 常量声明
     private stable var cyclesPerNamespace: Nat = 20_000_000_000; // 0.02t cycles for each token canister
 
@@ -88,7 +90,7 @@ shared({caller}) actor class UserSpace(
 
     // 全局 actor api client 预创建
     let spark : SparkActor = actor (configs.SPARK_MAIN_ID);
-    // let cyclesmanage : CyclesManageActor = actor (configs.CYCLES_MANAGER_ID);
+    let cyclesmanage : CyclesManageActor = actor (configs.CYCLES_MANAGER_ID);
     let icpLedger: LedgerActor = actor(configs.ICP_LEGDER_ID);
     let cyclesLedger: LedgerActor = actor(configs.CYCLES_LEGDER_ID);
 
@@ -279,21 +281,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    // cycles 管理 api --------------------------------------
-    // 为指定容器添加Cycles，仅限本人操作. 返回当前cycles;仅支持为user canister、自己的workspace canister充值
-    // 获取预存信息
-    // public shared({caller}) func presaveInfo(): async Resp<UserPreSaveInfo>{
-    //     if(not Principal.equal(caller, owner)){
-    //         return {
-    //             code = 403;
-    //             msg = "permission denied";
-    //             data =   {uid="";account="";cycles=0;icp=0;presaveLogs=List.nil()};
-    //         };
-    //     };
-    //     return await cyclesmanage.preSaveInfo();
-    // };
-
-    // 预存ICP, 使用原始的transfer方法 从usercanister 转账ICP到指定 account identifier. amount是 icp数量 * 10^8
+    // ICP 转账: 使用原始的transfer方法 从usercanister 转账ICP到指定 account identifier. amount是 icp数量 * 10^8
     public shared({caller}) func presaveICP(amount: Nat, accountId: Text): async Resp<Nat64>{
         if (not Principal.equal(caller,owner)){
             return {
@@ -347,59 +335,46 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared({caller}) func refresh(): async Resp<Nat>{
-        return {
-            code = 200;
-            msg = "";
-            data = 0;
-        };
+    // cycles 管理 api --------------------------------------
+    public shared({caller}) func aboutme(): async Resp<UserPreSaveInfo>{
+        assert(Principal.equal(caller, owner));
+        return await cyclesmanage.aboutme();
     };
 
-    // 添加canister 到manage cycles
-    public shared({caller}) func addManageCanister(canisterId: Text, name: Text): async Resp<Bool> {
-        return {
-            code = 404;
-            msg = "";
-            data = false;
-        };
+    public shared({caller}) func mint(amount: Nat) : async Resp<Bool> {
+        assert(Principal.equal(caller, owner));
+        return await cyclesmanage.mint(amount);
     };
 
-    // 给指定canister 充值
-    public shared({caller}) func addCycles(canisterId: Text): async Resp<Nat>{
-        if (not Principal.equal(caller,owner)){
-            return {
-                code = 403;
-                msg = "permision denied";
-                data = 0;
-            };
-        };
-        return {
-            code = 200;
-            msg = "";
-            // todo 
-            data = Cycles.balance();
-        };
+    public shared({caller}) func canisters(): async Resp<[CanistersResp]> {
+        assert(Principal.equal(caller, owner));
+        return await cyclesmanage.canisters();
     };
 
-    // 给指定canister添加监控规则
-    public shared({caller}) func monitorCanister(canisterId: Text): async Resp<Bool> {
-        return {
-            code = 200;
-            msg = "";
-            data = false;
-        };
+    public shared({caller}) func addCanister(cid: Text, name: Text): async Resp<Bool>{
+        assert(Principal.equal(caller, owner));
+        return await cyclesmanage.addCanister(cid, name);
     };
 
-    // 删除指定canister监控规则
-    public shared({caller}) func unMonitor(canisterId: Text): async Resp<Bool>{
-        return {
-            code = 200;
-            msg = "";
-            data = false;
-        };
+    public shared({caller}) func delCanister(cid: Text): async (Resp<Bool>){
+        assert(Principal.equal(caller, owner));
+        return await cyclesmanage.delCanister(cid);
     };
 
-    // 删除canister
+    public shared({caller}) func setRule(cid: Text, amount: Nat, threshold: Nat): async(Resp<Bool>) {
+        assert(Principal.equal(caller, owner));
+        return await cyclesmanage.setRule(cid, amount, threshold);
+    };
+    
+    public shared({caller}) func delRule(cid: Text): async(Resp<Bool>){
+        assert(Principal.equal(caller, owner));
+        return await cyclesmanage.delRule(cid);
+    };
+
+    public shared({caller}) func topup(amount: Nat, cid: Text): async (Resp<Bool>){
+        assert(Principal.equal(caller, owner));
+        return await cyclesmanage.topup(amount, cid);
+    };
 
     // user meta data manage-----------------------------------
     // a follow b => a.follow b.fans relation: uid -- uid

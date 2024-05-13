@@ -276,6 +276,13 @@ module{
     };
 
     public type CyclesManageActor = actor {
-        preSaveInfo: shared() -> async (Resp<UserPreSaveInfo>);
+        aboutme : shared() -> async (Resp<UserPreSaveInfo>);
+        mint : shared(amount: Nat) -> async (Resp<Bool>);
+        canisters: shared() -> async (Resp<[CanistersResp]>);
+        addCanister : shared(cid: Text, name: Text) -> async (Resp<Bool>);
+        delCanister : shared(cid: Text) -> async (Resp<Bool>);
+        topup : shared(amount: Nat, cid: Text) -> async (Resp<Bool>);
+        setRule: shared(cid: Text, amount: Nat, threshold: Nat) -> async(Resp<Bool>);
+        delRule: shared(cid: Text) -> async(Resp<Bool>)
     };
 }

@@ -41,7 +41,7 @@ import blackhole "blackhole";
 // 先检查cycles mint队列，为用户icp mint为cycles
 // 后检查rule规则，为canister充值cycles
 // 
-shared (installation) actor class CyclesManage(){
+shared (installation) actor class CyclesManage() ={
 
     type UserPreSaveInfo = types.UserPreSaveInfo;
     type CanisterInfo = types.CanisterInfo;
