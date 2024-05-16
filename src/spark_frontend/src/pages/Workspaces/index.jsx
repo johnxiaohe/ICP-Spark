@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react'
 import CommonAvatar from '@/components/CommonAvatar'
 import SpaceManageList from '@/components/SpaceManageList'
 import SpaceModal from '@/components/Modal/SpaceModal'
-import { Button, Tooltip, message, Card } from 'antd'
+import { Button, Card } from 'antd'
 import { useAuth } from '@/Hooks/useAuth'
-import { getWorkspacesApi } from '@/api/user'
+import { fetchICApi } from '@/api/icFetch'
 
 const UserCenter = () => {
-  const { userActor, principalId, authUserInfo, isLoggedIn } = useAuth()
+  const { agent, principalId, authUserInfo, isLoggedIn } = useAuth()
   const [spaceList, setSpaceList] = useState([])
   const [activeTabKey, setActiveTabKey] = useState('all')
   const [isOpen, setIsOpen] = useState(false)
@@ -36,9 +36,11 @@ const UserCenter = () => {
 
   const getWorkSpace = async () => {
     if (authUserInfo.id && authUserInfo.id !== principalId) {
-      console.log(authUserInfo.id)
-      const result = await getWorkspacesApi({ userActor })
-      console.log('workspace list:::', result)
+      const result = await fetchICApi(
+        { id: authUserInfo.id, agent },
+        'user',
+        'workspaces',
+      )
       setSpaceList(result.data || [])
     }
   }
@@ -71,7 +73,7 @@ const UserCenter = () => {
   }, [authUserInfo])
 
   return (
-    <div className=" w-2/3 max-w-7xl min-w-[800px] ml-auto mr-auto ">
+    <div className="w-full md:w-2/3 max-w-7xl  ml-auto mr-auto ">
       <Card
         title="Workspace List"
         className="border border-gray-200"
@@ -94,6 +96,7 @@ const UserCenter = () => {
         title="Create Space"
         open={isOpen}
         onClose={() => setIsOpen(false)}
+        onConfirm={getWorkSpace}
       />
     </div>
   )

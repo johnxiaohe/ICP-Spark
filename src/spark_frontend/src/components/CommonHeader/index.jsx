@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Layout, Menu, Dropdown, Button, Typography } from 'antd'
 import { useAuth } from '@/Hooks/useAuth'
 import CommonAvatar from '@/components/CommonAvatar'
+import { formatOmitId } from '@/utils/dataFormat'
 
 const { Paragraph } = Typography
 const { Header } = Layout
@@ -11,10 +12,10 @@ function CommonHeader(props) {
   const location = useLocation()
   const navigate = useNavigate()
   const { login, logout, authUserInfo, isLoggedIn } = useAuth()
-  const [currentRoute, setCurrentRoute] = useState('relevant')
+  const [currentRoute, setCurrentRoute] = useState('latest')
 
   useEffect(() => {
-    setCurrentRoute(location.pathname.split('/')[1] || 'relevant')
+    setCurrentRoute(location.pathname.split('/')[1] || 'home')
   }, [location])
 
   return (
@@ -30,37 +31,43 @@ function CommonHeader(props) {
         className="flex-1 flex justify-center"
         items={[
           {
-            label: <Link to="/">Relevant</Link>,
-            key: 'relevant',
+            label: <Link to="/">Home</Link>,
+            key: 'home',
           },
           {
-            label: <Link to="/latest">Latest</Link>,
-            key: 'latest',
-          },
-          {
-            label: <Link to="/top">Top</Link>,
-            key: 'top',
+            label: <Link to="/recent">Recent</Link>,
+            key: 'recent',
           },
         ]}
       />
       {isLoggedIn ? (
         <div className="w-40 flex justify-end items-center">
-          <Button onClick={() => navigate('/new')}>Creation Center</Button>
-
           <Dropdown
             menu={{
               items: [
                 {
                   key: '1',
                   label: (
-                    <Link to={`/user/${authUserInfo.id}`}>
-                      {}
-                      <span className=" text-blue-400">{`@${authUserInfo?.id?.substring(
-                        0,
-                        5,
-                      )}...${authUserInfo?.id?.substr(-3)}`}</span>
-                    </Link>
+                    <div>
+                      <Link to={`/user/${authUserInfo.id}`}>
+                        {authUserInfo.name ? (
+                          <span className="text-blue-400 font-semibold">
+                            {authUserInfo.name}
+                            <br />
+                          </span>
+                        ) : (
+                          ''
+                        )}
+                        <span className=" text-blue-400">{`@${formatOmitId(
+                          authUserInfo?.id,
+                        )}`}</span>
+                      </Link>
+                    </div>
                   ),
+                },
+                {
+                  key: '5',
+                  label: <Link to={'/gastation'}>Gas Station</Link>,
                 },
                 {
                   key: '2',

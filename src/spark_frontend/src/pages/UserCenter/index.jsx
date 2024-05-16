@@ -1,27 +1,27 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import CommonAvatar from '@/components/CommonAvatar'
 import UserList from '@/components/UserList'
 import PostList from '@/components/PostList'
 import SpaceList from '@/components/SpaceList'
+import WithdrawModal from '@/components/Modal/WithdrawModal'
 import { Button, Typography, Tooltip, message, Card, Skeleton } from 'antd'
 import { DownloadOutlined, UploadOutlined } from '@ant-design/icons'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/Hooks/useAuth'
-import { timeFormat } from '@/utils/dataFormat'
 import {
-  getUserInfoApi,
-  getUserDetailApi,
-  addFollowApi,
-  getFollowApi,
-  getFansApi,
-  getCollectionApi,
-  getSubscribeApi,
-} from '@/api/user'
+  timeFormat,
+  formatICPAmount,
+  formatCyclesAmount,
+} from '@/utils/dataFormat'
+import { getFansApi, getCollectionApi, getSubscribeApi } from '@/api/user'
+import { fetchICApi } from '@/api/icFetch'
+import { formatOmitId } from '@/utils/dataFormat'
 
 const { Paragraph } = Typography
 
 const UserCenter = () => {
   const params = useParams()
+  const navigate = useNavigate()
   const { agent, principalId, authUserInfo, isLoggedIn } = useAuth()
   const [isEdit, setIsEdit] = useState(false)
   const [editUserInfo, setEditUserInfo] = useState(null)
@@ -30,39 +30,48 @@ const UserCenter = () => {
   const [created, setCreated] = useState(false)
   const [activeTabKey, setActiveTabKey] = useState('follow')
   const [loading, setLoading] = useState(true)
+  const [followLoading, setFollowLoading] = useState(false)
   const [followList, setFollowList] = useState([])
   const [fansList, setFansList] = useState([])
   const [collectionList, setCollectionList] = useState([])
   const [subscribeList, setSubscribeList] = useState([])
+  const [balance, setBalance] = useState(0)
+  const [cycles, setCycles] = useState(0)
+  const [isOpenWithdraw, setIsOpenWithdraw] = useState(false)
 
-  const tabListNoTitle = [
-    {
-      key: 'follow',
-      label: `Follow(${currentUserInfo?.followSum ?? 0})`,
-    },
-    {
-      key: 'fans',
-      label: `Fans(${currentUserInfo?.fansSum ?? 0})`,
-    },
-    {
-      key: 'collection',
-      label: `Collection(${currentUserInfo?.collectionSum ?? 0})`,
-    },
-    {
-      key: 'subscribe',
-      label: `Subscribe(${currentUserInfo?.subscribeSum ?? 0})`,
-    },
-  ]
+  const tabListNoTitle = useMemo(() => {
+    const list = [
+      {
+        key: 'follow',
+        label: `Follow(${currentUserInfo?.followSum ?? 0})`,
+      },
+      {
+        key: 'fans',
+        label: `Fans(${currentUserInfo?.fansSum ?? 0})`,
+      },
+      {
+        key: 'collection',
+        label: `Collection(${currentUserInfo?.collectionSum ?? 0})`,
+      },
+      {
+        key: 'subscribe',
+        label: `Subscribe(${currentUserInfo?.subscribeSum ?? 0})`,
+      },
+    ]
+    // if (isMe && isLoggedIn) {
+    //   list.unshift({ key: 'cycles', label: `Gas Station` })
+    // }
+    return list
+  }, [isMe, isLoggedIn, currentUserInfo])
 
   const contentListNoTitle = {
     follow: <UserList list={followList} />,
     fans: <UserList list={fansList} />,
     collection: <PostList list={collectionList} />,
-    subscrib: <SpaceList list={subscribeList} />,
+    subscribe: <SpaceList list={subscribeList} size="sm" />,
   }
 
   const getCurrentUserInfo = async () => {
-    console.log('getCurrentUserInfo:', principalId)
     let result
     if (params.id === principalId) {
       setIsMe(true)
@@ -75,20 +84,14 @@ const UserCenter = () => {
       }
     } else {
       setIsMe(params.id === authUserInfo.id)
-      try {
-        result = await getUserDetailApi({ id: params.id, agent })
-        setLoading(false)
-        setCreated(true)
-      } catch (err) {
-        console.error(err)
+      if (params.id === authUserInfo.id) {
+        getBalance()
+        getCycles()
       }
+      result = await fetchICApi({ id: params.id, agent }, 'user', 'detail')
+      setLoading(false)
+      setCreated(true)
     }
-    // try {
-    //   result = await getUserInfoApi({ id: params.id, agent })
-    // } catch (err) {
-    //   return console.error(err)
-    // }
-    console.log('currentUserInfo::', result)
     if (!result) return
     if (result.code !== 200) {
       message.error(result.msg)
@@ -98,22 +101,32 @@ const UserCenter = () => {
   }
 
   const handleEdit = () => {
-    setIsEdit(true)
-  }
-  const handleSave = () => {
-    setIsEdit(false)
+    navigate('/settings')
   }
 
   const handleFollow = async () => {
     if (!principalId) {
       message.error('please login first')
+    } else if (principalId === authUserInfo.id) {
+      message.error('please set your info first')
+      navigate('/settings')
     } else {
-      const result = await addFollowApi({
-        id: params.id,
-        agent,
-        pid: principalId,
-      })
-      console.log(result)
+      setFollowLoading(true)
+      const result = await fetchICApi(
+        {
+          id: authUserInfo.id,
+          agent,
+        },
+        'user',
+        'addFollow',
+        [params.id],
+      )
+      setFollowLoading(false)
+      if (result.code === 200) {
+        message.success('Follow Success')
+      } else {
+        message.error('Please try later!')
+      }
     }
   }
 
@@ -122,27 +135,54 @@ const UserCenter = () => {
   }
 
   const getFollowList = async () => {
-    const result = await getFollowApi({ id: params.id, agent })
+    if (currentUserInfo.followSum === 0) return setFollowList([])
+    const result = await fetchICApi({ id: params.id, agent }, 'user', 'follows')
     console.log('follow list:::', result)
     setFollowList(result.data || [])
   }
 
   const getFansList = async () => {
+    if (currentUserInfo.fansSum === 0) return setFansList([])
     const result = await getFansApi({ id: params.id, agent })
     console.log('fans list:::', result)
     setFansList(result.data || [])
   }
 
   const getCollectionList = async () => {
+    if (currentUserInfo.collectionSum === 0) return setCollectionList([])
     const result = await getCollectionApi({ id: params.id, agent })
     console.log('Collection list:::', result)
     setCollectionList(result.data || [])
   }
 
   const getSubscribeList = async () => {
+    if (currentUserInfo.subscribeSum === 0) return setSubscribeList([])
     const result = await getSubscribeApi({ id: params.id, agent })
     console.log('Subscribe list:::', result)
     setSubscribeList(result.data || [])
+  }
+
+  const getBalance = async () => {
+    const result = await fetchICApi(
+      { id: params.id, agent },
+      'user',
+      'balance',
+      ['ICP'],
+    )
+    setBalance(result.data || 0)
+  }
+
+  const getCycles = async () => {
+    const result = await fetchICApi({ id: params.id, agent }, 'user', 'cycles')
+    setCycles(result.data || 0)
+  }
+
+  const handleWithdraw = async () => {
+    setIsOpenWithdraw(true)
+  }
+
+  const cancelWithdraw = async () => {
+    setIsOpenWithdraw(false)
   }
 
   useEffect(() => {
@@ -175,6 +215,14 @@ const UserCenter = () => {
     }
   }, [activeTabKey, created])
 
+  useEffect(() => {
+    if (activeTabKey === 'follow' && created) {
+      getFollowList()
+    } else {
+      setActiveTabKey('follow')
+    }
+  }, [currentUserInfo])
+
   return (
     <div className=" w-2/3 max-w-7xl min-w-[800px] ml-auto mr-auto ">
       <div className="flex justify-between border border-gray-200 rounded-md bg-white p-5 relative overflow-hidden">
@@ -184,28 +232,17 @@ const UserCenter = () => {
           <>
             {isMe && (
               <div className=" absolute bottom-0 left-0">
-                {isEdit ? (
-                  <Button
-                    type="primary"
-                    onClick={handleSave}
-                    className="rounded-none rounded-se-2xl rounded-es-md"
-                  >
-                    Save
-                  </Button>
-                ) : (
-                  <Button
-                    type="text"
-                    onClick={handleEdit}
-                    className="rounded-none rounded-se-2xl text-gray-400"
-                  >
-                    Edit
-                  </Button>
-                )}
+                <Button
+                  type="text"
+                  onClick={handleEdit}
+                  className="rounded-none rounded-se-2xl text-gray-400"
+                >
+                  Edit
+                </Button>
               </div>
             )}
             <div className="left flex items-center gap-4 mb-4">
               <CommonAvatar
-                edit={isEdit}
                 name={currentUserInfo.name || currentUserInfo.id}
                 src={currentUserInfo.avatar}
                 className="w-20 h-20 text-3xl"
@@ -216,10 +253,7 @@ const UserCenter = () => {
                   <Paragraph
                     className="text-xs text-gray-300 ml-1.5 !mb-0"
                     copyable={{ text: currentUserInfo?.id ?? '' }}
-                  >{`${currentUserInfo?.id.substring(
-                    0,
-                    5,
-                  )}...${currentUserInfo?.id.substr(-3)}`}</Paragraph>
+                  >{`${formatOmitId(currentUserInfo?.id)}`}</Paragraph>
                 </h1>
                 <p className="text-xs text-gray-400">
                   Created: {timeFormat(currentUserInfo?.ctime)}
@@ -232,30 +266,41 @@ const UserCenter = () => {
             {isMe ? (
               <div className="right p-5 bg-gray-100 rounded-xl min-w-60">
                 <div>
-                  <h2 className="text-sm font-bold text-gray-700">ICP</h2>
+                  <h2 className="text-sm font-bold text-gray-700">
+                    Income(ICP)
+                  </h2>
                   <div className="flex justify-between items-center text-base font-bold">
-                    {currentUserInfo?.icp}
+                    {formatICPAmount(balance)}
                     <span>
-                      <Tooltip title="Deposit">
+                      <Tooltip title="Withdraw">
                         <Button
+                          onClick={handleWithdraw}
                           type="link"
-                          icon={<DownloadOutlined />}
-                          className="ml-3"
+                          icon={<UploadOutlined />}
                         />
                       </Tooltip>
-                      <Tooltip title="Withdraw">
-                        <Button type="link" icon={<UploadOutlined />} />
-                      </Tooltip>
+                      <WithdrawModal
+                        open={isOpenWithdraw}
+                        balance={balance}
+                        onCancel={cancelWithdraw}
+                        onSuccess={getBalance}
+                      />
                     </span>
                   </div>
                 </div>
                 <div className="mt-4">
                   <h2 className="text-sm font-bold text-gray-700">Cycles</h2>
                   <div className="flex justify-between items-center text-base font-bold">
-                    {currentUserInfo?.cycles}
-                    <Button className="ml-3">Transfer Gas</Button>
+                    {formatCyclesAmount(cycles)}
                   </div>
                 </div>
+                <Button
+                  className="mt-3 w-full"
+                  type="primary"
+                  onClick={() => navigate('/gastation')}
+                >
+                  Enter Gas Station
+                </Button>
               </div>
             ) : (
               <div className="right">
