@@ -1,25 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import CommonAvatar from '@/components/CommonAvatar'
-import { Button, Typography, Form, Input, Upload, message } from 'antd'
+import { Button, Form, Input, Upload, message } from 'antd'
 import ImgCrop from 'antd-img-crop'
-import { DownloadOutlined, UploadOutlined } from '@ant-design/icons'
-import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '@/Hooks/useAuth'
 import { responseFormat, fileToBase64 } from '@/utils/dataFormat'
 import { fetchICApi } from '@/api/icFetch'
 
-const { Paragraph } = Typography
-
 const Settings = () => {
-  const {
-    agent,
-    mainActor,
-    userActor,
-    principalId,
-    authUserInfo,
-    isLoggedIn,
-    getAuthUserInfo,
-  } = useAuth()
+  const { agent, authUserInfo, getAuthUserInfo } = useAuth()
   const [editUserInfo, setEditUserInfo] = useState({})
   const [loading, setLoading] = useState(false)
 
@@ -33,28 +21,27 @@ const Settings = () => {
   }
 
   const handleSave = async () => {
-    let result = null
+    let result = {}
     setLoading(true)
     if (!authUserInfo.ctime)
-      result = await mainActor.initUserInfo(
+      result = await fetchICApi({ agent }, 'backend', 'initUserInfo', [
         editUserInfo.name,
         editUserInfo.avatar,
         editUserInfo.desc,
-      )
+      ])
     else
-      result = await userActor.updateInfo(
-        editUserInfo.name,
-        editUserInfo.avatar,
-        editUserInfo.desc,
+      result = await fetchICApi(
+        { id: authUserInfo.id, agent },
+        'user',
+        'updateInfo',
+        [editUserInfo.name, editUserInfo.avatar, editUserInfo.desc],
       )
-    result = responseFormat(result)
-    console.log(result)
     setLoading(false)
-    if (!result.code === 200) {
+    if (result.code !== 200) {
       message.error('failed to save')
     } else {
-      message.error('success to save')
-      getAuthUserInfo(mainActor, agent)
+      message.success('success to save')
+      getAuthUserInfo(agent)
     }
   }
 
@@ -65,7 +52,7 @@ const Settings = () => {
   }, [authUserInfo])
 
   return (
-    <div className=" w-2/3 max-w-7xl min-w-[800px] ml-auto mr-auto ">
+    <div className=" w-full md:w-2/3 max-w-7xl  ml-auto mr-auto ">
       <div className="border border-gray-200 rounded-md bg-white p-5 relative overflow-hidden">
         <h1 className="text-lg font-bold mb-5">User</h1>
         <Form layout="vertical">
@@ -89,7 +76,7 @@ const Settings = () => {
                 >
                   <CommonAvatar
                     name={editUserInfo.name || editUserInfo.id}
-                    src={editUserInfo.avatar}
+                    src={editUserInfo.avatar ?? false}
                     upload={true}
                     className="w-32 h-32 text-4xl"
                   />

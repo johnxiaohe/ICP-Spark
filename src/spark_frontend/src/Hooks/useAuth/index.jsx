@@ -5,6 +5,7 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { createActor as createMainActor } from '../../../../declarations/spark_backend'
 import { createActor as createUserActor } from '../../../../declarations/spark_user'
 import { createActor as createSpaceActor } from '../../../../declarations/spark_workspace'
+import { fetchICApi } from '@/api/icFetch'
 import { responseFormat } from '@/utils/dataFormat'
 
 const days = BigInt(1)
@@ -51,6 +52,7 @@ export const AuthProvider = ({ children }) => {
     } else {
       setIsLoggedIn(false)
     }
+    return _authClient
   }
 
   const handleAuthenticated = async (authClient) => {
@@ -65,46 +67,36 @@ export const AuthProvider = ({ children }) => {
       agent,
     })
     setMainActor(_mainActor)
-    await getAuthUserInfo(_mainActor, agent)
-    setIsLoggedIn(true)
+    await getAuthUserInfo(agent)
   }
 
-  const getAuthUserInfo = async (actor, agent) => {
-    let result = await actor.queryUserInfo()
-    result = responseFormat(result)
-    console.log('userInfo:::', result)
+  const getAuthUserInfo = async (agent) => {
+    let result = await fetchICApi({ agent }, 'backend', 'queryUserInfo')
     if (result.code === 200 || result.code === 404) {
       setAuthUserInfo({ ...result.data })
-      const _userActor = createUserActor(result.data.id, {
-        agent,
-      })
-      setUserActor(_userActor)
+      setIsLoggedIn(true)
     } else {
       setAuthUserInfo({})
+      setIsLoggedIn(false)
+      logout()
     }
   }
 
   const login = async () => {
-    if (!authClient) await init()
-    authClient.login({
+    let _authClient = authClient
+    if (!_authClient) _authClient = await init()
+    _authClient.login({
       ...defaultOptions.loginOptions,
-      onSuccess: () => handleAuthenticated(authClient),
+      onSuccess: () => handleAuthenticated(_authClient),
     })
   }
 
   const logout = async () => {
     if (authClient) {
       await authClient.logout()
+      setAuthClient(null)
       setIsLoggedIn(false)
     }
-  }
-
-  const updateUserInfo = async (...args) => {
-    const _userActor = createUserActor(process.env.CANISTER_ID_SPARK_USER, {
-      agent,
-    })
-    const result = await _userActor.updateInfo(...args)
-    return result
   }
 
   return (
@@ -120,7 +112,6 @@ export const AuthProvider = ({ children }) => {
         authUserInfo,
         agent,
         getAuthUserInfo,
-        updateUserInfo,
       }}
     >
       {children}

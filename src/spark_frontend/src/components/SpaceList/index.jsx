@@ -2,27 +2,44 @@ import React from 'react'
 import CommonAvatar from '@/components/CommonAvatar'
 import { useNavigate } from 'react-router-dom'
 import { Empty } from 'antd'
+import { Item } from 'yjs'
 const SpaceList = (props) => {
   const navigate = useNavigate()
-  const { list } = props
+  const { list, size } = props
   return (
     <>
       {list.length === 0 ? (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
-        <ul className="flex flex-wrap gap-3">
-          {list.map((item) => (
+        <ul
+          className={`gap-3 ${
+            size === 'sm' ? 'grid grid-cols-3' : 'flex flex-col'
+          }`}
+        >
+          {list.map((item, index) => (
             <li
-              key={item.id}
-              className="flex flex-col justify-center items-center w-1/3 p-5 border border-gray-100 cursor-pointer"
-              onClick={() => navigate(`/user/${item.id}`)}
+              key={index}
+              className={`flex items-center p-5 bg-white cursor-pointer relative ${
+                size === 'sm' ? 'border' : ''
+              }`}
+              onClick={() => navigate(`/space/${item.wid || item.id}`)}
             >
               <CommonAvatar
-                name={item.name || item.id}
+                name={item.name || item.wid}
                 src={item.avatar}
                 className="w-12 h-12"
+                shape="square"
               />
-              <p className="mt-2.5 text-blue-500 font-bold">{item.name}</p>
+              <div className="ml-2.5">
+                <p className="text-blue-500 font-bold">{item.name}</p>
+                {item.desc && <p className="text-grey-500">{item.desc}</p>}
+              </div>
+
+              {item.owner && (
+                <span className="text-xs text-gray-400 absolute block top-0 right-0 px-3 py-1 bg-gray-50">
+                  Owner
+                </span>
+              )}
             </li>
           ))}
         </ul>

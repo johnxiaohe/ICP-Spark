@@ -3,13 +3,15 @@ import { Modal, Form, Input, Upload, Radio, message } from 'antd'
 import ImgCrop from 'antd-img-crop'
 import { fileToBase64 } from '@/utils/dataFormat'
 import CommonAvatar from '@/components/CommonAvatar'
-import { createWorkNsApi } from '@/api/user'
+import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
 
 const SpaceModal = (props) => {
-  const { open, title, data, onClose } = props
+  const { open, title, data, onClose, onConfirm } = props
   const { agent, authUserInfo, userActor } = useAuth()
   const [formData, setFormData] = useState({})
+  const [loading, setLoading] = useState(false)
+
   const handleClose = () => {
     setFormData({})
     onClose()
@@ -22,17 +24,25 @@ const SpaceModal = (props) => {
     setFormData({ ...formData, avatar: imgBase64 })
   }
   const handleSave = async () => {
-    const result = await createWorkNsApi({
-      userActor,
-      ...formData,
-      model: { [formData.model]: null },
-      price: BigInt(formData.price),
-    })
-    console.log('create workspace result:::', result)
+    setLoading(true)
+    const result = await fetchICApi(
+      { id: authUserInfo.id, agent },
+      'user',
+      'createWorkNs',
+      [
+        formData.name,
+        formData.desc,
+        formData.avatar,
+        { [formData.model]: null },
+        BigInt(formData.price),
+      ],
+    )
     if (result.code === 200) {
       message.success('Create Successful')
       handleClose()
+      onConfirm()
     }
+    setLoading(false)
   }
 
   return (
@@ -42,6 +52,7 @@ const SpaceModal = (props) => {
       onCancel={handleClose}
       okText="Save"
       onOk={handleSave}
+      confirmLoading={loading}
     >
       <Form layout="vertical">
         <Form.Item>

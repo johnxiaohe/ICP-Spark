@@ -34,3 +34,33 @@ export const timeFormat = (time) => {
   const _time = `${year}-${month + 1}-${day} ${hour}:${minute}:${second}`
   return _time
 }
+
+export const formatPostTree = (list) => {
+  const formatList = list.map((item) => {
+    const key = `${item.pid}-${item.id}`
+    return {
+      title: item.name,
+      key: item.id,
+      id: item.id,
+      pid: item.pid,
+      children: formatPostTree(item.children || []),
+    }
+  })
+  return formatList
+}
+
+export const formatICPAmount = (num) => {
+  const _num = num || 0
+  return (_num * Math.pow(10, -8)).toFixed(4)
+}
+
+export const formatCyclesAmount = (num) => {
+  const _num = num || 0
+  return `${(_num / Math.pow(10, 12)).toFixed(3)} T`
+}
+
+export const formatOmitId = (id) => {
+  if (!id) return '-'
+  if (id.length <= 8) return id
+  return id.substr(0, 5) + '...' + id.substr(-3)
+}

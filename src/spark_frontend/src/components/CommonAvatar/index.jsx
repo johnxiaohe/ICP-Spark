@@ -9,17 +9,22 @@ const CommonAvatar = (props) => {
     className = '',
     upload = false,
     shape = 'circle',
+    borderColor = false,
   } = props
   const ColorList = ['#f56a00', '#7265e6', '#ffbf00', '#00a2ae']
+  const color = ColorList[name.length % 4]
   return (
     <div className={[className, 'relative'].join(' ')}>
       <Avatar
         style={{
-          backgroundColor: ColorList[name.length % 4],
+          backgroundColor: color,
         }}
-        className={['border-2 border-gray-200', className ?? ''].join(' ')}
+        className={[
+          'border-2',
+          className ?? '',
+          borderColor ? `border-[${color}]` : 'border-gray-200',
+        ].join(' ')}
         src={src}
-        alt={name}
         shape={shape}
       >
         {name.substring(0, 1)}

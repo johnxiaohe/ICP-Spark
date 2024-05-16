@@ -3,12 +3,13 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 import Layout from '@/components/Layout'
 import Home from '@/pages/Home'
 import Post from '@/pages/Post'
-import New from '@/pages/New'
+import Creation from '@/pages/Creation'
 import Settings from '@/pages/Settings'
 import UserCenter from '@/pages/UserCenter'
 import Workspaces from '@/pages/Workspaces'
 import WorkspaceDetail from '@/pages/Workspaces/Detail'
-import { useAuth } from './Hooks/useAuth'
+import GasStation from '@/pages/GasStation'
+import { useAuth } from '@/Hooks/useAuth'
 
 function App() {
   const { init } = useAuth()
@@ -27,7 +28,7 @@ function App() {
         children={<Route path=":tab" />}
       />
       <Route
-        path="post/:id"
+        path="post/:wid/:id"
         element={
           <Layout>
             <Post />
@@ -43,10 +44,10 @@ function App() {
         }
       />
       <Route
-        path="new"
+        path="recent"
         element={
           <Layout>
-            <New />
+            <Creation />
           </Layout>
         }
       />
@@ -67,10 +68,18 @@ function App() {
         }
       />
       <Route
-        path="space/:id"
+        path="space/:id/:index?"
         element={
           <Layout>
             <WorkspaceDetail />
+          </Layout>
+        }
+      />
+      <Route
+        path="gastation"
+        element={
+          <Layout>
+            <GasStation />
           </Layout>
         }
       />
