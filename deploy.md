@@ -17,7 +17,8 @@ mops install
 
 ##### 安装指定包文件
 mops add map
-mops add base 
+mops add base
+mops add ic-websocket-cdk
 
 #### 启动ICP容器基础环境
 clean命令会以纯净模式启动，消除之前的记录
@@ -111,6 +112,8 @@ dfx generate spark_workspace
 
 获取canister metadata
 dfx canister status vnrqu-jiaaa-aaaap-qhirq-cai --ic
+添加黑洞控制器
+dfx canister --network ic update-settings --add-controller e3mmv-5qaaa-aaaah-aadma-cai vnrqu-jiaaa-aaaap-qhirq-cai
 
 删除canister
 dfx canister delete --ic  canister-id
@@ -124,3 +127,10 @@ dfx identity list
 dfx identity use idname
 获取使用身份
 dfx identity whoami
+
+安装代码
+dfx canister install vnrqu-jiaaa-aaaap-qhirq-cai --wasm=.dfx/ic/canisters/spark_cyclesmanage/spark_cyclesmanage.wasm --mode='reinstall' --ic
+暂停canister
+dfx canister stop vnrqu-jiaaa-aaaap-qhirq-cai --ic
+启动canister
+dfx canister start vnrqu-jiaaa-aaaap-qhirq-cai --ic

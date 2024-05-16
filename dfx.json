@@ -20,6 +20,10 @@
       "main": "src/spark_backend/cyclesmanage.mo",
       "type": "motoko"
     },
+    "spark_editsync": {
+      "main": "src/spark_backend/editsync.mo",
+      "type": "motoko"
+    },
     "spark_frontend": {
       "dependencies": [
         "spark_backend"

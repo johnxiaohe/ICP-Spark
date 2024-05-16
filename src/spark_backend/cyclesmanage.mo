@@ -164,6 +164,10 @@ shared (installation) actor class CyclesManage() ={
         };
     };
 
+    public shared({caller}) func balance(): async (Nat){
+        return Cycles.balance();
+    };
+
     // user-subaccount manager
     public shared({caller}) func aboutme(): async (Resp<UserPreSaveInfo>){
         if(Utils.isCanister(caller)){
