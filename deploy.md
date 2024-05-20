@@ -20,6 +20,9 @@ mops add map
 mops add base
 mops add ic-websocket-cdk
 
+#### 启动gateway本地服务
+docker run -p 8080:8080 omniadevs/ic-websocket-gateway --ic-network-url http://host.docker.internal:4943
+
 #### 启动ICP容器基础环境
 clean命令会以纯净模式启动，消除之前的记录
 dfx start --background --clean
@@ -91,6 +94,8 @@ dfx canister call icp-ledger icrc2_approve '
 '
 dfx canister call icp-ledger icrc1_transfer '(record {amount=1000000; to=record{owner=principal "2aa2k-fbfp4-bkpwq-yt6x4-erilk-t7sy3-x7zij-rvu4s-ocv32-dahpu-uqe"}})'
 
+dfx canister call icp-ledger transfer '(record {amount=record{ e8s=1000000; } to=})'
+
 
 #### 启动业务后端容器
 dfx deploy spark_backend --specified-id bd3sg-teaaa-aaaaa-qaaba-cai
@@ -105,6 +110,10 @@ dfx deploy spark_cyclesmanage --specified-id vnrqu-jiaaa-aaaap-qhirq-cai
 #### 编译生成did文件等
 dfx generate spark_user
 dfx generate spark_workspace
+dfx generate spark_backend
+dfx generate spark_portal
+dfx generate spark_cyclesmanage
+dfx generate blackhole
 
 
 

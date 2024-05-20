@@ -4,7 +4,7 @@ import List "mo:base/List";
 import Bool "mo:base/Bool";
 import Text "mo:base/Text";
 import Timer "mo:base/Timer";
-// import Debug "mo:base/Debug";
+import Debug "mo:base/Debug";
 import Time "mo:base/Time";
 import Error "mo:base/Error";
 import Principal "mo:base/Principal";
@@ -46,17 +46,6 @@ shared({caller}) actor class(){
 
     private var errlogs : List.List<Log> = List.nil();
 
-    // do {
-    //     Map.set(traits, thash, "aaa", {index=0;wid="aaa";name="aaa";desc="";plate="";tag=["aaa"];view=10;like=0});
-    //     Map.set(traits, thash, "abc", {index=0;wid="abc";name="abc";desc="";plate="";tag=["abc"];view=7;like=0});
-    //     Map.set(traits, thash, "ccc", {index=0;wid="ccc";name="ccc";desc="";plate="";tag=["ccc"];view=20;like=0});
-    //     Map.set(traits, thash, "ddd", {index=0;wid="ddd";name="ddd";desc="";plate="";tag=["ddd"];view=5;like=0});
-    //     latests := List.push("aaa", latests);
-    //     latests := List.push("bbb", latests);
-    //     latests := List.push("ccc", latests);
-    //     latests := List.push("ddd", latests);
-    // };
-
     public shared({caller}) func push(trait: ContentTrait): async(Bool){
         let callerWid = Principal.toText(caller);
         // Debug.print(debug_show(callerWid));
@@ -68,6 +57,7 @@ shared({caller}) actor class(){
         };
 
         let uuid = getUUid(trait.wid, trait.index);
+        // Debug.print(debug_show(uuid));
         // 更新推送数据 以及根据tag等内容归类
         switch(Map.get(traits, thash, uuid)){
             case(null){
@@ -208,11 +198,11 @@ shared({caller}) actor class(){
         let traitArr : [(Text, ContentTrait)] = Map.toArray<Text, ContentTrait>(traits);
         let result : [(Text, ContentTrait)] = Quicksort.sortBy<(Text, ContentTrait)>(traitArr, func((k1, v1), (k2, v2)) { 
             if (Nat.less(v1.view, v2.view)){
-                #less;
+                #greater;
             }else if (Nat.equal(v1.view, v2.view)){
                 #equal;
             }else {
-                #greater;
+                #less;
             };
         });
         hots := Array.map<(Text,ContentTrait),Text>(result, func((key,value)) {key});
@@ -241,7 +231,7 @@ shared({caller}) actor class(){
                                     like = trait.like;
                                     view = newView.view;
                                 };
-                                Map.set(traits,thash, wid, newTrait);
+                                Map.set(traits,thash, uuid, newTrait);
                             };
                          };
                     };
@@ -256,7 +246,7 @@ shared({caller}) actor class(){
 
     // 定时拉取view 数据 并且排序 300S 一次
     private stable var processing : Bool = false;
-    ignore Timer.recurringTimer<system>(#seconds (300) , func () : async(){
+    ignore Timer.recurringTimer<system>(#seconds (5) , func () : async(){
             if(processing){return};
             processing := true;
             await pullViews();

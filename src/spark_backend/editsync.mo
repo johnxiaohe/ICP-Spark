@@ -8,6 +8,7 @@ import IcWebSocketCdkTypes "mo:ic-websocket-cdk/Types";
 actor {
 
     // user edit group cache : cid-index : users
+    private 
 
     // sys err logs
 

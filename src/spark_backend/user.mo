@@ -299,7 +299,7 @@ shared({caller}) actor class UserSpace(
                 data = 0;
             };
         };
-
+        
         let transferArg : TransferArg = {
             to = Blob.fromArray(Utils.fromHex(accountId));
             fee = {e8s = Nat64.fromNat(fee)};
