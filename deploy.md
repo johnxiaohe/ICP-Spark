@@ -19,6 +19,20 @@ oUQDQgAEPas6Iag4TUx+Uop+3NhE6s3FlayFtbwdhRVjvOar0kPTfE/N8N6btRnd
 EOF
 ```
 
+#### nns配置设置
+> 设置 ～/.config/dfx/networks.json
+```json
+{
+  "local": {
+    "bind": "127.0.0.1:8080",
+    "type": "ephemeral",
+    "replica": {
+      "subnet_type": "system"
+    }
+  }
+}
+```
+
 #### 导入身份
 > $ dfx identity import ident-1 ident-1.pem  
 > 该命令会在本地创建一个 ident-1的身份，该身份可以管理nns一些系统canister，也是本地ICP的所有账户  
@@ -54,6 +68,7 @@ mops add ic-websocket-cdk
 #### 启动NNS官方基础canister
 > dfx nns install  
 > 会启动：cmc、rate、icp、governance、identity等基础canister环境(部分开发功能会需要)  
+
 
 #### 编译代码，生成did文件等
 dfx generate spark_user

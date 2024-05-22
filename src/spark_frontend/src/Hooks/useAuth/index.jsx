@@ -22,7 +22,8 @@ export const defaultOptions = {
     identityProvider:
       process.env.DFX_NETWORK === 'ic'
         ? 'https://identity.ic0.app/#authorize'
-        : `http://rdmx6-jaaaa-aaaaa-aaadq-cai.localhost:4943`,
+        // : `http://rdmx6-jaaaa-aaaaa-aaadq-cai.localhost:8080/#authorize`,
+         : `http://qhbym-qaaaa-aaaaa-aaafq-cai.localhost:8080/#authorize`,
     // Maximum authorization expiration is 8 days
     maxTimeToLive: days * hours * nanoseconds,
   },

@@ -583,7 +583,6 @@ shared (installation) actor class CyclesManage() ={
                             addSysErrLog(log);
                         };
                         case(#Ok(blockIndex)){
-                            Debug.print("mint success; mint index: " # Nat64.toText(blockIndex));
                             let newMintData : MintData = {
                                 uid = userInfo.uid;
                                 icp = mintData.icp;
@@ -661,7 +660,6 @@ shared (installation) actor class CyclesManage() ={
                         block_index  = mintData.mintIndex;
                         canister_id = SELF;
                     });
-                    Debug.print("notify: " # debug_show(result));
                     switch(result){
                         case(#Err(err)){ // 没有充值成功，等待下次充值
                             let log : Log = {
@@ -670,16 +668,15 @@ shared (installation) actor class CyclesManage() ={
                                 opeater = userInfo.uid;
                             };
                             addSysErrLog(log);
-                            Debug.print("notify err: " # debug_show(log));
                         };
                         case(#Ok(topupcycles)){
+                            // 这里返回的是兑换成功的cycles，所以可以同步改异步。
                             // let ending_cycles = Cycles.balance();
                             // if (ending_cycles < starting_cycles) {
                             //     // TODO: add exception log
                             //     return;
                             // };
                             // let topupcycles : Nat = Nat.sub(ending_cycles, starting_cycles);
-                            Debug.print("notify ok: " # debug_show(topupcycles));
                             let newMintData : MintData = {
                                 uid = userInfo.uid;
                                 icp = mintData.icp;
@@ -731,7 +728,6 @@ shared (installation) actor class CyclesManage() ={
                         opeater = userInfo.uid;
                     };
                     addSysErrLog(log);
-                    Debug.print("notify catch: " # show_error(err));
                 };
             };
         };
