@@ -21,6 +21,7 @@ const Withdraw = (props) => {
     const f = Number(fee) || 0
     return {
       fee: f,
+      amount : num * Math.pow(10, 8),
       total: num * Math.pow(10, 8) + f,
     }
   }, [formData.amount, fee])
@@ -49,19 +50,20 @@ const Withdraw = (props) => {
   const handleWithdraw = async () => {
     setLoading(true)
     let result = {}
+    let reciverId = formData.reciverId
     if (reciverId.split('-').length > 1) {
       result = await fetchICApi(
         { id: authUserInfo.id, agent },
         'user',
         'withdrawals',
-        ['ICP', BigInt(feeAndTotalAmount.total), reciverId],
+        ['ICP', BigInt(feeAndTotalAmount.amount), reciverId],
       )
     } else {
       result = await fetchICApi(
         { id: authUserInfo.id, agent },
         'user',
         'presaveICP',
-        [BigInt(feeAndTotalAmount.total), reciverId],
+        [BigInt(feeAndTotalAmount.amount), reciverId],
       )
     }
 

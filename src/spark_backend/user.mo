@@ -1,6 +1,7 @@
 import Prim "mo:prim";
 import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
+import Debug "mo:base/Debug";
 import Time "mo:base/Time";
 import List "mo:base/List";
 import Text "mo:base/Text";
@@ -291,19 +292,17 @@ shared({caller}) actor class UserSpace(
             };
         };
         let balance = await icpLedger.icrc1_balance_of({owner = Principal.fromActor(this); subaccount = null});
-        let fee = await icpLedger.icrc1_fee();
-        if(Nat.greater(amount, (balance + fee))){
+        if(Nat.greater((amount + 10_000), balance)){
             return {
                 code = 400;
                 msg = "balance not enought";
                 data = 0;
             };
         };
-        
         let transferArg : TransferArg = {
             to = Blob.fromArray(Utils.fromHex(accountId));
-            fee = {e8s = Nat64.fromNat(fee)};
-            memo = Prim.time();
+            fee = { e8s = 10_000 };
+            memo = 0x481;
             from_subaccount = null;
             amount = {e8s = Nat64.fromNat(amount)};
             created_at_time = null;

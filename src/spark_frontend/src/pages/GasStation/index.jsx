@@ -24,6 +24,7 @@ import {
   formatOmitId,
 } from '@/utils/dataFormat'
 import AddCanisterModal from '@/components/Modal/AddCanisterModal'
+import copy from 'copy-to-clipboard'
 
 const { Paragraph } = Typography
 const timer = null
@@ -276,7 +277,7 @@ const GasStation = () => {
               <span className="flex-1 overflow-hidden text-ellipsis bg-slate-100 px-3 py-2 h-9 rounded relative">
                 {info.account}
                 <div className="bg-slate-100 absolute top-0 right-0 w-9 h-9 flex justify-center items-center hover:bg-slate-200">
-                  <Button type="link" icon={<CopyOutlined />} />
+                  <Button type="link" onClick={() => {console.log(info.account); copy(info.account)}} icon={<CopyOutlined />} />
                 </div>
               </span>
             </div>

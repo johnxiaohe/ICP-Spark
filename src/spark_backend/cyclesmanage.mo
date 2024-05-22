@@ -9,6 +9,7 @@ import Time "mo:base/Time";
 import Timer "mo:base/Timer";
 import Error "mo:base/Error";
 import Option "mo:base/Option";
+import Debug "mo:base/Debug";
 
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
@@ -213,8 +214,9 @@ shared (installation) actor class CyclesManage() ={
                     };
                 };
                 let from_subaccount = Utils.principalToSubAccount(caller); // cycles manage for this user subaccount
-                let icpBalance = await ICP.icrc1_balance_of({ owner = SELF; subaccount = ?Blob.fromArray(from_subaccount) });
-                if (icpBalance < amount){
+                let account = Blob.fromArray(AccountId.fromPrincipal(SELF, ?from_subaccount));
+                let icpBalance = await ICP.account_balance({account = account});
+                if (icpBalance.e8s < Nat64.fromNat(amount)){
                     return {
                         code = 400;
                         msg = "balance not enought";
@@ -244,7 +246,7 @@ shared (installation) actor class CyclesManage() ={
                     uid = userInfo.uid;
                     account = userInfo.account;
                     cycles = userInfo.cycles;
-                    icp = icpBalance;
+                    icp = Nat64.toNat(icpBalance.e8s);
                     status = #Minting;
                 };
                 Map.set(userPreSaveInfoMap, thash, userInfo.uid, newUserInfo);
@@ -529,7 +531,7 @@ shared (installation) actor class CyclesManage() ={
     };
 
     public shared({caller}) func sysErrorLog(): async(Resp<[Log]>){
-        assert(caller == SELF or caller == OWNER);
+        // assert(caller == SELF or caller == OWNER);
         return {
             code = 200;
             msg = "";
@@ -538,7 +540,7 @@ shared (installation) actor class CyclesManage() ={
     };
 
     public shared({caller}) func feeLog(): async(Resp<[FeeLog]>){
-        assert(caller == SELF or caller == OWNER);
+        // assert(caller == SELF or caller == OWNER);
         return {
             code = 200;
             msg = "";
@@ -581,6 +583,7 @@ shared (installation) actor class CyclesManage() ={
                             addSysErrLog(log);
                         };
                         case(#Ok(blockIndex)){
+                            Debug.print("mint success; mint index: " # Nat64.toText(blockIndex));
                             let newMintData : MintData = {
                                 uid = userInfo.uid;
                                 icp = mintData.icp;
@@ -590,6 +593,7 @@ shared (installation) actor class CyclesManage() ={
                                 ctime = mintData.ctime;
                                 dtime = mintData.dtime;
                             };
+                            Debug.print(debug_show(newMintData));
                             Map.set(mintDataMap, thash, mintData.uid, newMintData);
                         };
                     };
@@ -657,6 +661,7 @@ shared (installation) actor class CyclesManage() ={
                         block_index  = mintData.mintIndex;
                         canister_id = SELF;
                     });
+                    Debug.print("notify: " # debug_show(result));
                     switch(result){
                         case(#Err(err)){ // 没有充值成功，等待下次充值
                             let log : Log = {
@@ -665,6 +670,7 @@ shared (installation) actor class CyclesManage() ={
                                 opeater = userInfo.uid;
                             };
                             addSysErrLog(log);
+                            Debug.print("notify err: " # debug_show(log));
                         };
                         case(#Ok(topupcycles)){
                             // let ending_cycles = Cycles.balance();
@@ -673,6 +679,7 @@ shared (installation) actor class CyclesManage() ={
                             //     return;
                             // };
                             // let topupcycles : Nat = Nat.sub(ending_cycles, starting_cycles);
+                            Debug.print("notify ok: " # debug_show(topupcycles));
                             let newMintData : MintData = {
                                 uid = userInfo.uid;
                                 icp = mintData.icp;
@@ -724,6 +731,7 @@ shared (installation) actor class CyclesManage() ={
                         opeater = userInfo.uid;
                     };
                     addSysErrLog(log);
+                    Debug.print("notify catch: " # show_error(err));
                 };
             };
         };

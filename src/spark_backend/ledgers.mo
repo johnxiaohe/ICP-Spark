@@ -255,6 +255,8 @@ module {
     };
     #InsufficientFunds : { balance : Nat };
   };
+
+  public type BinaryAccountBalanceArgs = { account : Blob };
   public type Self = actor {
     create_canister : shared CreateCanisterArgs -> async {
         #Ok : CreateCanisterSuccess;
@@ -301,5 +303,6 @@ module {
         #Err : WithdrawFromError;
       };
     transfer : shared TransferArg -> async { #Ok : Nat64; #Err : TransferError_1 }; // only icp
+    account_balance : shared query BinaryAccountBalanceArgs -> async Tokens;
   }
 }
