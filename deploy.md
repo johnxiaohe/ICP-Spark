@@ -68,6 +68,8 @@ mops add ic-websocket-cdk
 #### 启动NNS官方基础canister
 > dfx nns install  
 > 会启动：cmc、rate、icp、governance、identity等基础canister环境(部分开发功能会需要)  
+> 查看nns启动后ii地址：例如：internet_identity     http://qhbym-qaaaa-aaaaa-aaafq-cai.localhost:8080/
+> 修改至 --- frontend/src/Hooks/useAuth/index.jsx的local地址。如果不变固定是这个地址就不用改
 
 
 #### 编译代码，生成did文件等
