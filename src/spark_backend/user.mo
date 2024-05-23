@@ -1092,4 +1092,6 @@ shared({caller}) actor class UserSpace(
         _recentWorks := List.filter<RecentWork>(_recentWorks, func ns {not Text.equal(wid, ns.wid)});
     };
 
+    // 在代码发生变更的时候，可以通过main canister对 user、workspace canister进行升级通知。
+
 }

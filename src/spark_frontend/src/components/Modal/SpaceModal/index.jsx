@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Modal, Form, Input, Upload, Radio, message } from 'antd'
+import { Modal, Form, Input,InputNumber, Upload, Radio, message } from 'antd'
 import ImgCrop from 'antd-img-crop'
 import { fileToBase64 } from '@/utils/dataFormat'
 import CommonAvatar from '@/components/CommonAvatar'
@@ -31,10 +31,10 @@ const SpaceModal = (props) => {
       'createWorkNs',
       [
         formData.name,
-        formData.desc,
-        formData.avatar,
+        formData.desc || "",
+        formData.avatar || "",
         { [formData.model]: null },
-        BigInt(formData.price),
+        BigInt(formData.price || 0),
       ],
     )
     if (result.code === 200) {
@@ -101,7 +101,7 @@ const SpaceModal = (props) => {
           label="Price"
           onChange={(e) => handleChangeForm('price', e.target.value)}
         >
-          <Input value={formData.price} />
+          <InputNumber defaultValue='0' value={formData.price} />
         </Form.Item>
       </Form>
     </Modal>
