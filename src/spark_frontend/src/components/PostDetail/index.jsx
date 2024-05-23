@@ -1,19 +1,28 @@
 import React, { useMemo, useState } from 'react'
 import CommonAvatar from '../CommonAvatar'
 import { timeFormat } from '../../utils/dataFormat'
-import { Tag, Button } from 'antd'
+import { Tag, Button, message } from 'antd'
 import { Link } from 'react-router-dom'
+import { useAuth } from '@/Hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
 
 const PostDetail = (props) => {
+  const { isLoggedIn, login, isRegistered } = useAuth()
+  const navigate = useNavigate()
   const { content, trait, space = {}, onSubscribe = async () => {} } = props
   const [loading, setLoading] = useState(false)
   const spaceInfo = useMemo(() => {
     return space
   }, [space])
   const handleSubscribe = async () => {
-    setLoading(true)
-    await onSubscribe()
-    setLoading(false)
+    if (!isRegistered) {
+      navigate('/settings')
+      message.warning('Please set your info first')
+    } else {
+      setLoading(true)
+      await onSubscribe()
+      setLoading(false)
+    }
   }
   return (
     <div>
@@ -89,13 +98,19 @@ const PostDetail = (props) => {
         ) &&
           content.id === 0 && (
             <div className="mt-3 flex justify-center">
-              <Button
-                type="primary"
-                loading={loading}
-                onClick={handleSubscribe}
-              >
-                Click to subscribe to space to read the full content
-              </Button>
+              {isLoggedIn ? (
+                <Button
+                  type="primary"
+                  loading={loading}
+                  onClick={handleSubscribe}
+                >
+                  Click to subscribe to space to read the full content
+                </Button>
+              ) : (
+                <Button type="primary" loading={loading} onClick={login}>
+                  Login / Create Account
+                </Button>
+              )}
             </div>
           )}
         <div></div>

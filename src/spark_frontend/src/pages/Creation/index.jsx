@@ -5,7 +5,7 @@ import PostList from '@/components/PostList'
 import SpaceList from '@/components/SpaceList'
 
 const Creation = () => {
-  const { agent, authUserInfo } = useAuth()
+  const { agent, authUserInfo, isRegistered } = useAuth()
   const [recentSpace, setRecentSpace] = useState([])
   const [recentEdit, setRecentEdit] = useState([])
 
@@ -32,11 +32,11 @@ const Creation = () => {
   }
 
   useEffect(() => {
-    if (authUserInfo.id && authUserInfo.id !== authUserInfo.pid) {
+    if (isRegistered) {
       getRecentEdit()
       getRecentSpace()
     }
-  }, [authUserInfo])
+  }, [isRegistered])
 
   return (
     <div className="flex gap-10 p-5">

@@ -11,7 +11,7 @@ const { Header } = Layout
 function CommonHeader(props) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { login, logout, authUserInfo, isLoggedIn } = useAuth()
+  const { login, logout, authUserInfo, isRegistered, isLoggedIn } = useAuth()
   const [currentRoute, setCurrentRoute] = useState('latest')
 
   useEffect(() => {
@@ -65,17 +65,21 @@ function CommonHeader(props) {
                     </div>
                   ),
                 },
-                {
-                  key: '5',
-                  label: <Link to={'/gastation'}>Gas Station</Link>,
-                },
+                isRegistered
+                  ? {
+                      key: '5',
+                      label: <Link to={'/gastation'}>Gas Station</Link>,
+                    }
+                  : undefined,
+                isRegistered
+                  ? {
+                      key: '3',
+                      label: <Link to={'/spaces'}>Workspaces</Link>,
+                    }
+                  : undefined,
                 {
                   key: '2',
                   label: <Link to={'/settings'}>Settings</Link>,
-                },
-                {
-                  key: '3',
-                  label: <Link to={'/spaces'}>Workspaces</Link>,
                 },
                 {
                   key: '4',
