@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext } from 'react'
+import React, { createContext, useState, useContext, useMemo } from 'react'
 import { AuthClient } from '@dfinity/auth-client'
 import { HttpAgent } from '@dfinity/agent'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
@@ -99,6 +99,10 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const isRegistered = useMemo(() => {
+    return authUserInfo.id && authUserInfo.id !== authUserInfo.pid
+  }, [authUserInfo])
+
   return (
     <AuthContext.Provider
       value={{
@@ -112,6 +116,7 @@ export const AuthProvider = ({ children }) => {
         authUserInfo,
         agent,
         getAuthUserInfo,
+        isRegistered,
       }}
     >
       {children}

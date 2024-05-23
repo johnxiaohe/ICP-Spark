@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
@@ -18,7 +18,7 @@ const WorkspaceDetail = () => {
   const params = useParams()
   const searchParams = useSearchParams()
   const navigate = useNavigate()
-  const { agent, authUserInfo } = useAuth()
+  const { agent, authUserInfo, isRegistered } = useAuth()
   const [spaceInfo, setSpaceInfo] = useState({})
   const [summery, setSummery] = useState([])
   const [content, setContent] = useState({})
@@ -156,6 +156,14 @@ const WorkspaceDetail = () => {
     getContent(id)
     getTrait(id)
   }
+
+  const isMember = useMemo(() => {
+    return [...admins, ...members].some((item) => item.id === authUserInfo.id)
+  }, [admins, members])
+
+  const isAdmin = useMemo(() => {
+    return admins.some((item) => item.id === authUserInfo.id)
+  }, [admins])
 
   const onDragEnter = (info) => {
     console.log(info)
@@ -359,7 +367,7 @@ const WorkspaceDetail = () => {
         </div>
         {Object.keys(spaceInfo.model || {}).some(
           (item) => item === 'Subscribe',
-        ) ? (
+        ) && isRegistered ? (
           haveSubscribe ? (
             <Tooltip title="unsubscribe workspace">
               <Button
@@ -401,7 +409,7 @@ const WorkspaceDetail = () => {
                   </Link>
                 ))}
 
-                {admins.some((item) => item.id === authUserInfo.id) && (
+                {isAdmin && (
                   <Tooltip title="Add Member">
                     <div
                       onClick={handleInvite}
@@ -452,9 +460,7 @@ const WorkspaceDetail = () => {
         </div>
 
         <div className="mt-3 flex justify-end">
-          {[...admins, ...members].some(
-            (item) => item.id === authUserInfo.id,
-          ) && (
+          {isMember && (
             <Tooltip title="Create new post">
               <Button
                 onClick={createContent}
@@ -478,11 +484,15 @@ const WorkspaceDetail = () => {
           titleRender={(row) => (
             <div className="group flex justify-between items-center">
               {row.title}
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100">
-                <PlusOutlined onClick={() => createContent({ pid: row.id })} />
-                {/* <DeleteOutlined />
+              {isMember && (
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100">
+                  <PlusOutlined
+                    onClick={() => createContent({ pid: row.id })}
+                  />
+                  {/* <DeleteOutlined />
                 <EditOutlined /> */}
-              </div>
+                </div>
+              )}
             </div>
           )}
         />
@@ -493,9 +503,7 @@ const WorkspaceDetail = () => {
         ))} */}
       </div>
       <div className="right h-full flex-1 flex flex-col border border-gray-200 rounded-md bg-white pb-5 relative overflow-hidden">
-        {[...admins, ...members].some(
-          (item) => item.id === authUserInfo.id,
-        ) && (
+        {isMember && (
           <Button
             type="primary"
             onClick={() => setIsEdit(!isEdit)}

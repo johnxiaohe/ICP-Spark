@@ -78,7 +78,7 @@ const GasStation = () => {
                   precision={3}
                   addonAfter="T"
                   value={topupCount}
-                  max={info.cycles * Math.pow(10, -12)}
+                  max={info?.cycles * Math.pow(10, -12)}
                   min={0}
                   step={0.1}
                   onChange={(e) => setTopupCount(e)}
@@ -275,22 +275,28 @@ const GasStation = () => {
             <div className="flex items-center overflow-hidden">
               <label className="w-32">Account ID</label>
               <span className="flex-1 overflow-hidden text-ellipsis bg-slate-100 px-3 py-2 h-9 rounded relative">
-                {info.account}
+                {info?.account}
                 <div className="bg-slate-100 absolute top-0 right-0 w-9 h-9 flex justify-center items-center hover:bg-slate-200">
-                  <Button type="link" onClick={() => {console.log(info.account); copy(info.account)}} icon={<CopyOutlined />} />
+                  <Button
+                    type="link"
+                    onClick={() => {
+                      copy(info?.account)
+                    }}
+                    icon={<CopyOutlined />}
+                  />
                 </div>
               </span>
             </div>
             <div className="flex items-center overflow-hidden">
               <label className="w-32">ICP Balance</label>
               <span className="flex-1 overflow-hidden bg-slate-100 px-3 py-2 h-9 rounded">
-                {formatICPAmount(info.icp)}
+                {formatICPAmount(info?.icp)}
               </span>
             </div>
             <div className="flex items-center overflow-hidden">
               <label className="w-32">Cycles Balance</label>
               <span className="flex-1 overflow-hidden bg-slate-100 px-3 py-2 h-9 rounded relative">
-                {formatCyclesAmount(info.cycles)}
+                {formatCyclesAmount(info?.cycles)}
                 <div className="bg-slate-100 absolute top-0 right-0 w-9 h-9 flex justify-center items-center hover:bg-slate-200">
                   {!isMinting ? (
                     <Popover
@@ -303,7 +309,7 @@ const GasStation = () => {
                             precision={4}
                             addonBefore="ICP"
                             value={mintCount}
-                            max={info.icp * Math.pow(10, -8)}
+                            max={info?.icp * Math.pow(10, -8)}
                             min={0.05}
                             step={0.1}
                             onChange={(e) => setMintCount(e)}
@@ -336,7 +342,7 @@ const GasStation = () => {
           </div>
         </div>
         <div className="ml-4">
-          <QRCode value={info.account || '-'} bordered={false} size={140} />
+          <QRCode value={info?.account || '-'} bordered={false} size={140} />
           <p className="text-center text-xs">Scan Account ID</p>
         </div>
       </div>
