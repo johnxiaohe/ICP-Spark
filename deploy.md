@@ -9,6 +9,7 @@ sudo npm i ic-mops -g
 dfx extension install nns
 
 #### 安装测试admin身份
+> cd ～/.config/dfx
 ```text
 $ cat <<EOF >ident-1.pem
 -----BEGIN EC PRIVATE KEY-----
