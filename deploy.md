@@ -54,11 +54,17 @@ mops add base
 mops add ic-websocket-cdk  
 
 ## 开发调试(本地测试启动) ===========================================================================  
-> 也可以用启动shell脚本启动后端： 
+
+#### 前端启动
+npm start  
+
+#### 后端启动
+
+#### 方式一：脚本一键启动
 > sudo chmod -R 777 backend_start.sh  
 > ./backend_start.sh  
-> 前端启动： npm start  
 
+#### 方式二：选择启动
 #### 启动ICP容器基础环境
 > dfx start --background --clean  
 > clean命令会以纯净模式启动，消除之前的记录  
