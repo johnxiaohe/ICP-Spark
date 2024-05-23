@@ -22,7 +22,7 @@ const { Paragraph } = Typography
 const UserCenter = () => {
   const params = useParams()
   const navigate = useNavigate()
-  const { agent, principalId, authUserInfo, isLoggedIn } = useAuth()
+  const { agent, principalId, authUserInfo, isRegistered, isLoggedIn } = useAuth()
   const [isEdit, setIsEdit] = useState(false)
   const [editUserInfo, setEditUserInfo] = useState(null)
   const [currentUserInfo, setCurrentUserInfo] = useState({})
@@ -38,6 +38,7 @@ const UserCenter = () => {
   const [balance, setBalance] = useState(0)
   const [cycles, setCycles] = useState(0)
   const [isOpenWithdraw, setIsOpenWithdraw] = useState(false)
+  const [isFollowed, setIsFollowed] = useState(false)
 
   const tabListNoTitle = useMemo(() => {
     const list = [
@@ -72,6 +73,7 @@ const UserCenter = () => {
   }
 
   const getCurrentUserInfo = async () => {
+    console.log("1")
     let result
     if (params.id === principalId) {
       setIsMe(true)
@@ -87,6 +89,8 @@ const UserCenter = () => {
       if (params.id === authUserInfo.id) {
         getBalance()
         getCycles()
+      } else {
+        
       }
       result = await fetchICApi({ id: params.id, agent }, 'user', 'detail')
       setLoading(false)
@@ -97,6 +101,15 @@ const UserCenter = () => {
       message.error(result.msg)
     } else {
       setCurrentUserInfo(result.data)
+    }
+  }
+
+  const haveFollowed = async () => {
+    console.log( "param id: ", params.id)
+    console.log( "actor id: ", authUserInfo.id)
+    const result = await fetchICApi({ id: authUserInfo.id, agent }, 'user', 'hvFollowed', [params.id])
+    if (result.code === 200) {
+      setIsFollowed(result.data)
     }
   }
 
@@ -124,6 +137,36 @@ const UserCenter = () => {
       setFollowLoading(false)
       if (result.code === 200) {
         message.success('Follow Success')
+        setIsFollowed(true)
+        getCurrentUserInfo()
+      } else {
+        message.error('Please try later!')
+      }
+    }
+  }
+
+  const handleUnFollow = async () => {
+    if (!principalId) {
+      message.error('please login first')
+    } else if (principalId === authUserInfo.id) {
+      message.error('please set your info first')
+      navigate('/settings')
+    } else {
+      setFollowLoading(true)
+      const result = await fetchICApi(
+        {
+          id: authUserInfo.id,
+          agent,
+        },
+        'user',
+        'unFollow',
+        [params.id],
+      )
+      setFollowLoading(false)
+      if (result.code === 200) {
+        message.success('UnFollow Success')
+        setIsFollowed(false)
+        getCurrentUserInfo()
       } else {
         message.error('Please try later!')
       }
@@ -187,6 +230,9 @@ const UserCenter = () => {
 
   useEffect(() => {
     getCurrentUserInfo()
+    if (authUserInfo.id) {
+      haveFollowed()
+    }
   }, [authUserInfo])
 
   useEffect(() => {
@@ -304,9 +350,11 @@ const UserCenter = () => {
               </div>
             ) : (
               <div className="right">
-                <Button type="primary" onClick={handleFollow}>
+                {isFollowed ? <Button type="primary" onClick={handleUnFollow}>
+                  UnFollow
+                </Button>: <Button type="primary" onClick={handleFollow}>
                   Follow
-                </Button>
+                </Button>}
               </div>
             )}
           </>
