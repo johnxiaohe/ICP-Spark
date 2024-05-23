@@ -73,7 +73,6 @@ const UserCenter = () => {
   }
 
   const getCurrentUserInfo = async () => {
-    console.log("1")
     let result
     if (params.id === principalId) {
       setIsMe(true)
@@ -90,7 +89,7 @@ const UserCenter = () => {
         getBalance()
         getCycles()
       } else {
-        
+        haveFollowed()
       }
       result = await fetchICApi({ id: params.id, agent }, 'user', 'detail')
       setLoading(false)
@@ -105,8 +104,6 @@ const UserCenter = () => {
   }
 
   const haveFollowed = async () => {
-    console.log( "param id: ", params.id)
-    console.log( "actor id: ", authUserInfo.id)
     const result = await fetchICApi({ id: authUserInfo.id, agent }, 'user', 'hvFollowed', [params.id])
     if (result.code === 200) {
       setIsFollowed(result.data)
@@ -230,9 +227,6 @@ const UserCenter = () => {
 
   useEffect(() => {
     getCurrentUserInfo()
-    if (authUserInfo.id) {
-      haveFollowed()
-    }
   }, [authUserInfo])
 
   useEffect(() => {
