@@ -24,20 +24,22 @@ const CommonAvatar = (props) => {
           className ?? '',
           borderColor ? `border-[${color}]` : 'border-gray-200',
         ].join(' ')}
-        src={src}
+        src={src || false}
         shape={shape}
       >
         {name.substring(0, 1)}
       </Avatar>
-      <div
-        className={[
-          className,
-          'absolute top-0 left-0 flex justify-center items-center opacity-0',
-          upload ? 'hover:opacity-100' : '',
-        ].join(' ')}
-      >
-        <UploadOutlined className=" text-lg text-white" />
-      </div>
+      {upload && (
+        <div
+          className={[
+            className,
+            'absolute top-0 left-0 flex justify-center items-center opacity-0',
+            upload ? 'hover:opacity-100' : '',
+          ].join(' ')}
+        >
+          <UploadOutlined className=" text-lg text-white" />
+        </div>
+      )}
     </div>
   )
 }

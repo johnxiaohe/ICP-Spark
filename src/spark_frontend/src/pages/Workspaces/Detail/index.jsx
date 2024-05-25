@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
@@ -6,24 +6,20 @@ import { Button, Tree, Modal, Input, Tooltip, Select, message } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import PostEdit from '@/components/PostEdit'
 import { formatPostTree } from '@/utils/dataFormat'
-import {
-  DeleteOutlined,
-  EditOutlined,
-  PlusOutlined,
-  DownOutlined,
-} from '@ant-design/icons'
+import { PlusOutlined } from '@ant-design/icons'
 import PostDetail from '../../../components/PostDetail'
 
 const WorkspaceDetail = () => {
   const params = useParams()
-  const searchParams = useSearchParams()
+  const EditRef = useRef(null)
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { agent, authUserInfo, isRegistered } = useAuth()
   const [spaceInfo, setSpaceInfo] = useState({})
   const [summery, setSummery] = useState([])
   const [content, setContent] = useState({})
   const [currentId, setCurrentId] = useState(0)
-  const [isEdit, setIsEdit] = useState(searchParams[0].get('edit') || false)
+  const [isEdit, setIsEdit] = useState(searchParams.get('edit') || false)
   const [trait, setTrait] = useState({})
   const [count, setCount] = useState({})
   const [balance, setBalance] = useState(0)
@@ -50,8 +46,8 @@ const WorkspaceDetail = () => {
     const result = await fetchICApi(
       { id: params.id, agent },
       'workspace',
-      'getSummery',
-      [BigInt(level)],
+      'summary',
+      [],
     )
     if (level === 0) {
       const _summery = formatPostTree(result.data || [])
@@ -220,24 +216,42 @@ const WorkspaceDetail = () => {
     }
     setSummery(data)
   }
-  const onLoadData = async (e) => {
-    const result = await getSummery(e.id)
-    if (result.code === 200 && result.data?.length) {
-      const _summery = summery.map((item) => {
-        if (item.id === e.id) {
-          return {
-            ...item,
-            children: formatPostTree(result.data || []),
-          }
-        }
-        return item
+  // const onLoadData = async (e) => {
+  //   const result = await getSummery(e.id)
+  //   if (result.code === 200 && result.data?.length) {
+  //     const _summery = summery.map((item) => {
+  //       if (item.id === e.id) {
+  //         return {
+  //           ...item,
+  //           children: formatPostTree(result.data || []),
+  //         }
+  //       }
+  //       return item
+  //     })
+  //     setSummery(_summery)
+  //   }
+  // }
+
+  const onSelect = async (keys, e) => {
+    console.log(e)
+    if (isEdit && e.node.id !== Number(params.index)) {
+      Modal.warning({
+        title: 'Confirm to quit editing',
+        content:
+          'Leaving the current page will cause unsaved changes to be lost. Confirm whether to leave.',
+        okText: 'Save and leave',
+        onOk: () => onLeave(e),
+        cancelText: 'Cancel',
+        maskClosable: true,
       })
-      setSummery(_summery)
+    } else {
+      navigate(`/space/${params.id}/${e.node.id}`)
     }
   }
 
-  const onSelect = async (keys, e) => {
-    // getCurrentContent(e.node.id)
+  const onLeave = async (e) => {
+    console.log(EditRef)
+    await EditRef.current.handleSave()
     navigate(`/space/${params.id}/${e.node.id}`)
   }
 
@@ -365,7 +379,7 @@ const WorkspaceDetail = () => {
             <p>{spaceInfo.desc}</p>
           </div>
         </div>
-        {Object.keys(spaceInfo.model || {}).some(
+        {Object.keys(spaceInfo?.model ?? {}).some(
           (item) => item === 'Subscribe',
         ) && isRegistered ? (
           haveSubscribe ? (
@@ -478,12 +492,13 @@ const WorkspaceDetail = () => {
           onDragEnter={onDragEnter}
           onDrop={onDrop}
           treeData={summery}
-          loadData={onLoadData}
+          // loadData={onLoadData}
           onSelect={onSelect}
           selectedKeys={[params.index]}
+          key={(row) => row.id}
           titleRender={(row) => (
             <div className="group flex justify-between items-center">
-              {row.title}
+              {row.name}
               {isMember && (
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100">
                   <PlusOutlined
@@ -512,9 +527,10 @@ const WorkspaceDetail = () => {
             {isEdit ? 'View' : 'Edit'}
           </Button>
         )}
-        {isEdit ? (
+        {isEdit && isMember ? (
           <div className="flex-1 overflow-hidden">
             <PostEdit
+              ref={EditRef}
               content={content}
               trait={trait}
               spaceId={params.id}
@@ -522,6 +538,7 @@ const WorkspaceDetail = () => {
               onSaveSuccess={() => {
                 getSummery()
                 getCurrentContent(currentId)
+                setIsEdit(false)
               }}
             />
           </div>

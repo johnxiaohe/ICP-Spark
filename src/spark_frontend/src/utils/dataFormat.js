@@ -36,17 +36,27 @@ export const timeFormat = (time) => {
 }
 
 export const formatPostTree = (list) => {
-  const formatList = list.map((item) => {
-    const key = `${item.pid}-${item.id}`
-    return {
-      title: item.name,
-      key: item.id,
-      id: item.id,
-      pid: item.pid,
-      children: formatPostTree(item.children || []),
-    }
+  const map = new Map()
+  list.forEach((item) => {
+    map.set(item.id, { ...item, key: item.id, children: [] })
   })
-  return formatList
+
+  // 定义一个递归函数，用于构建每个节点的子树
+  function buildTree(node) {
+    list.forEach((item) => {
+      if (item.pid === node.id) {
+        const childNode = map.get(item.id)
+        // 递归构建子树，并添加到当前节点的children中
+        node.children.push(buildTree(childNode))
+      }
+    })
+    return node
+  }
+
+  // 过滤出根节点并递归构建整棵树
+  return list
+    .filter((item) => item.pid === 0)
+    .map((rootNode) => buildTree(map.get(rootNode.id)))
 }
 
 export const formatICPAmount = (num) => {
