@@ -34,11 +34,11 @@ const SpaceModal = (props) => {
       'user',
       'createWorkNs',
       [
-        values.name,
-        values.desc,
-        avatar,
-        { [values.model]: null },
-        BigInt(values.price || 0),
+        formData.name,
+        formData.desc || '',
+        formData.avatar || '',
+        { [formData.model]: null },
+        BigInt(formData.price || 0),
       ],
     )
     if (result.code === 200) {
