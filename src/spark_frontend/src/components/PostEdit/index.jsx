@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useImperativeHandle } from 'react'
 import { Link } from 'react-router-dom'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
@@ -19,7 +19,10 @@ import CommonAvatar from '../CommonAvatar'
 
 Quill.register('modules/cursors', QuillCursors)
 
-const PostEdit = (props) => {
+const PostEdit = React.forwardRef((props, ref) => {
+  useImperativeHandle(ref, () => ({
+    handleSave,
+  }))
   const { onSaveSuccess, spaceInfo } = props
   const { agent, authUserInfo } = useAuth()
   const [myEditor, setMyEditor] = useState(null)
@@ -30,6 +33,7 @@ const PostEdit = (props) => {
   const [myProvider, setMyProvider] = useState(null)
   const [trait, setTrait] = useState({})
   const [isShowTrait, setIsShowTrait] = useState(false)
+  const [loading, setLoading] = useState(false)
   const tagOptions = []
 
   const initEditor = () => {
@@ -37,7 +41,7 @@ const PostEdit = (props) => {
     const provider = new WebsocketProvider(
       'wss://demos.yjs.dev/ws', // use the public ws server
       // `ws${location.protocol.slice(4)}//${location.host}/ws`, // alternatively: use the local ws server (run `npm start` in root directory)
-      `icp-demo-${props.content.id}`,
+      `icp-${spaceInfo.wid}-${props.content.id}`,
       ydoc,
     )
     const ytext = ydoc.getText('quill')
@@ -82,14 +86,14 @@ const PostEdit = (props) => {
   }
 
   const handleSave = async () => {
+    console.log(props.content.name, title, props.content.content, content)
     if (props.content.name !== title || props.content.content !== content) {
-      const result = await fetchICApi(
+      await fetchICApi(
         { id: props.spaceId, agent },
         'workspace',
         'updateContent',
         [BigInt(props.content.id), title, content],
       )
-      if (result.code === 200) onSaveSuccess()
     }
     await saveTrait()
     // 记录最近编辑的文章
@@ -97,6 +101,8 @@ const PostEdit = (props) => {
       props.spaceId,
       BigInt(props.content.id),
     ])
+    onSaveSuccess()
+    message.success('Saved success')
   }
 
   const saveTrait = async () => {
@@ -129,6 +135,11 @@ const PostEdit = (props) => {
 
   const handlePublish = async () => {
     await handleSave()
+    if (!content) {
+      return message.warning(
+        'Publishing is rejected since the content is empty!',
+      )
+    }
     const result = await fetchICApi(
       { id: props.spaceId, agent },
       'workspace',
@@ -137,6 +148,7 @@ const PostEdit = (props) => {
     )
     if (result.code === 200) {
       message.success('Published!')
+      onSaveSuccess()
     }
   }
 
@@ -229,7 +241,7 @@ const PostEdit = (props) => {
             label="Description"
             onChange={(e) => setTrait({ ...trait, desc: e.target.value })}
           >
-            <Input.TextArea maxLength={200} value={trait.desc || defaultDesc} />
+            <Input.TextArea maxLength={200} value={trait.desc} />
           </Form.Item>
           <Form.Item label="Tags">
             <Select
@@ -249,7 +261,9 @@ const PostEdit = (props) => {
 
       <div className="flex justify-between mt-5 pl-10 pr-10 w-full absolute bottom-0">
         <div>
-          {Object.keys(spaceInfo.model).some((item) => item !== 'Private') ? (
+          {Object.keys(spaceInfo?.model || {}).some(
+            (item) => item !== 'Private',
+          ) ? (
             <>
               <Button type="primary" onClick={handlePublish}>
                 Save & Publish
@@ -280,6 +294,6 @@ const PostEdit = (props) => {
       </div>
     </div>
   )
-}
+})
 
 export default PostEdit

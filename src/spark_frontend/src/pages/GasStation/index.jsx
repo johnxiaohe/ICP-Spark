@@ -23,6 +23,7 @@ import {
   formatICPAmount,
   formatOmitId,
 } from '@/utils/dataFormat'
+import { useNavigate } from 'react-router-dom'
 import AddCanisterModal from '@/components/Modal/AddCanisterModal'
 import copy from 'copy-to-clipboard'
 
@@ -30,7 +31,8 @@ const { Paragraph } = Typography
 const timer = null
 
 const GasStation = () => {
-  const { agent, authUserInfo } = useAuth()
+  const navigate = useNavigate()
+  const { agent, authUserInfo, isRegistered } = useAuth()
   const [data, setData] = useState([])
   const [isOpenAdd, setIsOpenAdd] = useState(false)
   const [isMinting, setIsMinting] = useState(false)
@@ -135,7 +137,7 @@ const GasStation = () => {
     )
     if (result.code === 200) {
       setMySpaces(
-        result.data.map((item) => ({ id: item.wid, name: item.name })) || [],
+        result.data?.map((item) => ({ id: item.wid, name: item.name })) || [],
       )
     }
   }
@@ -254,11 +256,15 @@ const GasStation = () => {
 
   useEffect(() => {
     if (authUserInfo.id) {
+      if (!isRegistered) {
+        message.warning('Please set user info first!')
+        return navigate('/settings')
+      }
       getCanisters()
       getInfo()
       getMySpaces()
     }
-  }, [authUserInfo])
+  }, [authUserInfo, isRegistered])
 
   useEffect(() => {
     return () => {
@@ -342,7 +348,12 @@ const GasStation = () => {
           </div>
         </div>
         <div className="ml-4">
-          <QRCode value={info?.account || '-'} bordered={false} size={140} />
+          <QRCode
+            value={info?.account || '-'}
+            status={info?.account ? 'active' : 'loading'}
+            bordered={false}
+            size={140}
+          />
           <p className="text-center text-xs">Scan Account ID</p>
         </div>
       </div>

@@ -1,16 +1,19 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import CommonAvatar from '../CommonAvatar'
 import { timeFormat } from '../../utils/dataFormat'
-import { Tag, Button, message } from 'antd'
+import { Tag, Button, message, Tooltip } from 'antd'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/Hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
+import { StarFilled, StarOutlined } from '@ant-design/icons'
+import { fetchICApi } from '../../api/icFetch'
 
 const PostDetail = (props) => {
-  const { isLoggedIn, login, isRegistered } = useAuth()
+  const { isLoggedIn, login, isRegistered, agent, authUserInfo } = useAuth()
   const navigate = useNavigate()
   const { content, trait, space = {}, onSubscribe = async () => {} } = props
   const [loading, setLoading] = useState(false)
+  const [collected, setCollected] = useState(false)
   const spaceInfo = useMemo(() => {
     return space
   }, [space])
@@ -24,6 +27,56 @@ const PostDetail = (props) => {
       setLoading(false)
     }
   }
+  const collection = async () => {
+    const result = await fetchICApi(
+      { id: authUserInfo.id, agent },
+      'user',
+      'collection',
+      [space.id, content.id],
+    )
+    if (result.code === 200) {
+      message.success('Collected success!')
+      hvCollectioned()
+    }
+  }
+  const unCollection = async () => {
+    const result = await fetchICApi(
+      { id: authUserInfo.id, agent },
+      'user',
+      'unCollection',
+      [space.id, content.id],
+    )
+    if (result.code === 200) {
+      message.success('Uncollected success!')
+      hvCollectioned()
+    }
+  }
+  const hvCollectioned = async () => {
+    const result = await fetchICApi(
+      { id: authUserInfo.id, agent },
+      'user',
+      'hvCollectioned',
+      [space.id, content.id],
+    )
+    if (result.code === 200) {
+      setCollected(result.data)
+    }
+  }
+  const handleCollect = async () => {
+    if (collected) {
+      unCollection()
+      setCollected(false)
+    } else {
+      collection()
+      setCollected(true)
+    }
+  }
+
+  useEffect(() => {
+    if (space.id && content.id) {
+      hvCollectioned()
+    }
+  }, [space, content])
   return (
     <div>
       <header>
@@ -41,6 +94,7 @@ const PostDetail = (props) => {
               <CommonAvatar
                 src={content?.uAuthor?.[0]?.avatar}
                 className="w-10 h-10 mr-2"
+                name={content?.uAuthor?.[0]?.name}
               />
               <div>
                 <h2 className="font-semibold">
@@ -62,6 +116,7 @@ const PostDetail = (props) => {
                   src={spaceInfo?.avatar}
                   className="w-10 h-10 mr-2"
                   shape="square"
+                  name={spaceInfo.name}
                 />
                 <div>
                   <h2 className="font-semibold">
@@ -75,6 +130,23 @@ const PostDetail = (props) => {
             )
           )}
           <h1 className=" text-3xl font-bold mt-5">
+            {content.id && (
+              <Tooltip title="Collect">
+                <Button
+                  size="large"
+                  className="mt-2"
+                  type="link"
+                  onClick={handleCollect}
+                  icon={
+                    collected ? (
+                      <StarFilled className="text-yellow-400" />
+                    ) : (
+                      <StarOutlined className="text-gray-400" />
+                    )
+                  }
+                />
+              </Tooltip>
+            )}
             {content.name || trait.name}
           </h1>
           <div className="flex gap-2.5 mt-4">
