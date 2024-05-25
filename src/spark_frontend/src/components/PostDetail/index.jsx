@@ -73,7 +73,6 @@ const PostDetail = (props) => {
   }
 
   useEffect(() => {
-    console.log(space, content)
     if (space.id && content.id) {
       hvCollectioned()
     }
