@@ -26,8 +26,9 @@ const SpaceModal = (props) => {
     form.submit()
   }
 
-  const onSave = async (values) => {
-    console.log(values)
+  const onSave = async (formData) => {
+    formData.avatar = avatar
+    console.log(formData)
     setLoading(true)
     const result = await fetchICApi(
       { id: authUserInfo.id, agent },
@@ -58,7 +59,7 @@ const SpaceModal = (props) => {
       onOk={handleSave}
       confirmLoading={loading}
     >
-      <Form layout="vertical" form={form} onFinish={onSave}>
+      <Form layout="vertical" form={form} onFinish={onSave} >
         <Form.Item>
           <ImgCrop rotationSlider>
             <Upload
