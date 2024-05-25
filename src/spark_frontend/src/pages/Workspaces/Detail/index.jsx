@@ -535,10 +535,10 @@ const WorkspaceDetail = () => {
       </div>
       <Modal
         open={isOpenInvite}
-        title="Invite User"
+        title="Add Member"
         onCancel={() => setIsOpenInvite(false)}
         onOk={onInvite}
-        okText="Invite"
+        okText="Add"
       >
         <Input
           addonBefore={
@@ -553,6 +553,7 @@ const WorkspaceDetail = () => {
           }
           value={inviteUser.uid}
           onChange={changeInviteUser}
+          placeholder="The uid of the target user"
         />
       </Modal>
     </div>
