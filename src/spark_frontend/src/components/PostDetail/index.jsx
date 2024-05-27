@@ -14,6 +14,7 @@ const PostDetail = (props) => {
   const { content, trait, space = {}, onSubscribe = async () => {} } = props
   const [loading, setLoading] = useState(false)
   const [collected, setCollected] = useState(false)
+  const [collecting, setCollecting] = useState(false)
   const spaceInfo = useMemo(() => {
     return space
   }, [space])
@@ -35,8 +36,10 @@ const PostDetail = (props) => {
       [space.id, content.id],
     )
     if (result.code === 200) {
+      // hvCollectioned()
+      setCollected(true)
       message.success('Collected success!')
-      hvCollectioned()
+      setCollecting(false)
     }
   }
   const unCollection = async () => {
@@ -47,8 +50,10 @@ const PostDetail = (props) => {
       [space.id, content.id],
     )
     if (result.code === 200) {
+      // hvCollectioned()
+      setCollected(false)
       message.success('Uncollected success!')
-      hvCollectioned()
+      setCollecting(false)
     }
   }
   const hvCollectioned = async () => {
@@ -63,13 +68,15 @@ const PostDetail = (props) => {
     }
   }
   const handleCollect = async () => {
+    setCollecting(true)
     if (collected) {
       unCollection()
-      setCollected(false)
+      // setCollected(false)
     } else {
       collection()
-      setCollected(true)
+      // setCollected(true)
     }
+    
   }
 
   useEffect(() => {
@@ -133,6 +140,7 @@ const PostDetail = (props) => {
             {content.id && (
               <Tooltip title="Collect">
                 <Button
+                  disabled = {collecting}
                   size="large"
                   className="mt-2"
                   type="link"

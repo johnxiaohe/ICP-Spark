@@ -1,21 +1,21 @@
 import Prim "mo:prim";
 import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
-import Debug "mo:base/Debug";
+// import Debug "mo:base/Debug";
 import Time "mo:base/Time";
 import List "mo:base/List";
 import Text "mo:base/Text";
 import Bool "mo:base/Bool";
 import Blob "mo:base/Blob";
 import Error "mo:base/Error";
-import Result "mo:base/Result";
+// import Result "mo:base/Result";
 import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
 import Option "mo:base/Option";
 
 import Map "mo:map/Map";
-import { phash;thash } "mo:map/Map";
+import { thash } "mo:map/Map";
 
 import ic "ic";
 import types "types";
