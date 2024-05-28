@@ -76,6 +76,7 @@ const WorkspaceDetail = () => {
     if (result.code === 200) {
       getSummery()
       setCurrentId(result.data.id)
+      navigate(`/space/${params.id}/${result.data.id}`)
       setIsEdit(true)
       setContent(result.data || {})
     }
@@ -555,7 +556,11 @@ const WorkspaceDetail = () => {
             </div>
           )
         ) : (
-          <SpaceDetail info={spaceInfo} />
+          <SpaceDetail
+            info={spaceInfo}
+            createPost={createContent}
+            createLoading={loading}
+          />
         )}
       </div>
       <Modal
