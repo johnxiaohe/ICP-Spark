@@ -41,7 +41,7 @@ const PostEdit = React.forwardRef((props, ref) => {
     const provider = new WebsocketProvider(
       'wss://demos.yjs.dev/ws', // use the public ws server
       // `ws${location.protocol.slice(4)}//${location.host}/ws`, // alternatively: use the local ws server (run `npm start` in root directory)
-      `icp-${spaceInfo.wid}-${props.content.id}`,
+      `icp-${spaceInfo.id}-${props.content.id}`,
       ydoc,
     )
     const ytext = ydoc.getText('quill')
