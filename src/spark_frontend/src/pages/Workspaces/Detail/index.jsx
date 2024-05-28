@@ -381,9 +381,9 @@ const WorkspaceDetail = () => {
         </div>
         {Object.keys(spaceInfo?.model ?? {}).some(
           (item) => item === 'Subscribe',
-        ) && isRegistered ? (
+        ) && isRegistered && !isMember ? (
           haveSubscribe ? (
-            <Tooltip title="unsubscribe workspace">
+            <Tooltip title="Unsubscribe workspace">
               <Button
                 className="w-full mt-3"
                 onClick={handleUnSubscribe}

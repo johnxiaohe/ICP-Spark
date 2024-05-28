@@ -3,7 +3,7 @@ import CommonAvatar from '@/components/CommonAvatar'
 import { useNavigate } from 'react-router-dom'
 import { Empty } from 'antd'
 import { timeFormat } from '../../utils/dataFormat'
-const PostList = (props) => {
+const RecentEditList = (props) => {
   const navigate = useNavigate()
   const { list } = props
   return (
@@ -18,10 +18,10 @@ const PostList = (props) => {
               className="p-5 bg-white cursor-pointer"
               onClick={() => navigate(`/space/${item.wid}/${item.index}`)}
             >
-              <h1 className="text-lg font-bold">{item.name}</h1>
+              <h1 className="text-lg font-bold">{item.cname}</h1>
               <p className="flex justify-between mt-2.5">
-                <span className="">{item.wName}</span>
-                <span className="">{timeFormat(item.time)}</span>
+                <span className="">space: {item.wname}</span>
+                {/* <span className="">edit time:{timeFormat(item.etime)}</span> */}
               </p>
             </li>
           ))}
@@ -31,4 +31,4 @@ const PostList = (props) => {
   )
 }
 
-export default PostList
+export default RecentEditList

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import CommonAvatar from '../CommonAvatar'
 import { timeFormat } from '../../utils/dataFormat'
-import { Tag, Button, message, Tooltip } from 'antd'
+import { Tag, Button, message, Tooltip, Modal } from 'antd'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/Hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
@@ -14,7 +14,8 @@ const PostDetail = (props) => {
   const { content, trait, space = {}, onSubscribe = async () => {} } = props
   const [loading, setLoading] = useState(false)
   const [collected, setCollected] = useState(false)
-  const [collecting, setCollecting] = useState(false)
+  const [collecting, setCollecting] = useState(true)
+  const [openTips, setOpenIips] = useState(false)
   const spaceInfo = useMemo(() => {
     return space
   }, [space])
@@ -23,6 +24,11 @@ const PostDetail = (props) => {
       navigate('/settings')
       message.warning('Please set your info first')
     } else {
+      if(spaceInfo.price > 0 &&  !openTips){
+        setOpenIips(true)
+        return
+      }
+      setOpenIips(false)
       setLoading(true)
       await onSubscribe()
       setLoading(false)
@@ -39,7 +45,6 @@ const PostDetail = (props) => {
       // hvCollectioned()
       setCollected(true)
       message.success('Collected success!')
-      setCollecting(false)
     }
   }
   const unCollection = async () => {
@@ -53,7 +58,6 @@ const PostDetail = (props) => {
       // hvCollectioned()
       setCollected(false)
       message.success('Uncollected success!')
-      setCollecting(false)
     }
   }
   const hvCollectioned = async () => {
@@ -66,17 +70,18 @@ const PostDetail = (props) => {
     if (result.code === 200) {
       setCollected(result.data)
     }
+    setCollecting(false)
   }
   const handleCollect = async () => {
     setCollecting(true)
     if (collected) {
-      unCollection()
+      await unCollection()
       // setCollected(false)
     } else {
-      collection()
+      await collection()
       // setCollected(true)
     }
-    
+    setCollecting(false)
   }
 
   useEffect(() => {
@@ -137,7 +142,7 @@ const PostDetail = (props) => {
             )
           )}
           <h1 className=" text-3xl font-bold mt-5">
-            {content.id && (
+            { content.name && (
               <Tooltip title="Collect">
                 <Button
                   disabled = {collecting}
@@ -194,6 +199,15 @@ const PostDetail = (props) => {
             </div>
           )}
         <div></div>
+        <Modal 
+          title="Subscribe tips" 
+          open={openTips} 
+          onOk={handleSubscribe}
+          okType= 'danger'
+          onCancel={() => setOpenIips(false)}
+          >
+          <p>Subscribe this space must to pay {spaceInfo.price} ICP, do you want continue?</p>
+        </Modal>
       </div>
     </div>
   )

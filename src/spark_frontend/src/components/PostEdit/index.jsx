@@ -135,6 +135,7 @@ const PostEdit = React.forwardRef((props, ref) => {
 
   const handlePublish = async () => {
     await handleSave()
+    onSaveSuccess()
     if (!content) {
       return message.warning(
         'Publishing is rejected since the content is empty!',
@@ -148,7 +149,6 @@ const PostEdit = React.forwardRef((props, ref) => {
     )
     if (result.code === 200) {
       message.success('Published!')
-      onSaveSuccess()
     }
   }
 

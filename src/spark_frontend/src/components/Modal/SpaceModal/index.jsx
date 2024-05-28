@@ -15,6 +15,8 @@ const SpaceModal = (props) => {
 
   const handleClose = () => {
     form.resetFields()
+    form.avatar = ''
+    setAvatar('')
     onClose()
   }
 
@@ -100,13 +102,13 @@ const SpaceModal = (props) => {
           <Radio.Group>
             <Radio value="Public">Public</Radio>
             <Radio value="Subscribe">Subscribe</Radio>
-            <Radio value="Payment">Payment</Radio>
+            {/* <Radio value="Payment">Payment</Radio> */}
             <Radio value="Private">Private</Radio>
           </Radio.Group>
         </Form.Item>
         <Form.Item noStyle shouldUpdate>
           {({ getFieldValue }) =>
-            getFieldValue('model') === 'Payment' && (
+            getFieldValue('model') === 'Subscribe' && (
               <Form.Item label="Price" name="price" initialValue={0}>
                 <InputNumber type="number" />
               </Form.Item>

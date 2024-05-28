@@ -677,7 +677,7 @@ shared({caller}) actor class WorkSpace(
         let fee = await icpLedger.icrc1_fee();
 
         var msg = "";
-        if(showModel == #Payment and price > 0){
+        if(showModel == #Subscribe and price > 0){
             let transferFromArgs : TransferFromArgs = {
                 from = {owner=caller; subaccount=null};
                 memo = null;
@@ -756,7 +756,8 @@ shared({caller}) actor class WorkSpace(
                         wid=Principal.toText(Principal.fromActor(this)); 
                         wName=name;
                         index=index;
-                        name="content not found"
+                        name="content not found";
+                        time=Time.now();
                     };
                 };
             };
@@ -768,14 +769,15 @@ shared({caller}) actor class WorkSpace(
                         wid=Principal.toText(Principal.fromActor(this)); 
                         wName=name;
                         index=index;
-                        name=content.name
+                        name=content.name;
+                        time=Time.now();
                     };
                 };
             };
         };
     };
 
-    // 由消费者调用  查看是否有订阅 -------------------------------------
+    // 由用户客户端调用  查看是否有订阅 -------------------------------------
     public shared({caller}) func haveSubscribe(): async (Resp<Bool>){
         if (isSubscriberByPid(Principal.toText(caller))){
             return {
@@ -785,8 +787,8 @@ shared({caller}) actor class WorkSpace(
             };
         };
         return {
-            code = 404;
-            msg = "user do not subscribe";
+            code = 200;
+            msg = "";
             data = false;
         };
     };

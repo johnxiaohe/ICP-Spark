@@ -47,6 +47,7 @@ module{
         wName: Text;
         index: Nat;
         name: Text;
+        time: Time.Time;
     };
 
     public type MyWorkspace = {
@@ -61,6 +62,7 @@ module{
         desc: Text;
         owner: Bool;
         start: Bool;
+        avatar: Text;
     };
 
     public type RecentWork = {
@@ -68,6 +70,7 @@ module{
         name: Text;
         owner: Bool;
         time: Time.Time;
+        avatar: Text;
     };
 
     public type RecentEdit = {

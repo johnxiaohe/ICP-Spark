@@ -1,7 +1,7 @@
 import Prim "mo:prim";
 import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
-// import Debug "mo:base/Debug";
+import Debug "mo:base/Debug";
 import Time "mo:base/Time";
 import List "mo:base/List";
 import Text "mo:base/Text";
@@ -584,7 +584,7 @@ shared({caller}) actor class UserSpace(
         let cc = List.find<Collection>(_collections, func item {Text.equal(item.wid, wid) and Nat.equal(item.index, index)});
         switch(cc){
             case(null){
-                let waitCollection : Collection = {wid=wid;wName="";index=index;name=""};
+                let waitCollection : Collection = {wid=wid;wName="";index=index;name="";time=Time.now()};
                 _collections := List.push(waitCollection, _collections);
                 return {
                     code = 200;
@@ -612,7 +612,7 @@ shared({caller}) actor class UserSpace(
             };
         };
         // find and del target
-        _collections := List.filter<Collection>(_collections, func c { not Text.equal(c.wid,wid) and c.index != index });
+        _collections := List.filter<Collection>(_collections, func c { not Text.equal(c.wid,wid) or not Nat.equal(c.index, index) });
         return {
             code = 200;
             msg = "";
@@ -637,6 +637,7 @@ shared({caller}) actor class UserSpace(
                 index=c.index;
                 wName= cresp.data.wName;
                 name= cresp.data.name;
+                time = c.time;
             };
             result := List.push( rc, result);
         };
@@ -720,7 +721,7 @@ shared({caller}) actor class UserSpace(
                 data = false;
             };
         };
-        if(workInfo.model == #Payment){
+        if(workInfo.model == #Subscribe and workInfo.price > 0){
             // 授权转账；检查余额
             let args : ApproveArgs = {
                 fee = null;
@@ -738,7 +739,7 @@ shared({caller}) actor class UserSpace(
                 case (#Err(transferError)) {
                     return {
                         code = 500;
-                        msg = "Couldn't transfer funds:\n" # debug_show (transferError);
+                        msg = "Couldn't approve funds:\n" # debug_show (transferError);
                         data = false;
                     };
                 };
@@ -834,6 +835,7 @@ shared({caller}) actor class UserSpace(
                 desc = workInfo.desc;
                 owner = Text.equal(Principal.toText(Principal.fromActor(this)), workInfo.super);
                 start = work.start;
+                avatar = workInfo.avatar;
             };
             result := List.push(mywork, result);
         };
@@ -994,7 +996,7 @@ shared({caller}) actor class UserSpace(
         // filter old memo
         _recentWorks := List.filter<RecentWork>(_recentWorks, func rc {not Text.equal(rc.wid, wid)});
 
-        let recent :RecentWork = {wid=wid;name="";owner=false;time=Time.now();};
+        let recent :RecentWork = {wid=wid;name="";owner=false;time=Time.now();avatar=""};
         _recentWorks := List.push(recent, _recentWorks);
         if (Nat.greater(List.size(_recentWorks), _RECENT_SIZE)){
             let sub: Nat = List.size(_recentWorks) - _RECENT_SIZE;
@@ -1024,6 +1026,7 @@ shared({caller}) actor class UserSpace(
                 name = wResp.data.name;
                 owner = Text.equal(Principal.toText(Principal.fromActor(this)), wResp.data.super);
                 time = rw.time;
+                avatar = wResp.data.avatar;
             };
             result := List.push( rwresp, result);
         };
@@ -1043,10 +1046,13 @@ shared({caller}) actor class UserSpace(
             };
         };
         // filter old memo
-        _recentEdits := List.filter<RecentEdit>(_recentEdits, func rc {not Text.equal(rc.wid, wid) and not Nat.equal(rc.index, index)});
-
+        // Debug.print(debug_show(_recentEdits));
+        // wid 和 index都不等才返回 true (错误逻辑) --> wid/index 有一个不等即可 
+        _recentEdits := List.filter<RecentEdit>(_recentEdits, func rc { not Text.equal(rc.wid, wid) or not Nat.equal(rc.index, index)});
+        // Debug.print(debug_show(_recentEdits));
         let recent : RecentEdit = {wid=wid;wname="";index=index;cname="";etime=Time.now()};
         _recentEdits := List.push(recent, _recentEdits);
+        // Debug.print(debug_show(_recentEdits));
         if (Nat.greater(List.size(_recentEdits), _RECENT_SIZE)){
             let sub: Nat = List.size(_recentEdits) - _RECENT_SIZE;
             _recentEdits := List.drop<RecentEdit>(_recentEdits, sub);

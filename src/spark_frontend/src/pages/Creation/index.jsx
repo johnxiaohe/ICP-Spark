@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { fetchICApi } from '../../api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import PostList from '@/components/PostList'
+import RecentEditList from '@/components/RecentEditList'
 import SpaceList from '@/components/SpaceList'
 
 const Creation = () => {
@@ -49,7 +49,7 @@ const Creation = () => {
       <div className="flex flex-col gap-3 overflow-hidden w-[50%]">
         <h1 className="text-lg font-bold">Recent edit posts</h1>
         <div className="flex-1 overflow-y-scroll">
-          <PostList list={recentEdit} />
+          <RecentEditList list={recentEdit} />
         </div>
       </div>
     </div>
