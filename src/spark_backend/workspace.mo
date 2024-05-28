@@ -681,7 +681,7 @@ shared({caller}) actor class WorkSpace(
             let transferFromArgs : TransferFromArgs = {
                 from = {owner=caller; subaccount=null};
                 memo = null;
-                amount = price + fee;
+                amount = price;
                 spender_subaccount = null;
                 fee = ?fee;
                 to = { owner = Principal.fromActor(this); subaccount = null };

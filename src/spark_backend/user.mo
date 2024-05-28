@@ -730,7 +730,7 @@ shared({caller}) actor class UserSpace(
                 created_at_time = null;
                 expected_allowance = null;
                 expires_at =null;
-                amount = workInfo.price + 1;
+                amount = workInfo.price + 1000000;
                 spender = {owner=Principal.fromText(wid); subaccount=null};
             };
             let transferResult = await icpLedger.icrc2_approve(args);
@@ -857,7 +857,7 @@ shared({caller}) actor class UserSpace(
         Cycles.add<system>(cyclesPerNamespace);
         let ctime = Time.now();
         var payPrice = price;
-        if (model == #Public or model == #Subscribe){
+        if (model == #Public or model == #Private){
             payPrice := 0;
         };
         let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), owner, name, avatar, desc,ctime, model, payPrice);

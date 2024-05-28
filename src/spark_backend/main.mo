@@ -13,6 +13,7 @@ import configs "configs";
 import types "types";
 import userspace "user";
 
+// 接口消息最大承载容量2MB
 actor{
 
   type ICActor = ic.ICActor;

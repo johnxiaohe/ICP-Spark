@@ -41,7 +41,7 @@ const SpaceModal = (props) => {
         formData.desc || '',
         formData.avatar || '',
         { [formData.model]: null },
-        BigInt(formData.price || 0),
+        BigInt(formData.price * Math.pow(10, 8) || 0),
       ],
     )
     if (result.code === 200) {
