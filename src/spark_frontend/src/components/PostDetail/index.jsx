@@ -7,6 +7,11 @@ import { useAuth } from '@/Hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { StarFilled, StarOutlined } from '@ant-design/icons'
 import { fetchICApi } from '../../api/icFetch'
+import {
+  timeFormat,
+  formatICPAmount,
+  formatCyclesAmount,
+} from '@/utils/dataFormat'
 
 const PostDetail = (props) => {
   const { isLoggedIn, login, isRegistered, agent, authUserInfo } = useAuth()
@@ -206,7 +211,7 @@ const PostDetail = (props) => {
           okType= 'danger'
           onCancel={() => setOpenIips(false)}
           >
-          <p>Subscribe this space must to pay {spaceInfo.price} ICP, do you want continue?</p>
+          <p>Subscribe this space must to pay {formatICPAmount(spaceInfo.price)} ICP, do you want continue?</p>
         </Modal>
       </div>
     </div>

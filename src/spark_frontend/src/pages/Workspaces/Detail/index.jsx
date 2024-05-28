@@ -10,6 +10,10 @@ import { PlusOutlined } from '@ant-design/icons'
 import PostDetail from '@/components/PostDetail'
 import SpaceDetail from '@/components/SpaceDetail'
 
+import {
+  formatICPAmount
+} from '@/utils/dataFormat'
+
 const WorkspaceDetail = () => {
   const params = useParams()
   const EditRef = useRef(null)
@@ -112,7 +116,7 @@ const WorkspaceDetail = () => {
       [token],
     )
     if (result.code === 200) {
-      setBalance(result.data || 0)
+      setBalance(formatICPAmount(result.data) || 0)
     }
   }
 
@@ -447,7 +451,7 @@ const WorkspaceDetail = () => {
             <ul className={`w-full mt-5 leading-loose`}>
               <li className="flex justify-between">
                 <span>Balance</span>
-                {`${balance} ICP`}
+                {`${balance}  ICP`}
               </li>
               <li className="flex justify-between">
                 <span>Edit Count</span>
@@ -455,7 +459,7 @@ const WorkspaceDetail = () => {
               </li>
               <li className="flex justify-between">
                 <span>Income</span>
-                {count.income ?? 0}
+                {formatICPAmount(count.income) ?? 0} ICP
               </li>
               <li className="flex justify-between">
                 <span>Outgiving</span>
