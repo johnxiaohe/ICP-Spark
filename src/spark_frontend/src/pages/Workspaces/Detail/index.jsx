@@ -7,7 +7,8 @@ import CommonAvatar from '@/components/CommonAvatar'
 import PostEdit from '@/components/PostEdit'
 import { formatPostTree } from '@/utils/dataFormat'
 import { PlusOutlined } from '@ant-design/icons'
-import PostDetail from '../../../components/PostDetail'
+import PostDetail from '@/components/PostDetail'
+import SpaceDetail from '@/components/SpaceDetail'
 
 const WorkspaceDetail = () => {
   const params = useParams()
@@ -52,12 +53,12 @@ const WorkspaceDetail = () => {
     if (level === 0) {
       const _summery = formatPostTree(result.data || [])
       setSummery(_summery)
-      if (!params.index && _summery.length > 0) {
-        navigate(`/space/${params.id}/${_summery[0]?.id}`)
-        setIsEmptySummery(false)
-      } else {
-        setIsEmptySummery(true)
-      }
+      // if (!params.index && _summery.length > 0) {
+      //   navigate(`/space/${params.id}/${_summery[0]?.id}`)
+      //   setIsEmptySummery(false)
+      // } else {
+      //   setIsEmptySummery(true)
+      // }
     } else {
       return result
     }
@@ -373,15 +374,20 @@ const WorkspaceDetail = () => {
             className="w-12 h-12"
           />
           <div>
-            <h1 className="text-lg font-semibold text-gray-800">
+            <Link
+              to={`/space/${params.id}`}
+              className="text-lg font-semibold text-gray-800 cursor-pointer hover:text-blue-400"
+            >
               {spaceInfo.name}
-            </h1>
+            </Link>
             <p>{spaceInfo.desc}</p>
           </div>
         </div>
         {Object.keys(spaceInfo?.model ?? {}).some(
           (item) => item === 'Subscribe',
-        ) && isRegistered && !isMember ? (
+        ) &&
+        isRegistered &&
+        !isMember ? (
           haveSubscribe ? (
             <Tooltip title="Unsubscribe workspace">
               <Button
@@ -518,7 +524,7 @@ const WorkspaceDetail = () => {
         ))} */}
       </div>
       <div className="right h-full flex-1 flex flex-col border border-gray-200 rounded-md bg-white pb-5 relative overflow-hidden">
-        {isMember && (
+        {isMember && params.index && (
           <Button
             type="primary"
             onClick={() => setIsEdit(!isEdit)}
@@ -527,27 +533,29 @@ const WorkspaceDetail = () => {
             {isEdit ? 'View' : 'Edit'}
           </Button>
         )}
-        {isEdit && isMember ? (
-          <div className="flex-1 overflow-hidden">
-            <PostEdit
-              ref={EditRef}
-              content={content}
-              trait={trait}
-              spaceId={params.id}
-              spaceInfo={spaceInfo}
-              onSaveSuccess={() => {
-                getSummery()
-                getCurrentContent(currentId)
-                setIsEdit(false)
-              }}
-            />
-          </div>
-        ) : params.index ? (
-          <div className="flex-1 overflow-y-scroll">
-            <PostDetail content={content} trait={trait} space={spaceInfo} />
-          </div>
+        {params.index ? (
+          isEdit && isMember ? (
+            <div className="flex-1 overflow-hidden">
+              <PostEdit
+                ref={EditRef}
+                content={content}
+                trait={trait}
+                spaceId={params.id}
+                spaceInfo={spaceInfo}
+                onSaveSuccess={() => {
+                  getSummery()
+                  getCurrentContent(currentId)
+                  setIsEdit(false)
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-scroll">
+              <PostDetail content={content} trait={trait} space={spaceInfo} />
+            </div>
+          )
         ) : (
-          ''
+          <SpaceDetail info={spaceInfo} />
         )}
       </div>
       <Modal
