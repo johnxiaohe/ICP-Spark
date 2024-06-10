@@ -249,7 +249,23 @@ module{
         balance : Nat;
     };
 
-    // actors api
+    // --------------------- canister ops
+    public type CaiModule = {
+        name : Text;
+        desc : Text;
+        parentModule: Text;
+        isChild: Bool; // 是否是child模块，对于部分Top/Root Canister来讲，需要一个Root模块统一管理
+    };
+
+    public type CaiVersion = {
+        name : Text;
+        desc : Text;
+        wasm : [Nat8];
+        url : Text;
+        updateUid: Text;
+    };
+
+    // --------------------- actors api
     public type SparkActor = actor {
         userUpdateCall : shared (owner: Principal, name: Text, avatar: Text, desc: Text) -> async ();
     };
@@ -287,5 +303,17 @@ module{
         topup : shared(amount: Nat, cid: Text) -> async (Resp<Bool>);
         setRule: shared(cid: Text, amount: Nat, threshold: Nat) -> async(Resp<Bool>);
         delRule: shared(cid: Text) -> async(Resp<Bool>)
+    };
+    
+    public type CanisterOps = actor {
+        // caiops interface : used by parent canister create/destory canister success call back
+        addCanister: shared(moduleName: Text, pid: Text) -> async();
+        delCanister: shared(moduleName: Text, pid: Text) -> async();
+
+        // client canister interface
+        version: shared() -> async(Text);
+
+        // parent canister interface 
+        childCids: shared(moduleName: Text) -> async([Text]);
     };
 }

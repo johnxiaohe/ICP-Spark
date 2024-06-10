@@ -1,17 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import CommonAvatar from '../CommonAvatar'
-import { timeFormat } from '../../utils/dataFormat'
+import { timeFormat, formatICPAmount } from '../../utils/dataFormat'
 import { Tag, Button, message, Tooltip, Modal } from 'antd'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/Hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { StarFilled, StarOutlined } from '@ant-design/icons'
 import { fetchICApi } from '../../api/icFetch'
-import {
-  timeFormat,
-  formatICPAmount,
-  formatCyclesAmount,
-} from '@/utils/dataFormat'
 
 const PostDetail = (props) => {
   const { isLoggedIn, login, isRegistered, agent, authUserInfo } = useAuth()
@@ -204,12 +199,14 @@ const PostDetail = (props) => {
             </div>
           )}
         <div></div>
+        {/* todo: 增加余额判断和展示。余额不足直接提示余额不足不能订阅 */}
         <Modal 
           title="Subscribe tips" 
           open={openTips} 
           onOk={handleSubscribe}
-          okType= 'danger'
+          okButtonProps= {{danger:true,}}
           onCancel={() => setOpenIips(false)}
+          okText="Pay"
           >
           <p>Subscribe this space must to pay {formatICPAmount(spaceInfo.price)} ICP, do you want continue?</p>
         </Modal>

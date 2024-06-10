@@ -38,6 +38,7 @@ const PostEdit = React.forwardRef((props, ref) => {
 
   const initEditor = () => {
     const ydoc = new Y.Doc()
+    console.log(`icp-${spaceInfo.id}-${props.content.id}`)
     const provider = new WebsocketProvider(
       'wss://demos.yjs.dev/ws', // use the public ws server
       // `ws${location.protocol.slice(4)}//${location.host}/ws`, // alternatively: use the local ws server (run `npm start` in root directory)
@@ -74,7 +75,7 @@ const PostEdit = React.forwardRef((props, ref) => {
       avatar: authUserInfo.avatar,
       id: authUserInfo.id,
     })
-    editor.on(Quill.events.TEXT_CHANGE, (...args) => {
+    editor.on(Quill.events.EDITOR_CHANGE, (...args) => {
       setDefaultDesc(editor.root.innerText.substring(0, 200))
       setContent(editor.root.innerHTML)
       const _editors = []
