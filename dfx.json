@@ -24,6 +24,10 @@
       "main": "src/spark_backend/editsync.mo",
       "type": "motoko"
     },
+    "spark_caiops": {
+      "main": "src/spark_backend/caiops.mo",
+      "type": "motoko"
+    },
     "spark_frontend": {
       "dependencies": [
         "spark_backend"

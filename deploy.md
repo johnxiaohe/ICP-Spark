@@ -86,12 +86,14 @@ dfx generate spark_backend
 dfx generate spark_portal
 dfx generate spark_cyclesmanage
 dfx generate blackhole
+dfx generate spark_caiops
 
 #### 启动业务后端容器
 dfx deploy spark_backend --specified-id bd3sg-teaaa-aaaaa-qaaba-cai
 dfx deploy spark_portal --specified-id bkyz2-fmaaa-aaaaa-qaaaq-cai
 dfx deploy blackhole --specified-id e3mmv-5qaaa-aaaah-aadma-cai
 dfx deploy spark_cyclesmanage --specified-id vnrqu-jiaaa-aaaap-qhirq-cai
+dfx deploy spark_caiops --specified-id bkyz2-fmaaa-aaaaa-qaaaq-cai
 
 #### 启动gateway本地服务(websocket功能测试需要)
 docker run -p 8081:8080 omniadevs/ic-websocket-gateway --ic-network-url http://host.docker.internal:8080

@@ -5,6 +5,7 @@ import Nat "mo:base/Nat";
 import List "mo:base/List";
 // import Result "mo:base/Result";
 import Bool "mo:base/Bool";
+import Nat8 "mo:base/Nat8";
 
 module{
 
@@ -258,11 +259,20 @@ module{
     };
 
     public type CaiVersion = {
+        id : Nat;
         name : Text;
         desc : Text;
         wasm : [Nat8];
-        url : Text;
-        updateUid: Text;
+        uPid: Text;
+        uTime: Time.Time;
+        cTime: Time.Time;
+        cPid: Text;
+    };
+
+    public type Canister = {
+        cid : Text;
+        version: Text;
+        owner: Text;
     };
 
     // --------------------- actors api

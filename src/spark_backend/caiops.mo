@@ -17,9 +17,11 @@ import Cycles "mo:base/ExperimentalCycles";
 import Principal "mo:base/Principal";
 import Iter "mo:base/Iter";
 import Array "mo:base/Array";
+import Nat "mo:base/Nat";
+import Option "mo:base/Option";
 
 import Map "mo:map/Map";
-import { phash;thash } "mo:map/Map";
+import { thash } "mo:map/Map";
 
 import types "types";
 import management "management";
@@ -31,12 +33,22 @@ actor{
     type CanisterOps = types.CanisterOps;
     type CaiModule = types.CaiModule;
     type CaiVersion = types.CaiVersion;
+    type Canister = types.Canister;
 
     type Management = management.Management;
+
+    type Member = {
+        name : Text;
+        pid : Text;
+        cPid : Text;
+        cTime: Time.Time;
+    };
+
     let mng : Management = actor("aaaaa-aa");
 
     // admin users
-    let admins = Map.new<Principal,Text>();
+    let admins = Map.new<Text,Member>();
+    let adminNameMap = Map.new<Text, Text>();
 
     // 模块基本信息：名称、描述、root canister(如有)、upmodule(如有，将定时从upmodule canister同步child)
     let modulesMap = Map.new<Text,CaiModule>();
@@ -49,60 +61,87 @@ actor{
 
     let caiTags = Map.new<Text, List.List<Text>>();
 
-    private func isAdmin(pid: Principal) : (Bool){
-        switch(Map.get(admins, phash, pid)){
+    private stable var index : Nat = 0;
+
+    private func isAdmin(pid: Text) : (Bool){
+        switch(Map.get(admins, thash, pid)){
             case(null){ false};
             case(?p){true};
         }
     };
 
-    public shared({caller}) func adminList() : async([Text]){
-        if(isAdmin(caller)){
+    public shared({caller}) func checkAdmin(): async (Text){
+         switch(Map.get(admins, thash, Principal.toText(caller))){
+            case(null){ 
+                return "";
+            };
+            case(?member){
+                return member.name;
+            };
+        }
+    };
+
+    public shared({caller}) func adminList() : async([Member]){
+        if(isAdmin(Principal.toText(caller))){
             return Iter.toArray(Map.vals(admins))
         };
         return [];
     };
 
-    public shared({caller}) func addAdmins(pid: Principal) : async(){
-        if(isAdmin(caller)){
-            Map.set(admins, phash, pid, Principal.toText(pid))
-        };
-    };
-
-    public shared({caller}) func delAdmins(pid: Principal): async(){
-        if(isAdmin(caller)){
-            Map.delete(admins, phash, pid);
+    public shared({caller}) func addAdmins(name: Text, pid: Text) : async(){
+        if(isAdmin(Principal.toText(caller)) or Map.size(admins) < 1){
+            let mData : Member = {
+                name = name;
+                pid = pid;
+                cPid = Principal.toText(caller);
+                cTime = Time.now();
+            };
+            Map.set(adminNameMap, thash, pid, name);
+            Map.set(admins, thash, pid, mData)
         };
     };
 
     public shared({caller}) func modules(): async([CaiModule]){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return [];
         };
         Iter.toArray(Map.vals(modulesMap));
     };
 
     public shared({caller}) func addOrUpdateModule(cmdl: CaiModule): async(){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return;
         };
         Map.set(modulesMap, thash, cmdl.name, cmdl);
     };
 
     public shared({caller}) func delModule(name: Text): async(){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return;
         };
         Map.delete(modulesMap, thash, name);
     };
 
-    public shared({caller}) func addVersion(moduleName: Text, version: CaiVersion): async(){
-        if(not isAdmin(caller)){
+    public shared({caller}) func addVersion(moduleName: Text, name: Text, desc: Text, wasm: [Nat8]): async(){
+        if(not isAdmin(Principal.toText(caller))){
             return;
+        };
+
+        index := index + 1;
+        let version : CaiVersion = {
+            id = index;
+            name = name;
+            desc = desc;
+            wasm = wasm;
+            uPid = Principal.toText(caller);
+            uTime = Time.now();
+            cTime = Time.now();
+            cPid = Principal.toText(caller);
         };
 
         switch(Map.get(versionMap, thash, moduleName)){
             case(null){
+
                 var newVersions : List.List<CaiVersion> = List.nil();
                 newVersions := List.push(version, newVersions);
                 Map.set(versionMap, thash, moduleName, newVersions);
@@ -117,9 +156,62 @@ actor{
         };
     };
 
+    public shared({caller}) func updateVersion(moduleName: Text, id: Nat, name: Text, desc: Text, wasm: [Nat8]): async(Text){
+        if(not isAdmin(Principal.toText(caller))){
+            return "permission denied";
+        };
+
+        switch(Map.get(versionMap, thash, moduleName)){
+            case(null){
+                return "module versions not found"
+            };
+            case(?versions){
+                
+                if(Option.isNull(List.find<CaiVersion>(versions, func item {Nat.equal(item.id, id)}))){
+                    return "data not found"
+                };
+                // 找到并更换versions中对应的那个version记录
+                var newVersions : List.List<CaiVersion> = List.mapFilter<CaiVersion, CaiVersion>(versions, func item {
+                    if (Nat.equal(item.id,id)) {
+                        let version : CaiVersion = {
+                            id = id;
+                            name = name;
+                            desc = desc;
+                            wasm = wasm;
+                            uPid = Principal.toText(caller);
+                            uTime = Time.now();
+                            cTime = item.cTime;
+                            cPid = item.cPid;
+                        };
+                        return ?version;
+                    }else{
+                        return ?item;
+                    };
+                });
+                Map.set(versionMap, thash, moduleName, newVersions);
+                return "";
+            };
+        };
+    };
+
+    public shared({caller}) func versions(moduleName: Text): async([CaiVersion]){
+        if(not isAdmin(Principal.toText(caller))){
+            return [];
+        };
+        switch(Map.get(versionMap, thash, moduleName)){
+            case(null){
+                return [];
+            };
+            case(?versions){
+                return List.toArray(versions)
+            };
+        };
+        return [];
+    };
+
     // 模块child init
     public shared({caller}) func initChilds(moduleName: Text): async(){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return;
         };
         switch(Map.get(modulesMap, thash, moduleName)){
@@ -148,21 +240,21 @@ actor{
     };
 
     public shared({caller}) func setCaiDesc(cid: Text, desc: Text): async(){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return;
         };
         Map.set(caiDescMap, thash, cid, desc);
     };
 
     public shared({caller}) func setCaiTags(cid: Text, tags: [Text]): async(){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return;
         };
         Map.set(caiTags, thash, cid, List.fromArray(tags));
     };
 
-    public shared({caller}) func moduleCais(moduleName: Text): async([Text]){
-        if(not isAdmin(caller)){
+    public shared({caller}) func canisters(moduleName: Text): async([Text]){
+        if(not isAdmin(Principal.toText(caller))){
             return [];
         };
         switch(Map.get(moduleCaisMap, thash, moduleName)){
@@ -252,7 +344,7 @@ actor{
     };
 
     public shared({caller}) func addCanisterByAdmin(moduleName: Text, pid: Text): async(Bool){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return false;
         };
         switch(Map.get(moduleCaisMap, thash, moduleName)){
@@ -267,7 +359,7 @@ actor{
     };
 
     public shared({caller}) func delCanisterByAdmin(moduleName: Text, pid: Text): async(Bool){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return false;
         };
         switch(Map.get(moduleCaisMap, thash, moduleName)){
@@ -282,7 +374,7 @@ actor{
 
     // 更新模块部分canister
     public shared({caller}) func updateTargetCais(moduleName: Text, version: Text, cids: [Text]): async(Bool){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return false;
         };
         // todo: logs
@@ -323,7 +415,7 @@ actor{
 
     // 更新模块所有canister
     public shared({caller}) func updateAllCais(moduleName: Text, version: Text): async(Bool){
-        if(not isAdmin(caller)){
+        if(not isAdmin(Principal.toText(caller))){
             return false;
         };
         // todo: logs
@@ -358,7 +450,4 @@ actor{
         };
         return true;
     };
-
-    // todo: async update queue
-
 }
