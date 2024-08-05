@@ -46,6 +46,15 @@ shared({caller}) actor class(){
 
     private var errlogs : List.List<Log> = List.nil();
 
+    public shared({caller}) func version(): async (Text){
+        return "v1.0.0"
+    };
+
+    public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+        return [];
+    };
+
+
     public shared({caller}) func push(trait: ContentTrait): async(Bool){
         let callerWid = Principal.toText(caller);
         // Debug.print(debug_show(callerWid));

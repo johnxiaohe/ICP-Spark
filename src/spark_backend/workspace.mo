@@ -139,6 +139,15 @@ shared({caller}) actor class WorkSpace(
     // 总编辑数
     private stable var _editcount : Nat = 0;
 
+
+    public shared({caller}) func version(): async (Text){
+        return "v1.0.0"
+    };
+
+    public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+        return [];
+    };
+
     // 内部调用的查询判断私有方法   ----------------------------------------------------------
     // 是否是管理员  pid: user principal id
     private func isAdmin(pid: Text): Bool{

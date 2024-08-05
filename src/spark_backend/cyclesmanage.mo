@@ -100,6 +100,14 @@ shared (installation) actor class CyclesManage() ={
     private stable var canisterBalanceMap = Map.new<Text, List.List<BalanceLog>>();
     private stable var canisterTopupLogsMap = Map.new<Text, List.List<Log>>();
 
+    public shared({caller}) func version(): async (Text){
+        return "v1.0.0"
+    };
+
+    public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+        return [];
+    };
+
     func addLog(log: Log, uid: Text){
         var newLogs : List.List<Log> = List.nil();
         newLogs := List.push(log, newLogs);

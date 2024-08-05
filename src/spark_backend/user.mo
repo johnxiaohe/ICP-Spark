@@ -13,6 +13,7 @@ import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
 import Option "mo:base/Option";
+import Iter "mo:base/Iter";
 
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
@@ -57,6 +58,7 @@ shared({caller}) actor class UserSpace(
     type WorkActor = types.WorkActor;
     type SparkActor = types.SparkActor;
     type CyclesManageActor = types.CyclesManageActor;
+    type CanisterOps = types.CanisterOps;
 
     type CanistersResp = types.CanistersResp;
 
@@ -94,11 +96,34 @@ shared({caller}) actor class UserSpace(
     let cyclesmanage : CyclesManageActor = actor (configs.CYCLES_MANAGER_ID);
     let icpLedger: LedgerActor = actor(configs.ICP_LEGDER_ID);
     let cyclesLedger: LedgerActor = actor(configs.CYCLES_LEGDER_ID);
+    let CaiOps : CanisterOps = actor(configs.SPARK_CAIOPS_ID);
 
     // token类型 actor 预存，用于 转账和余额查询等
     private let tokenMap = HashMap.HashMap<Text, LedgerActor>(3, Text.equal, Text.hash);
     tokenMap.put("ICP", icpLedger);
     tokenMap.put("CYCLES", cyclesLedger);
+
+    public shared({caller}) func version(): async (Text){
+        return "v1.0.0"
+    };
+
+    public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+        if (not Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
+            return [];
+        };
+        if (Text.equal(moduleName, "workspace")){
+            let workspaces : List.List<MyWorkspace> = Iter.toList<MyWorkspace>(Map.vals(_workspaces));
+            let owneIds = List.mapFilter<MyWorkspace, Text>(workspaces, func item {
+                if (item.owner){
+                    return ?item.wid;
+                }else{
+                    return null;
+                };
+            });
+            return List.toArray(owneIds);
+        };
+        return [];
+    };
 
     // 更新用户信息，回调用户管理模块更新全局存储的用户信息
     public shared({caller}) func updateInfo(newName: Text, newAvatar: Text, newDesc: Text): async Resp<User>{

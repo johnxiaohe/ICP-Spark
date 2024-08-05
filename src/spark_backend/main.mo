@@ -3,6 +3,7 @@ import List "mo:base/List";
 import Time "mo:base/Time";
 import Cycles "mo:base/ExperimentalCycles";
 import Principal "mo:base/Principal";
+import Iter "mo:base/Iter";
 // import Debug "mo:base/Debug";
 
 import Map "mo:map/Map";
@@ -17,7 +18,9 @@ import userspace "user";
 actor{
 
   type ICActor = ic.ICActor;
+  type CanisterOps = types.CanisterOps;
   let IC: ICActor = actor(configs.IC_ID);
+  let CaiOps : CanisterOps = actor(configs.SPARK_CAIOPS_ID);
 
   type Resp<T> = types.Resp<T>;
   type User = types.User;
@@ -36,6 +39,20 @@ actor{
 
   system func postupgrade() {};
 
+  public shared({caller}) func version(): async (Text){
+    return "v1.0.0"
+  };
+
+  public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+    if (not Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
+      return []
+    };
+    if (Text.equal(moduleName, "userspace")){
+      return Iter.toArray(Map.keys(userIdMap));
+    };
+    return [];
+  };
+
   // 录入个人信息
   public shared({caller}) func initUserInfo(name: Text, avatar: Text, desc: Text): async Resp<User>{
     let contains = Map.has(userMap, thash, Principal.toText(caller));
@@ -52,8 +69,8 @@ actor{
     let userActor = await userspace.UserSpace(name, caller, avatar, desc, ctime);
     let userActorId = Principal.fromActor(userActor);
 
-    // 添加控制器（用户、cycles监控黑洞）
-    let controllers: ?[Principal] = ?[caller, Principal.fromText(configs.BLACK_HOLE_ID)];
+    // 添加控制器（用户、cycles监控黑洞、caiops）
+    let controllers: ?[Principal] = ?[caller, Principal.fromText(configs.BLACK_HOLE_ID), Principal.fromText(configs.SPARK_CAIOPS_ID)];
     let settings : ic.CanisterSettings = {
       controllers = controllers;
       compute_allocation = null;
@@ -65,6 +82,8 @@ actor{
         settings = settings;
     };
     await IC.update_settings(params);
+
+    ignore CaiOps.addCanister("userspace", Principal.toText(userActorId));
 
     // 添加业务关联记录
     _ranking := List.push( Principal.toText(caller), _ranking);
