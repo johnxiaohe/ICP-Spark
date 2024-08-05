@@ -63,6 +63,10 @@ actor{
 
     private stable var index : Nat = 0;
 
+    public shared({caller}) func version(): async (Text){
+        return "v1.0.0"
+    };
+
     private func isAdmin(pid: Text) : (Bool){
         switch(Map.get(admins, thash, pid)){
             case(null){ false};
