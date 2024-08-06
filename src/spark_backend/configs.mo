@@ -7,5 +7,5 @@ module{
     public let CYCLES_LEGDER_ID = "um5iw-rqaaa-aaaaq-qaaba-cai";
     public let BLACK_HOLE_ID = "e3mmv-5qaaa-aaaah-aadma-cai";
     public let CYCLES_MANAGER_ID = "vnrqu-jiaaa-aaaap-qhirq-cai";
-    public let SPARK_CAIOPS_ID = "";
+    public let SPARK_CAIOPS_ID = "xvn5s-6iaaa-aaaap-qhesq-cai";
 }

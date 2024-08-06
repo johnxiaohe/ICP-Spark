@@ -352,7 +352,10 @@ actor{
             return false;
         };
         switch(Map.get(moduleCaisMap, thash, moduleName)){
-            case(null){return false};
+            case(null){
+                var newCais = List.make(pid);
+                Map.set(moduleCaisMap, thash, moduleName, newCais);
+             };
             case(?cais){
                 var newCais = List.make(pid);
                 newCais := List.append(newCais, cais);
