@@ -275,6 +275,13 @@ module{
         owner: Text;
     };
 
+    public type CaisPageResp = {
+        count: Int;
+        data: [Canister];
+        page: Int;
+        size: Int;
+    };
+
     // --------------------- actors api
     public type SparkActor = actor {
         userUpdateCall : shared (owner: Principal, name: Text, avatar: Text, desc: Text) -> async ();

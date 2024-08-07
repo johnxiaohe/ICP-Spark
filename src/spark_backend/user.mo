@@ -889,7 +889,7 @@ shared({caller}) actor class UserSpace(
         let workspaceActorId = Principal.fromActor(workspaceActor);
 
         // add controllers
-        let controllers: ?[Principal] = ?[Principal.fromActor(this), Principal.fromText(configs.BLACK_HOLE_ID)];
+        let controllers: ?[Principal] = ?[Principal.fromActor(this), Principal.fromText(configs.BLACK_HOLE_ID), Principal.fromText(configs.SPARK_CAIOPS_ID)];
         let settings : ic.CanisterSettings = {
         controllers = controllers;
         compute_allocation = null;
@@ -901,6 +901,8 @@ shared({caller}) actor class UserSpace(
             settings = settings;
         };
         await IC.update_settings(params);
+
+        ignore CaiOps.addCanister("workspace", Principal.toText(workspaceActorId));
 
         // add workspace relation
         let myworkspace : MyWorkspace = {wid=Principal.toText(workspaceActorId);owner=true;start=false};

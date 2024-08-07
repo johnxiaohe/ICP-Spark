@@ -19,6 +19,7 @@ import Iter "mo:base/Iter";
 import Array "mo:base/Array";
 import Nat "mo:base/Nat";
 import Option "mo:base/Option";
+import Int "mo:base/Int";
 
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
@@ -34,6 +35,7 @@ actor{
     type CaiModule = types.CaiModule;
     type CaiVersion = types.CaiVersion;
     type Canister = types.Canister;
+    type CaisPageResp = types.CaisPageResp;
 
     type Management = management.Management;
 
@@ -257,13 +259,49 @@ actor{
         Map.set(caiTags, thash, cid, List.fromArray(tags));
     };
 
-    public shared({caller}) func canisters(moduleName: Text): async([Text]){
+    public shared({caller}) func canisters(moduleName: Text, page: Nat, size: Nat): async(CaisPageResp){
         if(not isAdmin(Principal.toText(caller))){
-            return [];
+            return {
+                count=0;data=[];page=0;size=0;
+            };
         };
         switch(Map.get(moduleCaisMap, thash, moduleName)){
-            case(null){[]};
-            case(?cids){ List.toArray(cids)};
+            case(null){
+                return {
+                    count=0;data=[];page=0;size=0;
+                };
+            };
+            case(?cids){
+                var count = List.size(cids);
+                // 0~9 10~19  实际offset 是 offset-1 
+                var offset = Nat.mul(page, size);
+                
+                // 10-10 = 0
+                var start = Nat.sub(offset, size);
+                var end = offset;
+                if (end > count){
+                    // 偏移量大于数组，end=数组长度 start=总长度 - 总长度取余size  （只展示取余后的几个数据行）
+                    end :=  count;
+                    start := Nat.sub(count, Nat.rem(count, size));
+                };
+                let subIds = Array.slice<Text>(List.toArray<Text>(cids), start, end);
+                var cais : List.List<Canister> = List.nil();
+                for (cid in subIds){
+                    let opsActor : CanisterOps = actor(cid);
+                    let version = await opsActor.version();
+                    cais := List.push({
+                        cid = cid;
+                        version = version;
+                        owner = "";
+                    }, cais);
+                };
+                return {
+                    count=count;
+                    data=List.toArray(cais);
+                    page=page;
+                    size=size;
+                };
+            };
         };
     };
 
