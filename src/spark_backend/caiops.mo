@@ -22,7 +22,7 @@ import Option "mo:base/Option";
 import Int "mo:base/Int";
 
 import Map "mo:map/Map";
-import { thash } "mo:map/Map";
+import { thash; nhash } "mo:map/Map";
 
 import types "types";
 import management "management";
@@ -62,6 +62,8 @@ actor{
     let caiDescMap = Map.new<Text, Text>();
 
     let caiTags = Map.new<Text, List.List<Text>>();
+
+    let versionWasmMap = Map.new<Nat,[Nat8]>();
 
     private stable var index : Nat = 0;
 
@@ -138,12 +140,14 @@ actor{
             id = index;
             name = name;
             desc = desc;
-            wasm = wasm;
+            wasm = [];
+            size = Array.size(wasm);
             uPid = Principal.toText(caller);
             uTime = Time.now();
             cTime = Time.now();
             cPid = Principal.toText(caller);
         };
+        Map.set(versionWasmMap, nhash, index, wasm);
 
         switch(Map.get(versionMap, thash, moduleName)){
             case(null){
@@ -179,11 +183,17 @@ actor{
                 // 找到并更换versions中对应的那个version记录
                 var newVersions : List.List<CaiVersion> = List.mapFilter<CaiVersion, CaiVersion>(versions, func item {
                     if (Nat.equal(item.id,id)) {
+                        var size = item.size;
+                        if(Array.size(wasm) > 0){
+                            Map.set(versionWasmMap, nhash, id, wasm);
+                            size := Array.size(wasm);
+                        };
                         let version : CaiVersion = {
                             id = id;
                             name = name;
                             desc = desc;
-                            wasm = wasm;
+                            wasm = [];
+                            size = size;
                             uPid = Principal.toText(caller);
                             uTime = Time.now();
                             cTime = item.cTime;
@@ -417,24 +427,40 @@ actor{
         return true;
     };
 
-    // 更新模块部分canister
-    public shared({caller}) func updateTargetCais(moduleName: Text, version: Text, cids: [Text]): async(Bool){
-        if(not isAdmin(Principal.toText(caller))){
-            return false;
-        };
-        // todo: logs
-        var wasm : [Nat8]= [];
+    private func getVersionWasm(moduleName: Text, versionId: Nat): ([Nat8]){
         switch(Map.get(versionMap, thash, moduleName)){
-            case(null){return false;};
+            case(null){
+                return [];
+            };
             case(?versions){
-                switch(List.find<CaiVersion>(versions, func v {Text.equal(v.name, version)})){
-                    case(null){return false};
+                // 判断该模块有无该版本号，防止被升级成别的模块的代码
+                switch(List.find<CaiVersion>(versions, func v {Nat.equal(v.id, versionId)})){
+                    case(null){
+                        return [];
+                    };
                     case(?thisVersion){
-                        wasm := thisVersion.wasm;
+                        // 确定有该版本，获取该版本的wasm
+                        switch(Map.get(versionWasmMap, nhash, versionId)){
+                            case(null){
+                                return [];
+                            };
+                            case(?targetwasm){
+                                return targetwasm;
+                            };
+                        };
                     };
                 };
             };
         };
+    };
+
+    // 更新模块部分canister
+    public shared({caller}) func updateTargetCais(moduleName: Text, versionId: Nat, cids: [Text]): async(Bool){
+        if(not isAdmin(Principal.toText(caller))){
+            return false;
+        };
+        // todo: logs
+        var wasm : [Nat8] = getVersionWasm(moduleName, versionId);
         if (Array.size(wasm) ==0){
             return false;
         };
@@ -442,8 +468,8 @@ actor{
             case(null){return true};
             case(?cais){
                 // update one by one
-                for(cid in List.toIter(cais)){
-                    if(List.some<Text>(List.fromArray(cids), func c {Text.equal(c, cid)})){
+                for(cid in Iter.fromArray(cids)){
+                    if(List.some<Text>(cais, func c {Text.equal(c, cid)})){
                         ignore mng.install_code({
                             arg = [];
                             wasm_module = wasm;
@@ -459,30 +485,18 @@ actor{
     };
 
     // 更新模块所有canister
-    public shared({caller}) func updateAllCais(moduleName: Text, version: Text): async(Bool){
+    public shared({caller}) func updateAllCais(moduleName: Text, versionId: Nat): async(Bool){
         if(not isAdmin(Principal.toText(caller))){
             return false;
         };
         // todo: logs
-        var wasm : [Nat8]= [];
-        switch(Map.get(versionMap, thash, moduleName)){
-            case(null){return false;};
-            case(?versions){
-                switch(List.find<CaiVersion>(versions, func v {Text.equal(v.name, version)})){
-                    case(null){return false};
-                    case(?thisVersion){
-                        wasm := thisVersion.wasm;
-                    };
-                };
-            };
-        };
+        var wasm : [Nat8] = getVersionWasm(moduleName, versionId);
         if (Array.size(wasm) ==0){
             return false;
         };
         switch(Map.get(moduleCaisMap, thash, moduleName)){
             case(null){return true};
             case(?cais){
-                // update one by one
                 for(cid in List.toIter(cais)){
                     ignore mng.install_code({
                         arg = [];

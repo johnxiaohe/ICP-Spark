@@ -263,6 +263,7 @@ module{
         name : Text;
         desc : Text;
         wasm : [Nat8];
+        size : Nat;
         uPid: Text;
         uTime: Time.Time;
         cTime: Time.Time;
