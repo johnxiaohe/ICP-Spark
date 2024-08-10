@@ -97,3 +97,7 @@ dfx deploy spark_caiops --specified-id xvn5s-6iaaa-aaaap-qhesq-cai
 
 #### 启动gateway本地服务(websocket功能测试需要)
 docker run -p 8081:8080 omniadevs/ic-websocket-gateway --ic-network-url http://host.docker.internal:8080
+
+
+#### 添加caiops为controller
+dfx canister update-settings --add-controller xvn5s-6iaaa-aaaap-qhesq-cai [CANISTER_ID]

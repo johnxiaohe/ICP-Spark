@@ -140,7 +140,7 @@ actor{
             id = index;
             name = name;
             desc = desc;
-            wasm = [];
+            // wasm = [];
             size = Array.size(wasm);
             uPid = Principal.toText(caller);
             uTime = Time.now();
@@ -192,7 +192,7 @@ actor{
                             id = id;
                             name = name;
                             desc = desc;
-                            wasm = [];
+                            // wasm = [];
                             size = size;
                             uPid = Principal.toText(caller);
                             uTime = Time.now();
@@ -509,4 +509,5 @@ actor{
         };
         return true;
     };
+
 }
