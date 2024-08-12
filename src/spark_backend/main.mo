@@ -27,9 +27,9 @@ actor{
   type UserActor = userspace.UserSpace;
 
   // user pid --- user info map
-  let userMap = Map.new<Text,User>();
+  private stable var userMap = Map.new<Text,User>();
   // user id --- user pid
-  let userIdMap = Map.new<Text,Text>();
+  private stable var userIdMap = Map.new<Text,Text>();
   // 用户注册先后排名
   private stable var _ranking : List.List<Text> = List.nil();
 
@@ -40,7 +40,7 @@ actor{
   system func postupgrade() {};
 
   public shared({caller}) func version(): async (Text){
-    return "v2.0.0"
+    return "v1.0.0"
   };
 
   public shared({caller}) func childCids(moduleName: Text): async ([Text]){

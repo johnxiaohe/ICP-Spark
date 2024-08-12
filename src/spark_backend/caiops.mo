@@ -49,21 +49,21 @@ actor{
     let mng : Management = actor("aaaaa-aa");
 
     // admin users
-    let admins = Map.new<Text,Member>();
-    let adminNameMap = Map.new<Text, Text>();
+    private stable var admins = Map.new<Text,Member>();
+    private stable var adminNameMap = Map.new<Text, Text>();
 
     // 模块基本信息：名称、描述、root canister(如有)、upmodule(如有，将定时从upmodule canister同步child)
-    let modulesMap = Map.new<Text,CaiModule>();
+    private stable var modulesMap = Map.new<Text,CaiModule>();
     // 模块 --- 版本wasm列表
-    let versionMap = Map.new<Text,List.List<CaiVersion>>();
+    private stable var versionMap = Map.new<Text,List.List<CaiVersion>>();
     // 模块 --- cai ids
-    let moduleCaisMap = Map.new<Text,List.List<Text>>();
+    private stable var moduleCaisMap = Map.new<Text,List.List<Text>>();
 
-    let caiDescMap = Map.new<Text, Text>();
+    private stable var caiDescMap = Map.new<Text, Text>();
 
-    let caiTags = Map.new<Text, List.List<Text>>();
+    private stable var caiTags = Map.new<Text, List.List<Text>>();
 
-    let versionWasmMap = Map.new<Nat,[Nat8]>();
+    private stable var versionWasmMap = Map.new<Nat,[Nat8]>();
 
     private stable var index : Nat = 0;
 

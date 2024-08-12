@@ -85,7 +85,7 @@ shared({caller}) actor class UserSpace(
     private stable var _subscribes: List.List<Text> = List.nil();
 
     // 用户参与的空间
-    let _workspaces = Map.new<Text,MyWorkspace>();
+    private stable var _workspaces = Map.new<Text,MyWorkspace>();
     // 最近创作记录
     private stable var _RECENT_SIZE : Nat = 10;
     private stable var _recentWorks : List.List<RecentWork> = List.nil();
