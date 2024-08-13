@@ -159,6 +159,7 @@ const GasStation = () => {
     !!close && toggleAddModal()
   }
   const deleteCanister = async (id) => {
+    setPopoverLoading(true)
     const result = await fetchICApi(
       { id: authUserInfo.id, agent },
       'user',
@@ -166,9 +167,10 @@ const GasStation = () => {
       [id],
     )
     if (result.code === 200) {
+      await getCanisters()
       message.success('Deleted!')
-      getCanisters()
     }
+    setPopoverLoading(false)
   }
   const getInfo = async () => {
     const result = await fetchICApi(

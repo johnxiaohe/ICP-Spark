@@ -6,7 +6,7 @@ import { Button, Tree, Modal, Input, Tooltip, Select, message } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import PostEdit from '@/components/PostEdit'
 import { formatPostTree } from '@/utils/dataFormat'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined,MenuOutlined } from '@ant-design/icons'
 import PostDetail from '@/components/PostDetail'
 import SpaceDetail from '@/components/SpaceDetail'
 
@@ -483,20 +483,24 @@ const WorkspaceDetail = () => {
             {showMoreInfo ? 'Show less' : 'Show more'}
           </a>
         </div>
-
-        <div className="mt-3 flex justify-end">
+        {/* 目录行 */}
+        <div className="mt-3 flex flex-row justify-between">
+          <div className="basis-1/4 flex flex-row justify-evenly rounded-lg hover:bg-slate-100 cursor-pointer">
+            <MenuOutlined className='mt-1' />
+            <div  className='mt-1.5'>ToC</div>
+          </div>
           {isMember && (
-            <Tooltip title="Create new post">
+            <Tooltip className='' title="Create new post">
               <Button
                 onClick={createContent}
-                icon={<PlusOutlined />}
+                icon={<PlusOutlined className='text-gray-400 hover:text-black' />}
                 type="link"
                 loading={loading}
               />
             </Tooltip>
           )}
         </div>
-
+        {/* 目录树 */}
         <Tree
           draggable
           blockNode

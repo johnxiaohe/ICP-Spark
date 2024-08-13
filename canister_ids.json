@@ -4,5 +4,17 @@
   },
   "spark_caiops": {
     "ic": "xvn5s-6iaaa-aaaap-qhesq-cai"
+  },
+  "spark_backend": {
+    "ic": "n7ib3-4qaaa-aaaai-qagnq-cai"
+  },
+  "spark_portal": {
+    "ic": "cusyh-iyaaa-aaaah-qcpba-cai"
+  },
+  "spark_editsync": {
+    "ic": "k25co-pqaaa-aaaab-aaakq-cai"
+  },
+  "blackhole": {
+    "ic": "e3mmv-5qaaa-aaaah-aadma-cai"
   }
 }
