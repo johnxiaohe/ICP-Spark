@@ -979,10 +979,15 @@ shared({caller}) actor class UserSpace(
                 if (success){
                     Map.delete(_workspaces, thash, wid);
                     removeRecentData(wid);
+                    return {
+                        code = 200;
+                        msg ="";
+                        data = true;
+                    };
                 };
                 return {
-                    code = 403;
-                    msg ="can not find target workspace";
+                    code = 500;
+                    msg ="quit failed";
                     data = false;
                 };
             };

@@ -9,6 +9,7 @@ import { formatPostTree } from '@/utils/dataFormat'
 import { PlusOutlined,MenuOutlined } from '@ant-design/icons'
 import PostDetail from '@/components/PostDetail'
 import SpaceDetail from '@/components/SpaceDetail'
+import WorkspaceHome from '../Menus/Home'
 
 import {
   formatICPAmount
@@ -16,27 +17,42 @@ import {
 
 const WorkspaceDetail = () => {
   const params = useParams()
-  const EditRef = useRef(null)
-  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+
   const { agent, authUserInfo, isRegistered } = useAuth()
+
+  const [searchParams] = useSearchParams()
+
+  const EditRef = useRef(null)
+  
   const [spaceInfo, setSpaceInfo] = useState({})
-  const [summery, setSummery] = useState([])
-  const [content, setContent] = useState({})
-  const [currentId, setCurrentId] = useState(0)
-  const [isEdit, setIsEdit] = useState(searchParams.get('edit') || false)
-  const [trait, setTrait] = useState({})
-  const [count, setCount] = useState({})
-  const [balance, setBalance] = useState(0)
   const [admins, setAdmins] = useState([])
+  const [members, setMembers] = useState([])
+
+  const [isMember, setIsMember] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  const [haveSubscribe, setHaveSubscribe] = useState(false)
+
+  const [summery, setSummery] = useState([])
+  const [currentId, setCurrentId] = useState(0)
+  const [count, setCount] = useState({})
+
+  const [balance, setBalance] = useState(0)
+
+  const [content, setContent] = useState({})
+  const [trait, setTrait] = useState({})
+
+  const [isEdit, setIsEdit] = useState(searchParams.get('edit') || false)
+  
   const [selectedKeys, setSelectedKeys] = useState([])
   const [isOpenInvite, setIsOpenInvite] = useState(false)
   const [inviteUser, setInviteUser] = useState({ role: 'member', uid: '' })
-  const [members, setMembers] = useState([])
+  
   const [isEmptySummery, setIsEmptySummery] = useState(false)
   const [loading, setLoading] = useState(false)
+
   const [showMoreInfo, setShowMoreInfo] = useState(false)
-  const [haveSubscribe, setHaveSubscribe] = useState(false)
 
   const getSpaceInfo = async () => {
     const result = await fetchICApi(
@@ -67,6 +83,52 @@ const WorkspaceDetail = () => {
       return result
     }
   }
+
+  const getAdmins = async () => {
+    const result = await fetchICApi(
+      { id: params.id, agent },
+      'workspace',
+      'admins',
+    )
+    if (result.code === 200) {
+      setAdmins(result.data || [])
+    }
+  }
+
+  const getMembers = async () => {
+    const result = await fetchICApi(
+      { id: params.id, agent },
+      'workspace',
+      'members',
+    )
+    if (result.code === 200) {
+      setMembers(result.data || [])
+    }
+  }
+
+  const getCount = async () => {
+    const result = await fetchICApi(
+      { id: params.id, agent },
+      'workspace',
+      'count',
+    )
+    if (result.code === 200) {
+      setCount(result.data || {})
+    }
+  }
+
+  const getSubscribe = async () => {
+    const result = await fetchICApi(
+      { id: params.id, agent },
+      'workspace',
+      'haveSubscribe',
+      [],
+    )
+    if (result.code === 200 || result.code === 404) {
+      setHaveSubscribe(result.data)
+    }
+  }
+
 
   const createContent = async ({ pid = 0, sort = 1 }) => {
     setLoading(true)
@@ -120,52 +182,16 @@ const WorkspaceDetail = () => {
     }
   }
 
-  const getAdmins = async () => {
-    const result = await fetchICApi(
-      { id: params.id, agent },
-      'workspace',
-      'admins',
-    )
-    if (result.code === 200) {
-      setAdmins(result.data || [])
-    }
-  }
-
-  const getMembers = async () => {
-    const result = await fetchICApi(
-      { id: params.id, agent },
-      'workspace',
-      'members',
-    )
-    if (result.code === 200) {
-      setMembers(result.data || [])
-    }
-  }
-
-  const getCount = async () => {
-    const result = await fetchICApi(
-      { id: params.id, agent },
-      'workspace',
-      'count',
-    )
-    if (result.code === 200) {
-      setCount(result.data || {})
-    }
-  }
-
   const getCurrentContent = async (id) => {
     setCurrentId(id)
     getContent(id)
     getTrait(id)
   }
 
-  const isMember = useMemo(() => {
-    return [...admins, ...members].some((item) => item.id === authUserInfo.id)
+  useEffect(() =>{
+    setIsMember([...admins, ...members].some((item) => item.id === authUserInfo.id))
+    setIsAdmin(admins.some((item) => item.id === authUserInfo.id))
   }, [admins, members])
-
-  const isAdmin = useMemo(() => {
-    return admins.some((item) => item.id === authUserInfo.id)
-  }, [admins])
 
   const onDragEnter = (info) => {
     console.log(info)
@@ -297,18 +323,6 @@ const WorkspaceDetail = () => {
     }
   }
 
-  const getSubscribe = async () => {
-    const result = await fetchICApi(
-      { id: params.id, agent },
-      'workspace',
-      'haveSubscribe',
-      [],
-    )
-    if (result.code === 200 || result.code === 404) {
-      setHaveSubscribe(result.data)
-    }
-  }
-
   const handleSubscribe = async () => {
     setLoading(true)
     const result = await fetchICApi(
@@ -342,9 +356,9 @@ const WorkspaceDetail = () => {
   }
 
   useEffect(() => {
+    getSpaceInfo()
+    getSummery()
     if (agent) {
-      getSpaceInfo()
-      getSummery()
       getBalance('ICP')
       getAdmins()
       getMembers()
@@ -371,23 +385,19 @@ const WorkspaceDetail = () => {
   return (
     <div className="flex h-full gap-5 w-full max-w-7xl ml-auto mr-auto overflow-hidden">
       <div className="left w-72 border border-gray-200 rounded-md bg-white p-5 relative overflow-hidden overflow-y-scroll">
-        <div className="flex gap-3">
+        
+        <Link className="flex gap-3 hover:bg-slate-100 cursor-pointer rounded-md" to={`/space/${params.id}`}>
           <CommonAvatar
             name={spaceInfo.name}
             src={spaceInfo.avatar}
             shape="square"
-            className="w-12 h-12"
+            className="w-10 h-10"
           />
-          <div>
-            <Link
-              to={`/space/${params.id}`}
-              className="text-lg font-semibold text-gray-800 cursor-pointer hover:text-blue-400"
-            >
+          <div className="text-3xl font-semibold text-gray-800">
               {spaceInfo.name}
-            </Link>
-            <p>{spaceInfo.desc}</p>
           </div>
-        </div>
+        </Link>
+
         {Object.keys(spaceInfo?.model ?? {}).some(
           (item) => item === 'Subscribe',
         ) &&
@@ -420,6 +430,9 @@ const WorkspaceDetail = () => {
           ''
         )}
         <div className="w-full p-4 mt-4 rounded-md bg-slate-100">
+          <div>Home</div>
+          <div>Permission</div>
+          <div>Statistics</div>
           {[...admins, ...members].length > 0 && (
             <>
               <h3 className="font-bold mb-2">Members</h3>
@@ -487,7 +500,7 @@ const WorkspaceDetail = () => {
         <div className="mt-3 flex flex-row justify-between">
           <div className="basis-1/4 flex flex-row justify-evenly rounded-lg hover:bg-slate-100 cursor-pointer">
             <MenuOutlined className='mt-1' />
-            <div  className='mt-1.5'>ToC</div>
+            <div  className='mt-1.5 text-base'>ToC</div>
           </div>
           {isMember && (
             <Tooltip className='' title="Create new post">
@@ -543,6 +556,7 @@ const WorkspaceDetail = () => {
           </Button>
         )}
         {params.index ? (
+          // 判断edit模式，和成员权限展示 edit与否
           isEdit && isMember ? (
             <div className="flex-1 overflow-hidden">
               <PostEdit
@@ -559,18 +573,22 @@ const WorkspaceDetail = () => {
               />
             </div>
           ) : (
+            // view模式浏览文章内容
             <div className="flex-1 overflow-y-scroll">
               <PostDetail content={content} trait={trait} space={spaceInfo} />
             </div>
           )
         ) : (
-          <SpaceDetail
-            info={spaceInfo}
-            createPost={createContent}
-            createLoading={loading}
-          />
+          // 首页
+          // <SpaceDetail
+          //   info={spaceInfo}
+          //   createPost={createContent}
+          //   createLoading={loading}
+          // />
+          <WorkspaceHome spaceInfo={spaceInfo} summary={summery} isAdmin={isAdmin} isMember={isMember} updateSpaceInfo={setSpaceInfo} />
         )}
       </div>
+      {/* 添加成员 dom */}
       <Modal
         open={isOpenInvite}
         title="Add Member"
