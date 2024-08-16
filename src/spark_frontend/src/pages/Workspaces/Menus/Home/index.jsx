@@ -25,6 +25,7 @@ const WorkspaceHome = (props) =>{
     const [name, setName] = useState('')
     const [desc, setDesc] = useState('')
     const [avatar, setAvatar] = useState('')
+    const [summaryData, setSummaryData] = useState([])
 
     const { TextArea } = Input;
 
@@ -88,6 +89,10 @@ const WorkspaceHome = (props) =>{
 
     useEffect(() => {
         getOwner()
+        console.log(summary)
+        setSummaryData(summary.filter(item => {
+            return item.pid == 0
+        }))
     }, [spaceInfo,params.id])
 
     return (
@@ -106,6 +111,7 @@ const WorkspaceHome = (props) =>{
                           <CommonAvatar
                             src={avatar}
                             upload={true}
+                            shape="square"
                             className="w-32 h-32"
                           />
                         </Upload>
@@ -115,12 +121,13 @@ const WorkspaceHome = (props) =>{
                         name={spaceInfo.name}
                         src={spaceInfo.avatar}
                         upload={false}
+                        shape="square"
                         className="w-32 h-32 rounded-full"
                     />)
                 }
             </div>
             <div className= 'flex flex-col w-full'>
-                <div className='flex flex-row w-full pr-2 justify-between h-1/2 pt-1'>
+                <div className='flex flex-row  w-11/12 pr-2 justify-between h-1/2 pt-1'>
                     <div className='text-3xl ml-4 flex flex-col justify-between'>
                         { isUpdate ? 
                             (<>
@@ -181,7 +188,7 @@ const WorkspaceHome = (props) =>{
                     (<></>)}
                 </div>
                 <div className='border bg-gray-200 ml-0 w-full h-1/10'></div>
-                <div className='ml-4 h-1/2 pt-1 w-9/10'>
+                <div className='ml-4 h-1/2 pt-1 w-11/12'>
                     { isUpdate ? 
                         (<>
                         <TextArea showCount defaultValue={desc} maxLength={300} onChange={e => setDesc(e.target.value)}></TextArea>
@@ -194,15 +201,16 @@ const WorkspaceHome = (props) =>{
         </div>
         <div id='summarys' className='w-full float-right flex flex-col'>
             <Divider className='w-10/12 float-right font-medium' orientation="left">SUMMARYS</Divider>
-            <List className='w-10/12 text-xl m-auto'
+            <List className='w-10/12 text-base m-auto'
                 // header={<div>Summary</div>}
                 // footer={<div>Footer</div>}
-                // size="large"
+                size="small"
+                split={false}
                 bordered={false}
-                dataSource={summary}
+                dataSource={summaryData}
                 renderItem={(item) => (
-                    <List.Item className='font-light hover:bg-slate-100 hover:cursor-pointer ' onClick={()=>{navigate(`/space/${params.id}/${item.id}`); setIsUpdate(false)}}>
-                        <p className='ml-10'>{item.name}</p>
+                    <List.Item className='ml-16 rounded-md font-light hover:bg-slate-100 hover:cursor-pointer ' onClick={()=>{navigate(`/space/${params.id}/${item.id}`); setIsUpdate(false)}}>
+                        <p className='ml-1'>{item.name}</p>
                     </List.Item>
                 )}
             />
