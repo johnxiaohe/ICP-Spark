@@ -329,6 +329,7 @@ module{
 
         // client canister interface
         version: shared() -> async(Text);
+        initArgs: shared() -> async(Blob);
 
         // parent canister interface 
         childCids: shared(moduleName: Text) -> async([Text]);

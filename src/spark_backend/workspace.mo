@@ -139,9 +139,24 @@ shared({caller}) actor class WorkSpace(
     // 总编辑数
     private stable var _editcount : Nat = 0;
 
+    public shared({caller}) func initArgs(): async(Blob){
+        if(Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
+            return to_candid(
+                Principal.fromText(superUid),
+                Principal.fromText(superPid),
+                name,
+                avatar,
+                desc,
+                ctime,
+                showModel,
+                price
+                );
+        };
+        return to_candid();
+    };
 
     public shared({caller}) func version(): async (Text){
-        return "v1.0.0"
+        return "v1.0.4"
     };
 
     public shared({caller}) func childCids(moduleName: Text): async ([Text]){
@@ -266,6 +281,14 @@ shared({caller}) actor class WorkSpace(
                     model = showModel;
                     price = price;
                 };
+        };
+    };
+
+    public shared func getAvatar(): async Resp<Text>{
+        return {
+            code = 200;
+            msg = "";
+            data = avatar;
         };
     };
 

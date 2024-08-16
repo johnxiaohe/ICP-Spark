@@ -205,7 +205,7 @@ const WorkspaceHome = (props) =>{
                 // header={<div>Summary</div>}
                 // footer={<div>Footer</div>}
                 size="small"
-                split={false}
+                // split={false}
                 bordered={false}
                 dataSource={summaryData}
                 renderItem={(item) => (

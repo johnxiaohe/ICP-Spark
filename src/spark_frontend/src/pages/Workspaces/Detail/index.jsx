@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import { Button, Tree, Modal, Input, Tooltip, Select, message } from 'antd'
+import { Button, Tree, Modal, Input, Tooltip, Select, message,Popconfirm } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import PostEdit from '@/components/PostEdit'
 import { formatPostTree } from '@/utils/dataFormat'
@@ -25,18 +25,25 @@ const WorkspaceDetail = () => {
 
   const EditRef = useRef(null)
   
+  // 空间信息
   const [spaceInfo, setSpaceInfo] = useState({})
   const [admins, setAdmins] = useState([])
   const [members, setMembers] = useState([])
 
+    // 空间内容信息
+  const [summery, setSummery] = useState([])
+  const [currentId, setCurrentId] = useState(0)
+  const [count, setCount] = useState({}) // 空间统计信息
+
+  const [spaceModel, setSpaceModel] = useState('Private')
+
+  // 用户身份flag
   const [isMember, setIsMember] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
 
+  // 订阅展示相关
   const [haveSubscribe, setHaveSubscribe] = useState(false)
-
-  const [summery, setSummery] = useState([])
-  const [currentId, setCurrentId] = useState(0)
-  const [count, setCount] = useState({})
+  const [openSubTips, setOpenSubTips] = useState(false)
 
   const [balance, setBalance] = useState(0)
 
@@ -54,6 +61,7 @@ const WorkspaceDetail = () => {
 
   const [showMoreInfo, setShowMoreInfo] = useState(false)
 
+  // 获取空间各类信息 api
   const getSpaceInfo = async () => {
     const result = await fetchICApi(
       { id: params.id, agent },
@@ -129,7 +137,7 @@ const WorkspaceDetail = () => {
     }
   }
 
-
+  // 创建空间内容
   const createContent = async ({ pid = 0, sort = 1 }) => {
     setLoading(true)
     const result = await fetchICApi(
@@ -187,11 +195,6 @@ const WorkspaceDetail = () => {
     getContent(id)
     getTrait(id)
   }
-
-  useEffect(() =>{
-    setIsMember([...admins, ...members].some((item) => item.id === authUserInfo.id))
-    setIsAdmin(admins.some((item) => item.id === authUserInfo.id))
-  }, [admins, members])
 
   const onDragEnter = (info) => {
     console.log(info)
@@ -323,7 +326,7 @@ const WorkspaceDetail = () => {
     }
   }
 
-  const handleSubscribe = async () => {
+  const requestSubscribe = async () => {
     setLoading(true)
     const result = await fetchICApi(
       { id: authUserInfo.id, agent },
@@ -335,7 +338,20 @@ const WorkspaceDetail = () => {
     if (result.code === 200) {
       message.success('Subscribe success')
       setHaveSubscribe(true)
-      getContent(params.index)
+      if(params.index){
+        getContent(params.index)
+      }
+    }else{
+      message.error(result.msg)
+    }
+  }
+
+  // 判断需要付费则设置 付费tips modal打开，否则直接调用订阅接口
+  const handleSubscribe = async () =>{
+    if(spaceInfo.price > 0){
+      setOpenSubTips(true)
+    }else{
+      requestSubscribe()
     }
   }
 
@@ -351,36 +367,58 @@ const WorkspaceDetail = () => {
     if (result.code === 200) {
       message.success('Unsubscribe success')
       setHaveSubscribe(false)
-      getContent(params.index)
+      if(params.index){
+        getContent(params.index)
+      }
+    }else{
+      message.error(result.msg)
     }
   }
 
+  // 记录最近访问的空间
+  useEffect(() => {
+    if (authUserInfo.id) {
+      fetchICApi({ id: authUserInfo.id, agent }, 'user', 'addRecentWork', [
+        params.id,
+      ])
+    }
+  }, [authUserInfo])
+
+  // 空间信息初始化
   useEffect(() => {
     getSpaceInfo()
     getSummery()
     if (agent) {
-      getBalance('ICP')
+      // getBalance('ICP')
       getAdmins()
       getMembers()
       getCount()
-      getSubscribe()
     }
   }, [agent])
 
+  // 初始化身份信息flag
+  useEffect(() =>{
+    setIsMember([...admins, ...members].some((item) => item.id === authUserInfo.id))
+    setIsAdmin(admins.some((item) => item.id === authUserInfo.id))
+  }, [admins, members])
+
+  // 更新当前内容
   useEffect(() => {
     if (params.index && agent) {
       getCurrentContent(params.index)
     }
   }, [params.index, agent])
 
-  useEffect(() => {
-    if (authUserInfo.id) {
-      // 记录最近访问的空间
-      fetchICApi({ id: authUserInfo.id, agent }, 'user', 'addRecentWork', [
-        params.id,
-      ])
+  // 空间信息变更回调
+  useEffect(()=>{
+    if (spaceInfo.id){
+      let model = spaceInfo.model
+      setSpaceModel(Object.keys(model)[0])
+      if(model !='Private'){
+        getSubscribe()
+      }
     }
-  }, [authUserInfo])
+  },[spaceInfo])
 
   return (
     <div className="flex h-full gap-5 w-full max-w-7xl ml-auto mr-auto overflow-hidden">
@@ -397,37 +435,34 @@ const WorkspaceDetail = () => {
               {spaceInfo.name}
           </div>
         </Link>
-
-        {Object.keys(spaceInfo?.model ?? {}).some(
-          (item) => item === 'Subscribe',
-        ) &&
-        isRegistered &&
-        !isMember ? (
-          haveSubscribe ? (
-            <Tooltip title="Unsubscribe workspace">
-              <Button
-                className="w-full mt-3"
-                onClick={handleUnSubscribe}
-                type=""
-                loading={loading}
-              >
-                Unsubscribe
-              </Button>
-            </Tooltip>
+        {/* subscribe恒定显示，private类型则显示disable，空间有权限查看就可以订阅，后续会添加消息提醒 */}
+        {haveSubscribe ? (
+          <Popconfirm
+            placement="rightTop"
+            title={'Unsubscribe Confirm'}
+            description={<p>Do you want to cancel your subscription to this workspace? <br></br>
+                            If you have paid for it, this operation will not be refunded!</p>}
+            onConfirm={handleUnSubscribe}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button
+              className="w-full mt-3"
+              loading={loading}
+            >
+              Subscribing
+            </Button>
+          </Popconfirm>
           ) : (
-            <Tooltip title="Subscribe workspace">
-              <Button
+            <Button
                 className="w-full mt-3"
                 onClick={handleSubscribe}
                 type="primary"
                 loading={loading}
+                disabled={spaceModel==='Private' || !isRegistered}
               >
                 Subscribe
-              </Button>
-            </Tooltip>
-          )
-        ) : (
-          ''
+            </Button>
         )}
         <div className="w-full p-4 mt-4 rounded-md bg-slate-100">
           <div>Home</div>
@@ -611,6 +646,18 @@ const WorkspaceDetail = () => {
           onChange={changeInviteUser}
           placeholder="The uid of the target user"
         />
+      </Modal>
+
+      {/* todo: 增加余额判断和展示。余额不足直接提示余额不足不能订阅 */}
+      <Modal 
+        title="Subscribe tips" 
+        open={openSubTips} 
+        onOk={requestSubscribe}
+        okButtonProps= {{danger:true,}}
+        onCancel={() => setOpenSubTips(false)}
+        okText="Yes"
+        >
+        <p>Subscribe this space must to pay {formatICPAmount(spaceInfo.price)} ICP, do you want continue?</p>
       </Modal>
     </div>
   )

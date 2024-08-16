@@ -103,8 +103,15 @@ shared({caller}) actor class UserSpace(
     tokenMap.put("ICP", icpLedger);
     tokenMap.put("CYCLES", cyclesLedger);
 
+    public shared({caller}) func initArgs(): async(Blob){
+        if(Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
+            return to_candid(name,owner,avatar,desc,ctime);
+        };
+        return to_candid();
+    };
+
     public shared({caller}) func version(): async (Text){
-        return "v1.0.0"
+        return "v1.0.2"
     };
 
     public shared({caller}) func childCids(moduleName: Text): async ([Text]){
@@ -860,7 +867,7 @@ shared({caller}) actor class UserSpace(
                 desc = workInfo.desc;
                 owner = Text.equal(Principal.toText(Principal.fromActor(this)), workInfo.super);
                 start = work.start;
-                avatar = workInfo.avatar;
+                avatar = workInfo.name; // 因为接口最大传输2MB，所以头像由客户端异步获取
             };
             result := List.push(mywork, result);
         };

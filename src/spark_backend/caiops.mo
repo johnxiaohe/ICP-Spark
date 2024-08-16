@@ -20,6 +20,8 @@ import Array "mo:base/Array";
 import Nat "mo:base/Nat";
 import Option "mo:base/Option";
 import Int "mo:base/Int";
+import ic "ic";
+import configs "configs";
 
 import Map "mo:map/Map";
 import { thash; nhash } "mo:map/Map";
@@ -470,8 +472,10 @@ actor{
                 // update one by one
                 for(cid in Iter.fromArray(cids)){
                     if(List.some<Text>(cais, func c {Text.equal(c, cid)})){
-                        ignore mng.install_code({
-                            arg = [];
+                        let opsActor : CanisterOps = actor(cid);
+                        let args = await opsActor.initArgs();
+                        await mng.install_code({
+                            arg = args;
                             wasm_module = wasm;
                             mode = #upgrade;
                             canister_id = Principal.fromText(cid);
@@ -498,8 +502,10 @@ actor{
             case(null){return true};
             case(?cais){
                 for(cid in List.toIter(cais)){
-                    ignore mng.install_code({
-                        arg = [];
+                    let opsActor : CanisterOps = actor(cid);
+                    let args = await opsActor.initArgs();
+                    await mng.install_code({
+                        arg = args;
                         wasm_module = wasm;
                         mode = #upgrade;
                         canister_id = Principal.fromText(cid);
@@ -509,5 +515,4 @@ actor{
         };
         return true;
     };
-
 }
