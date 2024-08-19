@@ -31,12 +31,30 @@ const Creation = () => {
     }
   }
 
+  const fillAvatar = async () => {
+    if(recentSpace.length > 0){
+      for(let i = 0; i < recentSpace.length; i++){
+        const result = await fetchICApi(
+          { id: recentSpace[i].wid, agent },
+          'workspace',
+          'getAvatar',
+        )
+        recentSpace[i].avatar = result.data
+        setRecentSpace([...recentSpace])
+      }
+    }
+  }
+
   useEffect(() => {
     if (isRegistered) {
       getRecentEdit()
       getRecentSpace()
     }
   }, [isRegistered])
+
+  useEffect(() => {
+    fillAvatar()
+  }, [recentSpace.length])
 
   return (
     <div className="flex gap-10 p-5">

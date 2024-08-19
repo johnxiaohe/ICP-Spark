@@ -1065,7 +1065,7 @@ shared({caller}) actor class UserSpace(
                 name = wResp.data.name;
                 owner = Text.equal(Principal.toText(Principal.fromActor(this)), wResp.data.super);
                 time = rw.time;
-                avatar = wResp.data.avatar;
+                avatar = wResp.data.name;
             };
             result := List.push( rwresp, result);
         };
