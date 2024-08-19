@@ -113,6 +113,6 @@ dfx canister call icp-ledger icrc2_approve '
     };
   }
 '
-dfx canister call icp-ledger icrc1_transfer '(record {amount=1000000000; to=record{owner=principal "be2us-64aaa-aaaaa-qaabq-cai"}})'
+dfx canister call ryjl3-tyaaa-aaaaa-aaaba-cai icrc1_transfer '(record {amount=1000000000; to=record{owner=principal "be2us-64aaa-aaaaa-qaabq-cai"}})'
 
 dfx canister call icp-ledger transfer '(record {amount=record{ e8s=1000000; } to=})'

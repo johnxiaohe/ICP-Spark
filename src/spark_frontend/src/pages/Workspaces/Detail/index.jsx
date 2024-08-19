@@ -36,6 +36,7 @@ const WorkspaceDetail = () => {
   const [count, setCount] = useState({}) // 空间统计信息
 
   const [spaceModel, setSpaceModel] = useState('Private')
+  const [calledSub, setCalledSub] = useState(false)
 
   // 用户身份flag
   const [isMember, setIsMember] = useState(false)
@@ -126,6 +127,7 @@ const WorkspaceDetail = () => {
   }
 
   const getSubscribe = async () => {
+    setCalledSub(false)
     const result = await fetchICApi(
       { id: params.id, agent },
       'workspace',
@@ -135,6 +137,7 @@ const WorkspaceDetail = () => {
     if (result.code === 200 || result.code === 404) {
       setHaveSubscribe(result.data)
     }
+    setCalledSub(true)
   }
 
   // 创建空间内容
@@ -344,6 +347,7 @@ const WorkspaceDetail = () => {
     }else{
       message.error(result.msg)
     }
+    setOpenSubTips(false)
   }
 
   // 判断需要付费则设置 付费tips modal打开，否则直接调用订阅接口
@@ -351,7 +355,7 @@ const WorkspaceDetail = () => {
     if(spaceInfo.price > 0){
       setOpenSubTips(true)
     }else{
-      requestSubscribe()
+      await requestSubscribe()
     }
   }
 
@@ -414,11 +418,14 @@ const WorkspaceDetail = () => {
     if (spaceInfo.id){
       let model = spaceInfo.model
       setSpaceModel(Object.keys(model)[0])
-      if(model !='Private'){
-        getSubscribe()
-      }
     }
   },[spaceInfo])
+
+  useEffect(()=>{
+    if(spaceModel !='Private'){
+      getSubscribe()
+    }
+  }, [spaceModel])
 
   return (
     <div className="flex h-full gap-5 w-full max-w-7xl ml-auto mr-auto overflow-hidden">
@@ -459,7 +466,7 @@ const WorkspaceDetail = () => {
                 onClick={handleSubscribe}
                 type="primary"
                 loading={loading}
-                disabled={spaceModel==='Private' || !isRegistered}
+                disabled={spaceModel==='Private' || !isRegistered || !calledSub}
               >
                 Subscribe
             </Button>
@@ -653,9 +660,10 @@ const WorkspaceDetail = () => {
         title="Subscribe tips" 
         open={openSubTips} 
         onOk={requestSubscribe}
-        okButtonProps= {{danger:true,}}
+        // okButtonProps= {{danger:true,}}
         onCancel={() => setOpenSubTips(false)}
         okText="Yes"
+        confirmLoading={loading}
         >
         <p>Subscribe this space must to pay {formatICPAmount(spaceInfo.price)} ICP, do you want continue?</p>
       </Modal>

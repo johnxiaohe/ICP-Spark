@@ -45,6 +45,21 @@ const UserCenter = () => {
     }
   }
 
+  const fillAvatar = async () => {
+    if(spaceList.length > 0){
+      for(let i = 0; i < spaceList.length; i++){
+        const result = await fetchICApi(
+          { id: spaceList[i].wid, agent },
+          'workspace',
+          'getAvatar',
+        )
+        spaceList[i].avatar = result.data
+        setSpaceList([...spaceList])
+      }
+      
+    }
+  }
+
   const onTabChange = async (e) => {
     setActiveTabKey(e)
   }
@@ -71,6 +86,10 @@ const UserCenter = () => {
   useEffect(() => {
     authUserInfo.id && getWorkSpace()
   }, [authUserInfo])
+
+  useEffect(() =>{
+    fillAvatar()
+  }, [spaceList.length])
 
   return (
     <div className="w-full md:w-2/3 max-w-7xl  ml-auto mr-auto ">

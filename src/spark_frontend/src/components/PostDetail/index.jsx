@@ -15,7 +15,7 @@ const PostDetail = (props) => {
   const [loading, setLoading] = useState(false)
   const [collected, setCollected] = useState(false)
   const [collecting, setCollecting] = useState(true)
-  const [openTips, setOpenIips] = useState(false)
+  const [openTips, setOpenTips] = useState(false)
   const spaceInfo = useMemo(() => {
     return space
   }, [space])
@@ -25,12 +25,12 @@ const PostDetail = (props) => {
       message.warning('Please set your info first')
     } else {
       if(spaceInfo.price > 0 &&  !openTips){
-        setOpenIips(true)
+        setOpenTips(true)
         return
       }
-      setOpenIips(false)
+      setOpenTips(false)
       setLoading(true)
-      await onSubscribe()
+      // await onSubscribe()
       setLoading(false)
     }
   }
@@ -204,9 +204,10 @@ const PostDetail = (props) => {
           title="Subscribe tips" 
           open={openTips} 
           onOk={handleSubscribe}
-          okButtonProps= {{danger:true,}}
-          onCancel={() => setOpenIips(false)}
+          okButtonProps= {{danger:false,}}
+          onCancel={() => setOpenTips(false)}
           okText="Pay"
+          loading={loading}
           >
           <p>Subscribe this space must to pay {formatICPAmount(spaceInfo.price)} ICP, do you want continue?</p>
         </Modal>
