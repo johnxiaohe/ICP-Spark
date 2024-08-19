@@ -49,6 +49,7 @@ shared({caller}) actor class WorkSpace(
     type ContentResp = types.ContentResp;
     type SummaryResp = types.SummaryResp;
     type WorkSpaceInfo = types.WorkSpaceInfo;
+    type WorkSpaceBaseInfo = types.WorkSpaceBaseInfo;
     type Log = types.Log;
     type FundsLog = types.FundsLog;
     type ContentLog = types.ContentLog;
@@ -156,7 +157,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func version(): async (Text){
-        return "v1.0.4"
+        return "v1.0.5"
     };
 
     public shared({caller}) func childCids(moduleName: Text): async ([Text]){
@@ -283,6 +284,21 @@ shared({caller}) actor class WorkSpace(
                 };
         };
     };
+
+    public shared func baseInfo(): async Resp<WorkSpaceBaseInfo>{
+        return {
+                code = 200;
+                msg = "";
+                data = {
+                    id = Principal.toText(Principal.fromActor(this));
+                    name = name;
+                    avatar = name;
+                    desc = desc;
+                    ctime = ctime;
+                };
+        };
+    };
+
 
     public shared func getAvatar(): async Resp<Text>{
         return {

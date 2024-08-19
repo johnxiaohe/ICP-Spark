@@ -38,6 +38,7 @@ shared({caller}) actor class UserSpace(
     let IC: ICActor = actor(configs.IC_ID);
 
     // 用户接口api类型声明
+    type BaseUserInfo = types.BaseUserInfo;
     type User = types.User;
     type UserDetail = types.UserDetail;
     type Collection = types.Collection;
@@ -48,6 +49,7 @@ shared({caller}) actor class UserSpace(
     type Resp<T> = types.Resp<T>;
 
     type WorkSpaceInfo = types.WorkSpaceInfo;
+    type WorkSpaceBaseInfo = types.WorkSpaceBaseInfo;
     type ApproveArgs = Ledger.ApproveArgs;
     type TransferArg = Ledger.TransferArg;
     type UserPreSaveInfo = types.UserPreSaveInfo;
@@ -111,7 +113,7 @@ shared({caller}) actor class UserSpace(
     };
 
     public shared({caller}) func version(): async (Text){
-        return "v1.0.2"
+        return "v1.0.5"
     };
 
     public shared({caller}) func childCids(moduleName: Text): async ([Text]){
@@ -159,6 +161,18 @@ shared({caller}) actor class UserSpace(
         };
     };
 
+    public shared func baseUserInfo(): async Resp<BaseUserInfo>{
+        return {
+            code=200;
+            msg="";
+            data={
+                id=Principal.toText(Principal.fromActor(this));
+                name=name;
+                avatar=name;
+            };
+        };
+    };
+
     public shared func info(): async Resp<User>{
         return {
             code=200;
@@ -171,6 +185,14 @@ shared({caller}) actor class UserSpace(
                 desc=desc;
                 ctime=ctime;
             };
+        };
+    };
+
+    public shared func getAvatar(): async Resp<Text>{
+        return {
+            code = 200;
+            msg = "";
+            data = avatar;
         };
     };
 
@@ -484,7 +506,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared({caller}) func follows(): async Resp<[User]> {
+    public shared({caller}) func follows(): async Resp<[BaseUserInfo]> {
         if ( not _showfollow and not Principal.equal(caller, owner) ){
             return {
                 code = 403;
@@ -492,10 +514,10 @@ shared({caller}) actor class UserSpace(
                 data = [];
             };
         };
-        var result: List.List<User> = List.nil();
+        var result: List.List<BaseUserInfo> = List.nil();
         for (uid in List.toIter<Text>(_follows)) {
             let userActor : UserActor = actor(uid);
-            let user = await userActor.info();
+            let user = await userActor.baseUserInfo();
             result := List.push(user.data, result);
         };
         return {
@@ -541,7 +563,7 @@ shared({caller}) actor class UserSpace(
         return true;
     };
 
-    public shared({caller}) func fans(): async Resp<[User]> {
+    public shared({caller}) func fans(): async Resp<[BaseUserInfo]> {
         if ( not _showfans and not Principal.equal(caller, owner) ){
             return {
                 code = 403;
@@ -549,10 +571,10 @@ shared({caller}) actor class UserSpace(
                 data = [];
             };
         };
-        var result: List.List<User> = List.nil();
+        var result: List.List<BaseUserInfo> = List.nil();
         for (uid in List.toIter<Text>(_fans)) {
             let userActor : UserActor = actor(uid);
-            let user = await userActor.info();
+            let user = await userActor.baseUserInfo();
             result := List.push(user.data, result);
         };
         return {
@@ -810,7 +832,7 @@ shared({caller}) actor class UserSpace(
        _subscribes := List.filter<Text>(_subscribes, func wid { not Text.equal(wid, Principal.toText(caller))});
     };
 
-    public shared({caller}) func subscribes(): async Resp<[WorkSpaceInfo]> {
+    public shared({caller}) func subscribes(): async Resp<[WorkSpaceBaseInfo]> {
         if ( not _showsubscribe and not Principal.equal(caller, owner) ){
             return {
                 code = 403;
@@ -818,11 +840,11 @@ shared({caller}) actor class UserSpace(
                 data = [];
             };
         };
-        var result: List.List<WorkSpaceInfo> = List.nil();
+        var result: List.List<WorkSpaceBaseInfo> = List.nil();
         for (wid in List.toIter<Text>(_subscribes)) {
             let workActor : WorkActor = actor(wid); 
-            let workspaceinfo = await workActor.info();
-            result := List.push(workspaceinfo.data, result);
+            let worksBaseInfo = await workActor.baseInfo();
+            result := List.push(worksBaseInfo.data, result);
         };
         return {
             code = 200;

@@ -16,6 +16,11 @@ module{
     };
 
     // user api types --------------------------------
+    public type BaseUserInfo = {
+        id: Text;
+        name: Text;
+        avatar: Text;
+    };
     public type User = {
         id: Text; // user canister id
         pid: Text; // user principal id
@@ -83,6 +88,14 @@ module{
     };
 
     // work api types -----------------------------------
+    public type WorkSpaceBaseInfo = {
+        id: Text;
+        name: Text;
+        avatar: Text;
+        desc: Text;
+        ctime: Time.Time;
+    };
+
     public type WorkSpaceInfo = {
         id: Text;
         super: Text;
@@ -288,6 +301,7 @@ module{
     };
 
     public type UserActor = actor {
+        baseUserInfo : shared() -> async(Resp<BaseUserInfo>);
         info : shared() -> async(Resp<User>);
         detail : shared() -> async (UserDetail);
         addFans : shared () -> async (Bool);
@@ -300,6 +314,7 @@ module{
 
     public type WorkActor = actor {
         info: shared() -> async(Resp<WorkSpaceInfo>);
+        baseInfo: shared() -> async(Resp<WorkSpaceBaseInfo>);
         subscribe: shared() -> async(Resp<Bool>);
         unSubscribe: shared() -> async(Resp<Bool>);
         collectionCall: shared(index: Nat) -> async(Resp<Collection>);

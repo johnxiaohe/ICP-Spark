@@ -174,11 +174,27 @@ const UserCenter = () => {
     setActiveTabKey(e)
   }
 
+  const fillAvatar = async (module, list, setList) => {
+    if(list.length > 0){
+      for(let i = 0; i < list.length; i++){
+        const result = await fetchICApi(
+          { id: list[i].id, agent },
+          module,
+          'getAvatar',
+        )
+        list[i].avatar = result.data
+      }
+      setList([...list])
+    }
+  }
+
+
   const getFollowList = async () => {
     if (currentUserInfo.followSum === 0) return setFollowList([])
     const result = await fetchICApi({ id: params.id, agent }, 'user', 'follows')
     console.log('follow list:::', result)
     setFollowList(result.data || [])
+    fillAvatar('user', result.data, setFollowList)
   }
 
   const getFansList = async () => {
@@ -186,6 +202,7 @@ const UserCenter = () => {
     const result = await getFansApi({ id: params.id, agent })
     console.log('fans list:::', result)
     setFansList(result.data || [])
+    fillAvatar('user', result.data, setFansList)
   }
 
   const getCollectionList = async () => {
@@ -200,6 +217,7 @@ const UserCenter = () => {
     const result = await getSubscribeApi({ id: params.id, agent })
     console.log('Subscribe list:::', result)
     setSubscribeList(result.data || [])
+    fillAvatar('workspace', result.data, setSubscribeList)
   }
 
   const getBalance = async () => {
@@ -224,7 +242,6 @@ const UserCenter = () => {
   const cancelWithdraw = async () => {
     setIsOpenWithdraw(false)
   }
-
   useEffect(() => {
     getCurrentUserInfo()
   }, [authUserInfo])
