@@ -1,91 +1,429 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react'
-import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
+import React, { useEffect, useState, } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import { Button, Tree, Modal, Input, Tooltip, Select, message, Popconfirm, Menu } from 'antd'
+import { Button, Modal, Input, Tooltip, Select, message, Radio,Space, List, Typography,Divider, Menu } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
-import PostEdit from '@/components/PostEdit'
-import { formatPostTree } from '@/utils/dataFormat'
-import { PlusOutlined,MenuOutlined } from '@ant-design/icons'
+import {
+    formatICPAmount,timeFormat
+  } from '@/utils/dataFormat'
 
-const WorkspacePermission = () => {
+// 成员信息管理，
+const WorkspacePermission = (props) => {
     const params = useParams()
     const navigate = useNavigate()
   
-    const { agent, authUserInfo, isRegistered } = useAuth()
+    const { agent, authUserInfo } = useAuth()
+
+    const { spaceInfo = {}, spaceModel = 'private', admins, members, isAdmin, updateSpaceInfo,updateAdmins,updateMembers, } = props
+
+    // const [admins, setAdmins] = useState([])
+    // const [members, setMembers] = useState([])
+    // const [isAdmin, setIsAdmin] = useState(false)
+  
+    
+    const [price, setPrice] = useState(0)
+    const [changeModule, setChangeModule] = useState(false)
+    const [currentModule, setCurrentModule] = useState('')
+    const [radioLoading, setRadioLoading] = useState(true)
+
+    const [ownerInfo, setOwnerInfo] = useState({})
+    const [isOwner, setIsOwner] = useState(false)
+
+    const [openLog, setOpenLog] = useState(false)
+    const [logs, setLogs] = useState([])
+
+    const [loading, setLoading] = useState(false)
+
     const [isOpenInvite, setIsOpenInvite] = useState(false)
     const [inviteUser, setInviteUser] = useState({ role: 'member', uid: '' })
-    
-  const onSelectRole = async (e) => {
-    console.log(e)
-    setInviteUser({ ...inviteUser, role: e })
-  }
 
-  const changeInviteUser = (e) => {
-    setInviteUser({ ...inviteUser, uid: e.target.value })
-  }
+    const [openTransfer, setOpenTransfer] = useState(false)
+    const [newOwner, setNewOwner] = useState('')
+    const [transferItems, setTransferItems] = useState([])
 
-  const closeModal = () => {
-    setIsOpenInvite(false)
-    setInviteUser({ role: 'member', uid: '' })
-  }
-
-  const onInvite = async () => {
-    const result = await fetchICApi(
-      { id: params.id, agent },
-      'workspace',
-      'addMember',
-      [inviteUser.uid, inviteUser.role],
-    )
-    if (result.code === 200) {
-      message.success('Invite success')
-      if (inviteUser.role === 'admin') {
-        getAdmins()
-      } else {
-        getMembers()
-      }
-      closeModal()
+    const getOwner = async () => {
+        const result = await fetchICApi(
+          { id: spaceInfo.super, agent },
+          'user',
+          'info',
+          [],
+        )
+        if (result.code === 200) {
+            setOwnerInfo(result.data)
+        }
     }
-  }
-  const handleInvite = async () => {
-    setIsOpenInvite(true)
-  }
+
+    // 模块模式更新相关
+    const onModuleChange = (e) => {
+      setCurrentModule(e.target.value);
+      setChangeModule(true)
+    }
+
+    const cancelModuleChange = () =>{
+        setChangeModule(false)
+        setCurrentModule(spaceModel)
+        setPrice(formatICPAmount(spaceInfo.price))
+    }
+
+    const submitModuleChange = async () => {
+        setRadioLoading(true)
+        let amount =  price * Math.pow(10, 8)
+        const result = await fetchICApi(
+            { id: params.id, agent },
+            'workspace',
+            'updateShowModel',
+            [{ [currentModule]: null }, amount],
+        )
+        if (result.code === 200) {
+            // callback update spaceInfo
+            await updateSpaceInfo()
+        }else{
+            message.error(result.msg)
+        }
+        setRadioLoading(false)
+        setChangeModule(false)
+    }
+
+    // 日志展示相关
+    const handleOpenLog = async () => {
+        setLoading(true)
+        const result = await fetchICApi(
+            { id: spaceInfo.id, agent },
+            'workspace',
+            'sysLog',
+            [],
+            )
+        if (result.code === 200) {
+            fillLogUserInfo(result.data)
+        }
+        setOpenLog(true)
+        setLoading(false)
+    }
+
+    const fillLogUserInfo = (logs) => {
+        for(let i=0;i<logs.length;i++){
+            const nameUid = logs[i].opeater.split(":")
+            logs[i].name = nameUid[0]
+            logs[i].uid = nameUid.length > 1 ? nameUid[1] : ''
+            
+            const regex = /{([^}]*)}/g;
+            logs[i].info = logs[i].info.replace(regex, function(match, content) {
+                // content 是匹配到的大括号内的文本
+                // 使用提供的 replacements 对象来查找替换的内容
+                const slices = content.split(":")
+                let name = slices[0]
+                let uid = slices[1]
+                return name + '(' + uid + ')'
+            });
+        }
+        setLogs(logs)
+    }
+
+    const handleCloseLog = () => {
+        setOpenLog(false)
+    }
+
+    // 成员添加相关
+    const handleInvite = () => {
+        setIsOpenInvite(true)
+    }
+
+    const closeInvite = () => {
+        setIsOpenInvite(false)
+        setInviteUser({ role: 'member', uid: '' }) // 重置
+    }
+
+    const onSelectRole = async (e) => {
+        setInviteUser({ ...inviteUser, role: e })
+    }
+
+    const changeInviteUser = (e) => {
+        setInviteUser({ ...inviteUser, uid: e.target.value })
+    }
+
+    const onInvite = async () => {
+        const result = await fetchICApi(
+            { id: params.id, agent },
+            'workspace',
+            'addMember',
+            [inviteUser.uid, inviteUser.role],
+        )
+        if (result.code === 200) {
+            message.success('Invite success')
+            if (inviteUser.role === 'admin') {
+                // admin callback
+                updateAdmins()
+            } else {
+                // member callback
+                updateMembers()
+            }
+            closeInvite()
+        }else{
+            message.error(result.msg)
+        }
+    }
+
+    // 转移 owner相关
+    const getTransferItems = async() => {
+        let items = []
+        for(let i=0; i< admins.length; i++){
+            if (admins[i].id === spaceInfo.super){
+                continue;
+            }
+            let item = {
+                key: admins[i].id,
+                label: admins[i].name + " : " + admins[i].id,
+            }
+            items.push(item)
+        }
+        setTransferItems(items)
+    }
+
+    const onClickTransfer = (e) => {
+        setNewOwner(e.key)
+    }
+
+    const onTransfer = async () => {
+        if(newOwner === ''){
+            message.error("please choose one person for transfer")
+            return
+        }
+        setLoading(true)
+        let uid = newOwner
+        let name = ''
+        admins.some((item) => { if(item.id === uid) name=item.name})
+        const result = await fetchICApi(
+            { id: authUserInfo.id, agent },
+            'user',
+            'transferNs',
+            [params.id, uid, name],
+        )
+        if (result.code === 200) {
+            message.success('Transfer success')
+            setNewOwner('')
+            await updateSpaceInfo()
+            await updateAdmins()
+            await updateMembers()
+        }else{
+            message.error(result.msg)
+        }
+        setLoading(false)
+        setOpenTransfer(false)
+    }
+
+    // 成员更新相关
+    const toAdmin = async (item) => {
+        setLoading(true)
+        const result = await fetchICApi(
+            { id: params.id, agent },
+            'workspace',
+            'updatePermission',
+            [item.name, item.id, 'admin'],
+        )
+        if (result.code === 200) {
+            message.success('update permission success')
+            await updateAdmins()
+            await updateMembers()
+        }else{  
+            message.error(result.msg)
+        }
+        setLoading(false)
+    }
+
+    const toMember = async (item) => {
+        setLoading(true)
+        const result = await fetchICApi(
+            { id: params.id, agent },
+            'workspace',
+            'updatePermission',
+            [item.name, item.id, 'member'],
+        )
+        if (result.code === 200) {
+            message.success('update permission success')
+            await updateMembers()
+            await updateAdmins()
+        }else{
+            message.error(result.msg)
+        }
+        setLoading(false)
+    }
+
+    const removeIt = async (item) => {
+        setLoading(true)
+        const result = await fetchICApi(
+            { id: params.id, agent },
+            'workspace',
+            'delMember',
+            [item.name, item.id],
+        )
+        if (result.code === 200) {
+            message.success('delete success')
+            await updateAdmins()
+            await updateMembers()
+        }else{
+            message.error(result.msg)
+        }
+        setLoading(false)
+    }
+
+    useEffect(() => {
+        if(spaceInfo.id){
+            getOwner()
+            setCurrentModule(spaceModel)
+            setRadioLoading(false)
+            setPrice(formatICPAmount(spaceInfo.price))
+            setIsOwner(authUserInfo.id === spaceInfo.super)
+            // getAdmins()
+            // getMembers()
+        }
+    }, [spaceInfo])
+
+    useEffect(() =>{
+    }, [members.length])
+
+    useEffect (() => {
+        if (admins.length > 0){
+            getTransferItems()
+            // setIsAdmin(admins.some((item) => item.id === authUserInfo.id))
+        }
+    }, [admins.length])
+
 
     return (
-        <div className="w-full p-4 rounded-md bg-slate-100 ">
-
-          {[...admins, ...members].length > 0 && (
-            <>
-              <h3 className="font-bold mb-2">Members</h3>
-              <div className="flex gap-3 flex-wrap">
-                {[...admins, ...members].map((item) => (
-                  <Link key={item.id} to={`/user/${item.id}`}>
+        <div className="flex flex-col w-full gap-5">
+            <div className='flex flex-row w-11/12 h-48 mt-5 mx-auto '>
+                <div className='flex flex-col basis-1/3'>
+                    <p className='ml-12 mt-5 text-base'>Module</p>
+                    <Radio.Group className="ml-12 mt-5" disabled={radioLoading} onChange={onModuleChange} value={currentModule}>
+                        <Space direction="vertical">
+                            <Radio value={'Public'}>
+                                <Tooltip title="Everyone can access the information in the space">
+                                    Public
+                                </Tooltip>
+                            </Radio>
+                            <Radio value={'Subscribe'} onClick={() => {setChangeModule(true)}}>
+                                <Tooltip title="Subscribed users can see the full content, and other users can see part of the introduction. You can set the subscription payment amount, which can be 0">
+                                    {currentModule === 'Subscribe'? (
+                                        changeModule ? 
+                                            (<div className='flex flex-row gap-2'>Subscribe(<Input style={{width:100}} value={price} onChange={(e) => {setPrice(e.target.value)}}/>)</div>) 
+                                            : 
+                                            (<>Subscribe({price})</>)
+                                        )
+                                        :
+                                        (<>Subscribe({price})</>)
+                                    }
+                                </Tooltip>
+                            </Radio>
+                            <Radio value={'Private'}>
+                                <Tooltip title="Only space members can access space information">
+                                    Private
+                                </Tooltip>
+                            </Radio>
+                        </Space>
+                    </Radio.Group>
+                    {changeModule ? (
+                        <div className='flex flex-row gap-2 mx-auto mt-2'>
+                            <Button onClick={cancelModuleChange}>cancel</Button>
+                            <Button onClick={submitModuleChange} loading={radioLoading}>submit</Button>
+                        </div>
+                    ): null}
+                    
+                </div>
+                <div className='flex flex-col basis-1/3'>
                     <CommonAvatar
-                      name={item.name}
-                      src={item.avatar}
-                      className="w-10 h-10"
+                        name={spaceInfo.name}
+                        src={ownerInfo.avatar}
+                        upload={false}
+                        className="w-40 h-40 rounded-full"
                     />
-                  </Link>
-                ))}
+                    <Link className="font-medium ml-8" to={`/user/${spaceInfo.super}`}>
+                        Owner: {ownerInfo.name}
+                    </Link>
+                </div>
+                <div className='flex flex-col basis-1/3 gap-2 '>
+                    <p className='mt-5 text-base'>Actions</p>
+                    {isOwner ? (
+                        <Button onClick={() => {setOpenTransfer(true)}}>transfer owner</Button>
+                        ) 
+                        :
+                        null
+                    }
+                    
+                    <Button onClick={handleInvite}>add member</Button>
 
-                {isAdmin && (
-                  <Tooltip title="Add Member">
-                    <div
-                      onClick={handleInvite}
-                      className="w-10 h-10 cursor-pointer rounded-[50%] bg-slate-400 border border-gray-200 flex justify-center items-center"
-                    >
-                      <PlusOutlined className="text-white" />
-                    </div>
-                  </Tooltip>
+                    <Button loading={loading} onClick={handleOpenLog}>System Logs</Button>
+                </div>
+            </div>
+            <div className='flex flex-col w-11/12 h-48 mt-5 mx-auto '>
+                <Divider orientation="left">Admins</Divider>
+                <List
+                    size="small"
+                    // bordered
+                    dataSource={admins}
+                    renderItem={(item) => 
+                    <List.Item>
+                        <div className='w-11/12 mx-auto flex flex-row justify-between'>
+                            <Link>{item.name}</Link>
+                            { isOwner && item.id != spaceInfo.super ? (
+                                <div className='flex flex-row gap-2'>
+                                    <Button loading={loading} onClick={() => {toMember(item)}}>To Member</Button>
+                                    <Button loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
+                                </div>
+                            ): null}
+                        </div>
+                    </List.Item>
+                }
+                />
+                <Divider orientation="left">Members</Divider>
+                <List
+                    size="small"
+                    // bordered
+                    dataSource={members}
+                    renderItem={(item) => 
+                        <List.Item>
+                        <div className='w-11/12 mx-auto flex flex-row justify-between'>
+                            <Link>{item.name}</Link>
+                            { isAdmin ? (
+                                <div className='flex flex-row gap-2'>
+                                    <Button loading={loading} onClick={() => {toAdmin(item)}}>To Admin</Button>
+                                    <Button loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
+                                </div>
+                            ): null}
+                        </div>
+                        </List.Item>
+                    }
+                />
+            </div>
+        {/* 日志列表 */}
+        <Modal 
+            open={openLog}
+            title = "System Logs"
+            onCancel = {handleCloseLog}
+            onOk = {handleCloseLog}
+            width = {800}
+            footer={[]}
+        >
+            <List
+                bordered
+                dataSource={logs}
+                renderItem={(log) => (
+                    <List.Item className='flex flex-row'>
+                        <Typography.Text mark>[{timeFormat(log.time)}]</Typography.Text> 
+                        <Link to={`/user/${log.uid}`}>
+                            [ {log.name} ] : 
+                        </Link>
+                        {log.info}
+                    </List.Item>
                 )}
-              </div>
-            </>
-          )}
+            />
+        </Modal>
+
         {/* 添加成员 dom */}
         <Modal
             open={isOpenInvite}
             title="Add Member"
-            onCancel={() => setIsOpenInvite(false)}
+            onCancel={closeInvite}
             onOk={onInvite}
             okText="Add"
         >
@@ -104,6 +442,26 @@ const WorkspacePermission = () => {
                 onChange={changeInviteUser}
                 placeholder="The uid of the target user"
                 />
+        </Modal>
+        {/* owner 转让 */}
+        <Modal
+            open={openTransfer}
+            title="Transfer Owner To Other Admin"
+            onCancel={() => {setOpenTransfer(false); setNewOwner('')}}
+            onOk={onTransfer}
+            okText="submit"
+            okButtonProps={{
+                loading: loading,
+              }}
+            >
+            <Menu
+                onClick={onClickTransfer}
+                style={{
+                    // width: 256,
+                }}
+                mode="vertical"
+                items={transferItems}
+            />
         </Modal>
 
         </div>

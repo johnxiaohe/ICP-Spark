@@ -26,7 +26,7 @@ const WorkspaceDetail = () => {
   const EditRef = useRef(null)
 
   const [menuContent, setMenuContent] = useState('')
-  const [currentMenu, setCurrentMenu] = useState('Home')
+  const [currentMenu, setCurrentMenu] = useState('Permission')
   
   // 空间信息
   const [spaceInfo, setSpaceInfo] = useState({})
@@ -36,7 +36,6 @@ const WorkspaceDetail = () => {
     // 空间内容信息
   const [summery, setSummery] = useState([])
   const [currentId, setCurrentId] = useState(0)
-
 
   const [spaceModel, setSpaceModel] = useState('Private')
   const [calledSub, setCalledSub] = useState(false)
@@ -369,12 +368,21 @@ const WorkspaceDetail = () => {
         setMenuContent(<WorkspaceHome spaceInfo={spaceInfo} summary={summery} isAdmin={isAdmin} isMember={isMember} updateSpaceInfo={setSpaceInfo} />)
         break;
       case 'Permission':
-        setMenuContent(<WorkspacePermission></WorkspacePermission>)
+        setMenuContent(<WorkspacePermission 
+          spaceInfo={spaceInfo} 
+          spaceModel={spaceModel} 
+          admins={admins}
+          members={members}
+          isAdmin={isAdmin} 
+          updateSpaceInfo={getSpaceInfo} 
+          updateAdmins={getAdmins} 
+          updateMembers={getMembers}
+          ></WorkspacePermission>)
         break;
       case 'Statistics':
         break;
     }
-  }, [spaceModel, currentMenu])
+  }, [spaceModel, currentMenu, admins,members,spaceModel,isAdmin,isMember])
 
   // 更新当前内容
   useEffect(() => {

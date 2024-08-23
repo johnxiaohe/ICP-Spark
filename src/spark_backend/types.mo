@@ -320,6 +320,8 @@ module{
         collectionCall: shared(index: Nat) -> async(Resp<Collection>);
         quit: shared() -> async(Bool);
         views: shared(indexs: [Nat]) -> async([ViewResp]);
+
+        transfer: shared(newUid: Text, newName: Text) -> async(Resp<Bool>)
     };
 
     public type PortalActor = actor {

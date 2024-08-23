@@ -31,7 +31,7 @@ import configs "configs";
 
 // 空间管理 由 空间
 shared({caller}) actor class WorkSpace(
-    _creater: Principal,
+    _createrName: Text,
     _createrPid: Principal,
     _name: Text, 
     _avatar: Text, 
@@ -60,6 +60,7 @@ shared({caller}) actor class WorkSpace(
     // 第三方类型声明
     type Resp<T> = types.Resp<T>;
     type User = types.User;
+    type BaseUserInfo = types.BaseUserInfo;
 
     type Collection = types.Collection;
     type UserDetail = types.UserDetail;
@@ -83,7 +84,7 @@ shared({caller}) actor class WorkSpace(
     tokenMap.put("ICP", icpLedger);
     tokenMap.put("CYCLES", cyclesLedger);
 
-    private stable var superUid : Text = Principal.toText(_creater); // user canister id
+    private stable var superUid : Text = Principal.toText(caller); // user canister id
     private stable var superPid : Text = Principal.toText(_createrPid);
     private stable var name : Text = _name;
     private stable var avatar : Text = _avatar;
@@ -121,7 +122,7 @@ shared({caller}) actor class WorkSpace(
     var zeroLog: Log = {
         time = Time.now();
         info = "created workspace; name: " # name;
-        opeater = superPid;
+        opeater = _createrName # ":" # superUid;
     };
     _syslog := List.push(zeroLog, _syslog);
     // 内容收入、收入分配日志
@@ -143,7 +144,7 @@ shared({caller}) actor class WorkSpace(
     public shared({caller}) func initArgs(): async(Blob){
         if(Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
             return to_candid(
-                Principal.fromText(superUid),
+                _createrName,
                 Principal.fromText(superPid),
                 name,
                 avatar,
@@ -201,12 +202,17 @@ shared({caller}) actor class WorkSpace(
     };
 
     // pid \ loginfo
-    private func pushSysLog(opeater: Text, info: Text){
+    private func pushSysLog(opeater: Text, info: Text): async(){
+        let uid = getMemberUid(opeater);
+        let userActor: UserActor = actor(uid);
+        // todo: call user add workspace
+        let userResp = await userActor.info();
         let log : Log = {
             time = Time.now();
-            info = info;
-            opeater = opeater;
+            info = info; // 带名称
+            opeater = userResp.data.name # ":" # uid; // name:uid
         };
+
         _syslog := List.push(log, _syslog);
     };
 
@@ -330,7 +336,7 @@ shared({caller}) actor class WorkSpace(
         avatar := newAvatar;
         desc := newDesc;
 
-        pushSysLog(callerPid, "update workspace info; name: " # name);
+        ignore pushSysLog(callerPid, "update workspace info; new name: " # name);
 
         return {
             code = 200;
@@ -358,10 +364,10 @@ shared({caller}) actor class WorkSpace(
         };
         // 公开度在缩小，则需要判断是否合法
         if(newShowModel == #Private and showModel != #Private and Map.size(consumerUidMap) > 0){
-            if(showModel == #Payment){
+            if(showModel == #Subscribe){
                 return {
                     code = 400;
-                    msg = "payment model can not change to private";
+                    msg = "Subscribe model can not change to private";
                     data = false;
                 };
             }else{
@@ -376,11 +382,11 @@ shared({caller}) actor class WorkSpace(
             };
         };
         showModel := newShowModel;
-        if(showModel == #Payment){
+        if(showModel == #Subscribe){
             price := newPrice;
         };
 
-        pushSysLog( Principal.toText(caller) , "update workspace show model");
+        ignore pushSysLog( Principal.toText(caller) , "update workspace show model" );
 
         return {
             code = 200;
@@ -436,23 +442,23 @@ shared({caller}) actor class WorkSpace(
                 Map.delete(memberIdMap, thash, callerUid);
                 Map.delete(adminMap, thash, pid);
                 Map.delete(memberMap, thash, pid);
-                pushSysLog(pid, "quit workspace by self");
+                ignore pushSysLog(pid, "quit workspace by self");
             };
         };
         return true;
     };
 
     // update super admin
-    public shared({caller}) func transfer(uid: Text): async(Resp<Bool>){
-        let callerPid = Principal.toText(caller);
-        if (not isSuper(callerPid)){
+    public shared({caller}) func transfer(newUid: Text, newName: Text): async(Resp<Bool>){
+        let callerUid = Principal.toText(caller);
+        if (not isSuper(callerUid)){
             return {
                 code = 403;
-                msg = "permision denied";
+                msg = "You are not owner of this workspace";
                 data = false;
             };
         };
-        switch(Map.get(memberIdMap, thash, uid)){
+        switch(Map.get(memberIdMap, thash, newUid)){
             case(null){
                 return {
                     code = 404;
@@ -461,7 +467,9 @@ shared({caller}) actor class WorkSpace(
                 };
             };
             case(?pid){
-                let userActor : UserActor = actor(uid);
+                let oldSuperPid = superPid;
+
+                let userActor : UserActor = actor(newUid);
                 let result: Bool = await userActor.reciveWns();
                 if (not result){
                     return {
@@ -470,27 +478,15 @@ shared({caller}) actor class WorkSpace(
                         data = false;
                     };
                 };
+
                 Map.set(memberIdMap, thash, superUid, superPid);
                 Map.set(adminMap, thash, superPid, superUid);
-                superUid := uid;
+                superUid := newUid;
                 superPid := pid;
                 Map.delete(adminMap, thash, superPid);
                 Map.delete(memberMap, thash, superPid);
                 Map.delete(memberIdMap, thash, superUid);
-                pushSysLog(callerPid, "transfered owner to {" # superPid # "}");
-                // 添加控制器（用户、cycles监控黑洞）
-                let controllers: ?[Principal] = ?[Principal.fromText(superUid), Principal.fromText(configs.BLACK_HOLE_ID)];
-                let settings : ic.CanisterSettings = {
-                controllers = controllers;
-                compute_allocation = null;
-                freezing_threshold = null;
-                memory_allocation = null;
-                };
-                let params: ic.UpdateSettingsParams = {
-                    canister_id = Principal.fromActor(this);
-                    settings = settings;
-                };
-                await IC.update_settings(params);
+                ignore pushSysLog(oldSuperPid, "transfered owner to {" # newName # ":" # newUid # "}");
                 return {
                     code = 200;
                     msg = "";
@@ -500,12 +496,12 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func members(): async(Resp<[User]>){
-        var result : List.List<User> = List.nil();
+    public shared func members(): async(Resp<[BaseUserInfo]>){
+        var result : List.List<BaseUserInfo> = List.nil();
         for(uid in Map.vals(memberMap)){
             let userActor: UserActor = actor(uid);
-            let userResp = await userActor.info();
-            let userInfo : User = userResp.data;
+            let userResp = await userActor.baseUserInfo();
+            let userInfo : BaseUserInfo = userResp.data;
             result := List.push(userInfo, result);
         };
         return {
@@ -515,22 +511,22 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func admins(): async(Resp<[User]>){
-        var result : List.List<User> = List.nil();
+    public shared func admins(): async(Resp<[BaseUserInfo]>){
+        var result : List.List<BaseUserInfo> = List.nil();
         let superActor: UserActor = actor(superUid);
-        let superResp = await superActor.info();
-        let superInfo : User = superResp.data;
+        let superResp = await superActor.baseUserInfo();
+        let superInfo : BaseUserInfo = superResp.data;
         result := List.push(superInfo, result);
         for(uid in Map.vals(adminMap)){
             let userActor: UserActor = actor(uid);
-            let userResp = await userActor.info();
-            let userInfo : User = userResp.data;
+            let userResp = await userActor.baseUserInfo();
+            let userInfo : BaseUserInfo = userResp.data;
             result := List.push(userInfo, result);
         };
         return {
             code = 200;
             msg = "";
-            data = List.toArray(result);
+            data = List.toArray(List.reverse(result));
         };
     };
 
@@ -568,7 +564,7 @@ shared({caller}) actor class WorkSpace(
             };
         };
 
-        pushSysLog(Principal.toText(caller), "add member: {" # pid # "} with role: " # role);
+        ignore pushSysLog(Principal.toText(caller), "add member: {" # userResp.data.name # ":" # uid # "} with role: " # role);
 
         return {
             code = 200;
@@ -577,7 +573,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func delMember(uid: Text): async(Resp<Bool>){
+    public shared({caller}) func delMember(name: Text, uid: Text): async(Resp<Bool>){
         if(not isAdmin(Principal.toText(caller))){
             return {
                 code = 403;
@@ -628,7 +624,7 @@ shared({caller}) actor class WorkSpace(
                 Map.delete(memberIdMap, thash, uid);
                 Map.delete(adminMap, thash, pid);
                 Map.delete(memberMap, thash, pid);
-                pushSysLog(Principal.toText(caller), "del member: {" # pid # "}");
+                ignore pushSysLog(Principal.toText(caller), "del member: {" # name # ":" # uid # "}");
                 return {
                     code = 200;
                     msg = "";
@@ -638,7 +634,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func updatePermission(uid: Text, role: Text): async(Resp<Bool>){
+    public shared({caller}) func updatePermission(name: Text, uid: Text, role: Text): async(Resp<Bool>){
         if(not isAdmin(Principal.toText(caller))){
             return {
                 code = 403;
@@ -690,7 +686,7 @@ shared({caller}) actor class WorkSpace(
                     };
                 };
 
-                pushSysLog(Principal.toText(caller), "update member : {" # pid # "} with role: " # role);
+                ignore pushSysLog(Principal.toText(caller), "update member : {" # name # ":"# uid # "} with role: " # role);
 
                 return {
                     code = 200;

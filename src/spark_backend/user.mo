@@ -900,7 +900,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared({caller}) func createWorkNs(name: Text, desc: Text, avatar: Text, model: types.ShowModel, price: Nat): async(Resp<Bool>){
+    public shared({caller}) func createWorkNs(nsName: Text, desc: Text, avatar: Text, model: types.ShowModel, price: Nat): async(Resp<Bool>){
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -914,7 +914,7 @@ shared({caller}) actor class UserSpace(
         if (model == #Public or model == #Private){
             payPrice := 0;
         };
-        let workspaceActor = await WorkSpace.WorkSpace(Principal.fromActor(this), owner, name, avatar, desc,ctime, model, payPrice);
+        let workspaceActor = await WorkSpace.WorkSpace(name, owner, nsName, avatar, desc,ctime, model, payPrice);
         let workspaceActorId = Principal.fromActor(workspaceActor);
 
         // add controllers
@@ -1023,10 +1023,56 @@ shared({caller}) actor class UserSpace(
         };
     };
 
+    public shared({caller}) func transferNs(wid: Text, newUid: Text, newName: Text): async Resp<Bool>{
+        if (not Principal.equal(caller,owner)){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = false;
+            };
+        };
+
+        switch(Map.get(_workspaces, thash, wid)){
+            case(null){return {code=404;msg="target workspace not found";data=false}};
+            case(?wns){
+                let workActor: WorkActor = actor(wid);
+                let result = await workActor.transfer(newUid, newName);
+                if (result.code != 200){
+                    return result;
+                };
+                let nWns : MyWorkspace = {
+                    wid=wid;
+                    owner=false;
+                    start=wns.start;
+                };
+                Map.set(_workspaces, thash, wid, nWns);
+            };
+        };
+
+        // 添加控制器（用户、cycles监控黑洞）
+        let controllers: ?[Principal] = ?[Principal.fromText(newUid), Principal.fromText(configs.BLACK_HOLE_ID), Principal.fromText(configs.SPARK_CAIOPS_ID)];
+        let settings : ic.CanisterSettings = {
+            controllers = controllers;
+            compute_allocation = null;
+            freezing_threshold = null;
+            memory_allocation = null;
+        };
+        let params: ic.UpdateSettingsParams = {
+            canister_id = Principal.fromText(wid);
+            settings = settings;
+        };
+        await IC.update_settings(params);
+        return {
+            code = 200;
+            msg = "";
+            data = true;
+        };
+    };
+
     // 接收他人转移过来的工作空间 由workspace canister调用
     public shared({caller}) func reciveWns(): async Bool{
-        let callerPid = Principal.toText(caller);
-        switch(Map.get(_workspaces, thash, callerPid)){
+        let wid = Principal.toText(caller);
+        switch(Map.get(_workspaces, thash, wid)){
             case(null){
                 return false;
             };
@@ -1094,7 +1140,7 @@ shared({caller}) actor class UserSpace(
         return { 
             code = 200;
             msg = "";
-            data = List.toArray(result);
+            data = List.toArray(List.reverse(result));
         };
     };
 
@@ -1149,7 +1195,7 @@ shared({caller}) actor class UserSpace(
         return { 
             code = 200;
             msg = "";
-            data = List.toArray(result);
+            data = List.toArray(List.reverse(result));
         };
     };
 
