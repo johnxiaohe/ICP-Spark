@@ -192,6 +192,7 @@ const WorkspaceDetail = () => {
   }
 
   const handleClickBar = (item) =>{
+    navigate(`/space/${params.id}`)
     setCurrentMenu(item.key)
   }
 
