@@ -292,6 +292,9 @@ const WorkspacePermission = (props) => {
 
     return (
         <div className="flex flex-col w-full gap-5">
+            <div className='mt-5 text-2xl mx-auto'>
+                Permission
+            </div>
             <div className='flex flex-row w-11/12 h-48 mt-5 mx-auto '>
                 <div className='flex flex-col basis-1/3'>
                     <p className='ml-12 mt-5 text-base'>Module</p>
@@ -335,9 +338,9 @@ const WorkspacePermission = (props) => {
                         name={spaceInfo.name}
                         src={ownerInfo.avatar}
                         upload={false}
-                        className="w-40 h-40 rounded-full"
+                        className="w-40 h-40 rounded-full mx-auto"
                     />
-                    <Link className="font-medium ml-8" to={`/user/${spaceInfo.super}`}>
+                    <Link className="font-medium mx-auto" to={`/user/${spaceInfo.super}`}>
                         Owner: {ownerInfo.name}
                     </Link>
                 </div>
@@ -356,17 +359,17 @@ const WorkspacePermission = (props) => {
                 </div>
             </div>
             <div className='flex flex-col w-11/12 h-48 mt-5 mx-auto '>
-                <Divider orientation="left">Admins</Divider>
+                <Divider orientation="content">Admins({admins.length})</Divider>
                 <List
-                    size="small"
+                    // size="large"
                     // bordered
                     dataSource={admins}
                     renderItem={(item) => 
                     <List.Item>
-                        <div className='w-11/12 mx-auto flex flex-row justify-between'>
-                            <Link>{item.name}</Link>
-                            { isOwner && item.id != spaceInfo.super ? (
-                                <div className='flex flex-row gap-2'>
+                        <div className='w-11/12 mx-auto flex flex-row justify-between rounded-lg hover:bg-slate-100 h-10'>
+                            <Link className='ml-10 my-auto text-xl'>{item.name}</Link>
+                            { isOwner && item.id == spaceInfo.super ? (
+                                <div className='flex flex-row my-auto gap-2 mr-10'>
                                     <Button loading={loading} onClick={() => {toMember(item)}}>To Member</Button>
                                     <Button loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
                                 </div>
@@ -375,17 +378,17 @@ const WorkspacePermission = (props) => {
                     </List.Item>
                 }
                 />
-                <Divider orientation="left">Members</Divider>
+                <Divider orientation="content">Members({members.length})</Divider>
                 <List
                     size="small"
                     // bordered
                     dataSource={members}
                     renderItem={(item) => 
                         <List.Item>
-                        <div className='w-11/12 mx-auto flex flex-row justify-between'>
-                            <Link>{item.name}</Link>
+                        <div className='w-10/12 mx-auto flex flex-row justify-between rounded-lg hover:bg-slate-100 h-10'>
+                            <Link className='ml-10 my-auto text-xl'>{item.name}</Link>
                             { isAdmin ? (
-                                <div className='flex flex-row gap-2'>
+                                <div className='flex flex-row my-auto gap-2 mr-10'>
                                     <Button loading={loading} onClick={() => {toAdmin(item)}}>To Admin</Button>
                                     <Button loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
                                 </div>

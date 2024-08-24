@@ -173,7 +173,8 @@ module{
     };
 
     public type EditorRanking = {
-        pid: Text;
+        uid: Text;
+        name: Text;
         count: Nat;
     };
 

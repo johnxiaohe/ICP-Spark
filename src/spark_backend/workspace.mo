@@ -9,6 +9,7 @@ import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Cycles "mo:base/ExperimentalCycles";
 import Option "mo:base/Option";
+import Iter "mo:base/Iter";
 
 import Map "mo:map/Map";
 import { nhash;thash } "mo:map/Map";
@@ -114,7 +115,7 @@ shared({caller}) actor class WorkSpace(
     private stable var traitMap = Map.new<Nat, ContentTrait>();
     private stable var contentViewMap = Map.new<Nat, Nat>();
     private stable var contentEditMap = Map.new<Nat, Nat>();
-    private stable var userEditMap = Map.new<Text, Nat>();
+    private stable var userEditMap = Map.new<Text, EditorRanking>();
 
     // 操作日志数据
     // 创建、转让、更新canister元数据。成员加入、更新和退出
@@ -957,7 +958,7 @@ shared({caller}) actor class WorkSpace(
 
     };
 
-    public shared({caller}) func updateContent(id: Nat, newName: Text, newContent: Text): async (Resp<Content>){
+    public shared({caller}) func updateContent(id: Nat, newName: Text, newContent: Text, username: Text): async (Resp<Content>){
         let callerPid = Principal.toText(caller);
         let callerUid = getMemberUid(callerPid);
         if (not isMember(callerPid) or Text.equal(callerUid, "")){
@@ -1002,12 +1003,12 @@ shared({caller}) actor class WorkSpace(
                         Map.set(contentEditMap, nhash, content.id, count + 1);
                     };
                 };
-                switch(Map.get(userEditMap, thash, callerPid)){
+                switch(Map.get(userEditMap, thash, callerUid)){
                     case(null){
-                        Map.set(userEditMap, thash, callerPid, 1);
+                        Map.set(userEditMap, thash, callerUid, {uid=callerUid;name=username;count=1;});
                     };
-                    case(?count){
-                        Map.set(userEditMap, thash, callerPid, count + 1);
+                    case(?oldCount){
+                        Map.set(userEditMap, thash, callerUid, {uid=callerUid;name=username;count=oldCount.count+1;});
                     };
                 };
 
@@ -1355,18 +1356,10 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared func editRanking(): async Resp<[EditorRanking]>{
-        var result : List.List<EditorRanking> = List.nil();
-        Map.forEach<Text,Nat>(userEditMap, func (pid,count)  {
-            let ranking: EditorRanking = {
-                pid = pid;
-                count = count;
-            };
-            result := List.push(ranking, result);
-        });
         return {
             code = 200;
             msg = "";
-            data = List.toArray(result);
+            data = Iter.toArray(Map.vals(userEditMap));
         };
     };
 
@@ -1392,8 +1385,12 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func cycles(): async Nat{
-        return Cycles.balance();
+    public shared func cycles(): async Resp<Nat>{
+        return {
+            code = 200;
+            msg = "";
+            data = Cycles.balance();
+        };
     };
 
     public shared func balance(token: Text): async Resp<Nat>{

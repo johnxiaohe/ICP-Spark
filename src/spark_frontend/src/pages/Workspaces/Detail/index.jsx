@@ -10,6 +10,7 @@ import { PlusOutlined,MenuOutlined } from '@ant-design/icons'
 import PostDetail from '@/components/PostDetail'
 import WorkspaceHome from '../Menus/Home'
 import WorkspacePermission from '../Menus/Permission'
+import WorkspaceStatistics from '../Menus/Statistics'
 
 import {
   formatICPAmount
@@ -26,7 +27,7 @@ const WorkspaceDetail = () => {
   const EditRef = useRef(null)
 
   const [menuContent, setMenuContent] = useState('')
-  const [currentMenu, setCurrentMenu] = useState('Permission')
+  const [currentMenu, setCurrentMenu] = useState('Statistics')
   
   // 空间信息
   const [spaceInfo, setSpaceInfo] = useState({})
@@ -349,7 +350,6 @@ const WorkspaceDetail = () => {
     getSpaceInfo()
     getSummery()
     if (agent) {
-      // getBalance('ICP')
       getAdmins()
       getMembers()
     }
@@ -380,6 +380,7 @@ const WorkspaceDetail = () => {
           ></WorkspacePermission>)
         break;
       case 'Statistics':
+        setMenuContent(<WorkspaceStatistics spaceInfo={spaceInfo} isMember={isMember}></WorkspaceStatistics>)
         break;
     }
   }, [spaceModel, currentMenu, admins,members,spaceModel,isAdmin,isMember])
