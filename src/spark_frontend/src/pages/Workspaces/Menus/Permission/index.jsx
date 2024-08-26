@@ -295,11 +295,24 @@ const WorkspacePermission = (props) => {
             <div className='mt-5 text-2xl mx-auto'>
                 Permission
             </div>
-            <div className='flex flex-row w-11/12 h-48 mt-5 mx-auto '>
-                <div className='flex flex-col basis-1/3'>
-                    <p className='ml-12 mt-5 text-base'>Module</p>
-                    <Radio.Group className="ml-12 mt-5" disabled={radioLoading} onChange={onModuleChange} value={currentModule}>
-                        <Space direction="vertical">
+            <div className='flex flex-col w-11/12 mx-auto '>
+                <Divider orientation="content">Owner</Divider>
+                <div className='flex flex-row justify-between w-full'>
+                <Link className="font-medium ml-10 my-auto" to={`/user/${spaceInfo.super}`}>
+                        {ownerInfo.name  || 'loading'}
+                </Link>
+                {isOwner ? (
+                    <Button onClick={() => {setOpenTransfer(true)}}>transfer owner</Button>
+                    ) 
+                    :
+                    null
+                }
+                </div>
+
+                <Divider orientation="content">Module</Divider>
+                <div className='flex flex-row justify-between w-full '>
+                    <Radio.Group className="ml-10 my-auto w-3/4 h-10" disabled={radioLoading} onChange={onModuleChange} value={currentModule}>
+                        <Space >
                             <Radio value={'Public'}>
                                 <Tooltip title="Everyone can access the information in the space">
                                     Public
@@ -326,50 +339,29 @@ const WorkspacePermission = (props) => {
                         </Space>
                     </Radio.Group>
                     {changeModule ? (
-                        <div className='flex flex-row gap-2 mx-auto mt-2'>
+                        <div className='flex flex-row gap-2'>
                             <Button onClick={cancelModuleChange}>cancel</Button>
                             <Button onClick={submitModuleChange} loading={radioLoading}>submit</Button>
                         </div>
                     ): null}
-                    
                 </div>
-                <div className='flex flex-col basis-1/3'>
-                    <CommonAvatar
-                        name={spaceInfo.name}
-                        src={ownerInfo.avatar}
-                        upload={false}
-                        className="w-40 h-40 rounded-full mx-auto"
-                    />
-                    <Link className="font-medium mx-auto" to={`/user/${spaceInfo.super}`}>
-                        Owner: {ownerInfo.name}
-                    </Link>
-                </div>
-                <div className='flex flex-col basis-1/3 gap-2 '>
-                    <p className='mt-5 text-base'>Actions</p>
-                    {isOwner ? (
-                        <Button onClick={() => {setOpenTransfer(true)}}>transfer owner</Button>
-                        ) 
-                        :
-                        null
-                    }
-                    
-                    <Button onClick={handleInvite}>add member</Button>
 
+                <Divider orientation="content">Actions</Divider>
+                <div className='flex flex-row w-full gap-1 ml-10'>
+                    <Button onClick={handleInvite}>add member</Button>
                     <Button loading={loading} onClick={handleOpenLog}>System Logs</Button>
                 </div>
             </div>
-            <div className='flex flex-col w-11/12 h-48 mt-5 mx-auto '>
+            <div className='flex flex-col w-11/12 mx-auto '>
                 <Divider orientation="content">Admins({admins.length})</Divider>
                 <List
-                    // size="large"
-                    // bordered
                     dataSource={admins}
                     renderItem={(item) => 
                     <List.Item>
-                        <div className='w-11/12 mx-auto flex flex-row justify-between rounded-lg hover:bg-slate-100 h-10'>
-                            <Link className='ml-10 my-auto text-xl'>{item.name}</Link>
+                        <div className='w-full my-auto flex flex-row justify-between'>
+                            <Link className='ml-10'>{item.name}</Link>
                             { isOwner && item.id == spaceInfo.super ? (
-                                <div className='flex flex-row my-auto gap-2 mr-10'>
+                                <div className='flex flex-row gap-1'>
                                     <Button loading={loading} onClick={() => {toMember(item)}}>To Member</Button>
                                     <Button loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
                                 </div>
@@ -380,15 +372,13 @@ const WorkspacePermission = (props) => {
                 />
                 <Divider orientation="content">Members({members.length})</Divider>
                 <List
-                    size="small"
-                    // bordered
                     dataSource={members}
                     renderItem={(item) => 
                         <List.Item>
-                        <div className='w-10/12 mx-auto flex flex-row justify-between rounded-lg hover:bg-slate-100 h-10'>
-                            <Link className='ml-10 my-auto text-xl'>{item.name}</Link>
+                        <div className='w-full my-auto flex flex-row justify-between'>
+                            <Link className='ml-10'>{item.name}</Link>
                             { isAdmin ? (
-                                <div className='flex flex-row my-auto gap-2 mr-10'>
+                                <div className='flex flex-row gap-1'>
                                     <Button loading={loading} onClick={() => {toAdmin(item)}}>To Admin</Button>
                                     <Button loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
                                 </div>
@@ -414,7 +404,7 @@ const WorkspacePermission = (props) => {
                     <List.Item className='flex flex-row'>
                         <Typography.Text mark>[{timeFormat(log.time)}]</Typography.Text> 
                         <Link to={`/user/${log.uid}`}>
-                            [ {log.name} ] : 
+                            [ {log.name} ] 
                         </Link>
                         {log.info}
                     </List.Item>

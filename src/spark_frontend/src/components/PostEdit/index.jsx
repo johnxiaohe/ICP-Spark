@@ -93,7 +93,7 @@ const PostEdit = React.forwardRef((props, ref) => {
         { id: props.spaceId, agent },
         'workspace',
         'updateContent',
-        [BigInt(props.content.id), title, content],
+        [BigInt(props.content.id), title, content, authUserInfo.name],
       )
     }
     await saveTrait()

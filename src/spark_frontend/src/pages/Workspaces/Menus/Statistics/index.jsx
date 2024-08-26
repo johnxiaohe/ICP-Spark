@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import { Tooltip,Divider,List } from 'antd'
+import { Tooltip,Divider,List, Modal } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import { formatICPAmount,formatCyclesAmount } from '@/utils/dataFormat'
 
@@ -23,6 +23,9 @@ const WorkspaceStatistics = (props) => {
     
     const [viewRank, setViewRank] = useState([])
     const [editRank, setEditRank] = useState([])
+
+    const [openIncomeLog, setOpenIncomeLog] = useState(false)
+    const [incomeLogs, setIncomeLogs] = useState([])
 
     const getCount = async () => {
         const result = await fetchICApi(
@@ -58,10 +61,6 @@ const WorkspaceStatistics = (props) => {
       }
     }
 
-    const getIncomeLog = async() =>{
-
-    }
-
     const getViewRank = async() => {
       const result = await fetchICApi(
         { id: params.id, agent },
@@ -81,6 +80,21 @@ const WorkspaceStatistics = (props) => {
         setEditRank(result.data || [])
       }
     }
+
+    const openIncomewindow = () => {
+        setOpenIncomeLog(true)
+    }
+
+    const getIncomeLog = async() =>{
+      const result = await fetchICApi(
+        { id: params.id, agent },
+        'workspace',
+        'editRanking',)
+      if (result.code === 200) {
+        setIncomeLogs(result.data || [])
+      }
+    }
+
     useEffect(()=>{
       if(isMember){
         getCount()
@@ -96,57 +110,51 @@ const WorkspaceStatistics = (props) => {
         <div className='mt-5 text-2xl mx-auto'>
           Statistics
         </div>
-        <div className='flex flex-col w-11/12 mx-auto h-60'>
-          <div className='text-xl mx-auto'>
-            Statistics
-          </div>
-          <div className = 'flex flex-row flex-wrap gap-3 mt-5'>
-              <div className = 'w-5/12 h-1/4 ml-11 text-xl flex flex-row'>
-                <div className='w-1/2'>Views</div>
-                <div className='w-1/2'>{count.viewcount}</div>
-              </div>
-              <div className = 'w-5/12 h-1/4 ml-11 text-xl flex flex-row'>
-                <div className='w-1/2'>Subscriptions</div>
-                <div className='w-1/2'>{count.subscribecount}</div>
-              </div>
-              <div className = 'w-5/12 h-1/4 ml-11 text-xl flex flex-row'>
-                <div className='w-1/2'>MemberCount</div>
-                <div className='w-1/2'>{count.membercount}</div>
-              </div>
-              <div className = 'w-5/12 h-1/4 ml-11 text-xl flex flex-row'>
-                <div className='w-1/2'>EditCount</div>
-                <div className='w-1/2'>{count.editcount}</div>
-              </div>
-              <div className = 'w-5/12 h-1/4 ml-11 text-xl flex flex-row'>
-                <div className='w-1/2'>
-                  <Tooltip title="Click to view income log">
-                    <span className='cursor-pointer border-gray-300 border-solid border-b-4'>Income</span>
-                  </Tooltip>
+        <div className='flex flex-col w-11/12 mx-auto'>
+          <Divider orientation="content">Statistics</Divider>
+          <div className = 'flex flex-row flex-wrap gap-3'>
+                <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
+                  <div className='w-1/2'>Views</div>
+                  <div className='w-1/2'>{count.viewcount}</div>
                 </div>
-                <div className='w-1/2'>{count.income}</div>
-              </div>
-              <div className = 'w-5/12 h-1/4 ml-11 text-xl flex flex-row'>
-                <div className='w-1/2'>Allocated</div>
-                <div className='w-1/2'>{count.outgiving}</div>
-              </div>
-              <div className = 'w-5/12 h-1/4 ml-11 text-xl flex flex-row'>
-                <div className='w-1/2'>Balance</div>
-                <div className='w-1/2'>{balance}</div>
-              </div>
-              <div className = 'w-5/12 h-1/4 ml-11 text-xl flex flex-row'>
-                <div className='w-1/2'>Cycles</div>
-                <div className='w-1/2'>{cycles}</div>
-              </div>
+                <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
+                  <div className='w-1/2'>Subscriptions</div>
+                  <div className='w-1/2'>{count.subscribecount}</div>
+                </div>
+                <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
+                  <div className='w-1/2'>MemberCount</div>
+                  <div className='w-1/2'>{count.membercount}</div>
+                </div>
+                <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
+                  <div className='w-1/2'>EditCount</div>
+                  <div className='w-1/2'>{count.editcount}</div>
+                </div>
+                <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
+                  <div className='w-1/2'>
+                    <Tooltip title="Click to view income log">
+                      <span className='cursor-pointer border-gray-300 border-solid border-b-4'>Income</span>
+                    </Tooltip>
+                  </div>
+                  <div className='w-1/2'>{count.income}</div>
+                </div>
+                <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
+                  <div className='w-1/2'>Allocated</div>
+                  <div className='w-1/2'>{count.outgiving}</div>
+                </div>
+                <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
+                  <div className='w-1/2'>Balance</div>
+                  <div className='w-1/2'>{balance}</div>
+                </div>
+                <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
+                  <div className='w-1/2'>Cycles</div>
+                  <div className='w-1/2'>{cycles}</div>
+                </div>
           </div>
-        </div>
 
-        <div className='flex flex-col w-11/12 justify-between mx-auto'>
-          <div className='text-xl mx-auto'>
-            Rank
-          </div>
-          <div className='flex flex-row w-11/12 mx-auto gap-5'>
+          <Divider orientation="content">Rank</Divider>
+          <div className='flex flex-row w-full mx-auto gap-5'>
             <div className='w-3/5 h-full'>
-              <Divider orientation="content">View Rank</Divider>
+              <Divider orientation="content">View</Divider>
               <List
                 dataSource={viewRank}
                 renderItem={(item) => (
@@ -164,7 +172,7 @@ const WorkspaceStatistics = (props) => {
               />
             </div>
             <div className='w-3/5 h-full'>
-              <Divider orientation="content">Edit Rank</Divider>
+              <Divider orientation="content">Edit</Divider>
               <List
                 dataSource={editRank}
                 renderItem={(item) => (
@@ -183,6 +191,11 @@ const WorkspaceStatistics = (props) => {
             </div>
           </div>
         </div>
+        <Modal
+          open={openIncomeLog}
+        >
+
+        </Modal>
       </div>
     )
 }
