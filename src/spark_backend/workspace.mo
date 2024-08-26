@@ -841,6 +841,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
+
     // 由用户直接调用的  创作内容管理相关api
     public shared({caller}) func createContent(name: Text, parentId : Nat, sort: Nat): async (Resp<Content>){
         let callerPid = Principal.toText(caller);
