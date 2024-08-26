@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import { Tooltip,Divider,List, Modal, Button } from 'antd'
+import { Tooltip,Divider,List, Modal, Button, Table, message } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import { formatICPAmount,formatCyclesAmount } from '@/utils/dataFormat'
+import { timeFormat } from '../../../../utils/dataFormat'
 
 // 展示统计信息：访问量、订阅量、访问排名、编辑排名、总收入、总分配支出、空间余额、金额分配、收入日志
 // 上方蓝色区域展示：访问量、订阅量、收入、支出、余额、可查看收入日志
@@ -26,6 +27,77 @@ const WorkspaceStatistics = (props) => {
 
     const [openIncomeLog, setOpenIncomeLog] = useState(false)
     const [incomeLogs, setIncomeLogs] = useState([])
+
+    const [openAllocatedLog, setOpenAllocatedLog] = useState(false)
+    const [allocatedLogs, setAllocatedLogs] = useState([])
+
+    const [openAllot, setOpenAllot] = useState(false)
+
+    const incomeclomes = [
+      {
+        title: 'time',
+        dataIndex: 'timeStr',
+        key: 'timeStr',
+      },
+      {
+        title: 'name',
+        dataIndex: 'name',
+        key: 'name',
+      },
+      {
+        title: 'uid',
+        dataIndex: 'uid',
+        key: 'uid',
+      },      
+      {
+        title: 'content',
+        dataIndex: 'info',
+        key: 'info',
+      },      
+      {
+        title: 'token',
+        dataIndex: 'token',
+        key: 'token',
+      },
+      {
+        title: 'amount',
+        dataIndex: 'amount',
+        key: 'amount',
+      },
+    ];
+
+    const allocatedclomes = [
+      {
+        title: 'time',
+        dataIndex: 'timeStr',
+        key: 'timeStr',
+      },   
+      {
+        title: 'receiver',
+        dataIndex: 'receiver',
+        key: 'receiver',
+      },
+      {
+        title: 'uid',
+        dataIndex: 'uid',
+        key: 'uid',
+      },
+      {
+        title: 'token',
+        dataIndex: 'token',
+        key: 'token',
+      },
+      {
+        title: 'amount',
+        dataIndex: 'amount',
+        key: 'amount',
+      },
+      {
+        title: 'remark',
+        dataIndex: 'remark',
+        key: 'remark',
+      },
+    ]
 
     const getCount = async () => {
         const result = await fetchICApi(
@@ -81,17 +153,63 @@ const WorkspaceStatistics = (props) => {
       }
     }
 
-    const openIncomewindow = () => {
-        setOpenIncomeLog(true)
+    const openIncomewindow = async () => {
+      await getIncomeLog()
+      setOpenIncomeLog(true)
     }
 
     const getIncomeLog = async() =>{
       const result = await fetchICApi(
         { id: params.id, agent },
         'workspace',
-        'editRanking',)
+        'incomeLogs',)
       if (result.code === 200) {
+        result.data.foreach(item => {
+          item.key = item.blockIndex
+          item.timeStr = timeFormat(item.time)
+          item.name = item.opeater.split(":")[0]
+          item.uid = item.opeater.split(":")[1]
+          item.amount = formatICPAmount(item.amount)
+          item.balance = formatICPAmount(item.balance)
+        })
         setIncomeLogs(result.data || [])
+      }
+    }
+
+    const openAllocatedLogwindow = async () => {
+      await getAllocatedLogs()
+      setOpenAllocatedLog(true)
+    }
+
+    const getAllocatedLogs = async() =>{
+      const result = await fetchICApi(
+        { id: params.id, agent },
+        'workspace',
+        'allocatedLogs',)
+      if (result.code === 200) {
+        result.data.foreach(item => {
+          item.key = item.blockIndex
+          item.timeStr = timeFormat(item.time)
+          item.uid = item.receiver.split(":")[1]
+          item.receiver = item.receiver.split(":")[0]
+          
+          item.amount = formatICPAmount(item.amount)
+          item.balance = formatICPAmount(item.balance)
+        })
+        setAllocatedLogs(result.data || [])
+      }
+    }
+
+    const allotToMember = async(uid,name,amount,desc) =>{
+      const result = await fetchICApi(
+        { id: params.id, agent },
+        'workspace',
+        'outgiving',
+        [uid, name, amount, desc])
+      if (result.code === 200) {
+        message.success('allot successed')  
+      }else{
+        message.error(result.msg)
       }
     }
 
@@ -132,21 +250,21 @@ const WorkspaceStatistics = (props) => {
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
                   <div className='flex flex-row w-1/2 gap-2'>
                     <span>Income</span>
-                    <Button size='small'>log</Button>
+                    <Button size='small' onClick={openIncomewindow}>log</Button>
                   </div>
                   <div className='w-1/2'>{count.income}</div>
                 </div>
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
                   <div className='flex flex-row w-1/2 gap-2'>
                     <span>Allocated</span>
-                    <Button size='small'>log</Button>
+                    <Button size='small' onClick={openAllocatedLogwindow}>log</Button>
                   </div>
                   <div className='w-1/2'>{count.outgiving}</div>
                 </div>
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
                   <div className='flex flex-row w-1/2 gap-2'>
                     <span>Balance</span>
-                    <Button size='small'>allot</Button>
+                    <Button size='small' onClick={() => {setOpenAllot(true)}}>allot</Button>
                   </div>
                   <div className='w-1/2'>{balance}</div>
                 </div>
@@ -196,10 +314,29 @@ const WorkspaceStatistics = (props) => {
             </div>
           </div>
         </div>
-        <Modal
-          open={openIncomeLog}
-        >
 
+        <Modal title="Income Log List" open={openIncomeLog} width={800} onCancel={() => {setOpenIncomeLog(false)}} footer={null}>
+          <Table dataSource={incomeLogs} columns={incomeclomes} />
+        </Modal>
+
+        <Modal title="Allocated Log List" open={openAllocatedLog} width={800} onCancel={() => {setOpenAllocatedLog(false)}} footer={null}>
+          <Table dataSource={allocatedLogs} columns={allocatedclomes} />
+        </Modal>
+
+        <Modal title="Allot to Member" open={openAllot} width={800} onCancel={() => {setOpenAllot(false)}} footer={null}>
+          <List
+            dataSource={data}
+            renderItem={(item) => (
+              <List.Item>
+                <div className='flex flex-row justify-between'>
+                    <Link to={`/user/${item.id}`}>
+                        {item.name}
+                    </Link>
+                    <Button onClick={(item) => {console.log(item)}}>allot</Button>
+                </div>
+              </List.Item>
+            )}
+          />
         </Modal>
       </div>
     )
