@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import { Tooltip,Divider,List, Modal } from 'antd'
+import { Tooltip,Divider,List, Modal, Button } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import { formatICPAmount,formatCyclesAmount } from '@/utils/dataFormat'
 
@@ -130,19 +130,24 @@ const WorkspaceStatistics = (props) => {
                   <div className='w-1/2'>{count.editcount}</div>
                 </div>
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
-                  <div className='w-1/2'>
-                    <Tooltip title="Click to view income log">
-                      <span className='cursor-pointer border-gray-300 border-solid border-b-4'>Income</span>
-                    </Tooltip>
+                  <div className='flex flex-row w-1/2 gap-2'>
+                    <span>Income</span>
+                    <Button size='small'>log</Button>
                   </div>
                   <div className='w-1/2'>{count.income}</div>
                 </div>
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
-                  <div className='w-1/2'>Allocated</div>
+                  <div className='flex flex-row w-1/2 gap-2'>
+                    <span>Allocated</span>
+                    <Button size='small'>log</Button>
+                  </div>
                   <div className='w-1/2'>{count.outgiving}</div>
                 </div>
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
-                  <div className='w-1/2'>Balance</div>
+                  <div className='flex flex-row w-1/2 gap-2'>
+                    <span>Balance</span>
+                    <Button size='small'>allot</Button>
+                  </div>
                   <div className='w-1/2'>{balance}</div>
                 </div>
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>

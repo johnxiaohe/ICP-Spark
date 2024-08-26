@@ -155,14 +155,27 @@ module{
         opeater: Text;
     };
 
-    public type FundsLog = {
+    public type IncomeLog = {
         time: Time.Time;
         info: Text;
         opeater: Text;
-        opType: Text;
         token: Text;
+        amount: Nat;
         balance: Nat;
+        blockIndex: Text;
     };
+
+    public type OutGivingLog = {
+        time: Time.Time;
+        desc: Text; // 备注
+        opeater: Text;
+        receiver: Text;
+        token: Text;
+        amount: Nat;
+        balance: Nat;
+        blockIndex: Text;
+    };
+
 
     public type ContentLog = {
         time : Time.Time;

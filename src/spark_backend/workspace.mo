@@ -52,7 +52,8 @@ shared({caller}) actor class WorkSpace(
     type WorkSpaceInfo = types.WorkSpaceInfo;
     type WorkSpaceBaseInfo = types.WorkSpaceBaseInfo;
     type Log = types.Log;
-    type FundsLog = types.FundsLog;
+    type IncomeLog = types.IncomeLog;
+    type OutGivingLog = types.OutGivingLog;
     type ContentLog = types.ContentLog;
     type EditorRanking = types.EditorRanking;
     type ViewRanking = types.ViewRanking;
@@ -126,8 +127,11 @@ shared({caller}) actor class WorkSpace(
         opeater = _createrName # ":" # superUid;
     };
     _syslog := List.push(zeroLog, _syslog);
-    // 内容收入、收入分配日志
-    private stable var _fundslog : List.List<FundsLog> = List.nil();
+    // 内容收入日志 ：谁 因为什么 收入 多少 什么token 
+    private stable var _incomeLogs : List.List<IncomeLog> = List.nil();
+    // 收入分配日志： 谁 因为什么 分配了 多少 什么token 给 谁
+    private stable var _outgivingLogs : List.List<OutGivingLog> = List.nil();
+    // 订阅消费日志
     private stable var _consumerlog : List.List<Log> = List.nil();
     // 内容创建、更新
     private stable var _contentlog = Map.new<Nat, List.List<ContentLog>>();
@@ -224,19 +228,6 @@ shared({caller}) actor class WorkSpace(
             opeater = opeater;
         };
         _consumerlog := List.push(log, _consumerlog);
-    };
-
-    private func pushFundsLog(opeater: Text, info: Text, opType: Text, token: Text, price: Nat, balance: Nat){
-        let log : FundsLog = {
-            time = Time.now();
-            info = info;
-            opeater = opeater;
-            opType = opType;
-            token = token;
-            price = price;
-            balance = balance;
-        };
-        _fundslog := List.push(log, _fundslog);
     };
 
     private func pushContentLog(opeater: Text, opType: Text, index: Nat, name: Text){
@@ -718,9 +709,9 @@ shared({caller}) actor class WorkSpace(
         let user: UserActor = actor(Principal.toText(caller));
         let userResp = await user.info();
         let userInfo : User = userResp.data;
-        // todo: transferfrom 将用户canister 钱转移到自己账户中
-        let fee = await icpLedger.icrc1_fee();
 
+        // transferfrom 将用户canister 钱转移到自己账户中
+        let fee = await icpLedger.icrc1_fee();
         var msg = "";
         if(showModel == #Subscribe and price > 0){
             let transferFromArgs : TransferFromArgs = {
@@ -733,26 +724,38 @@ shared({caller}) actor class WorkSpace(
                 created_at_time = null;
             };
             try {
-            // initiate the transfer
-            let transferResult = await icpLedger.icrc2_transfer_from(transferFromArgs);
+                // initiate the transfer
+                let transferResult = await icpLedger.icrc2_transfer_from(transferFromArgs);
 
-            // check if the transfer was successfull
-            switch (transferResult) {
-                case (#Err(transferError)) {
-                    return {
-                        code = 500;
-                        msg = "Couldn't transfer funds:\n" # debug_show (transferError);
-                        data = false;
+                // check if the transfer was successfull
+                switch (transferResult) {
+                    case (#Err(transferError)) {
+                        return {
+                            code = 500;
+                            msg = "Couldn't transfer funds:\n" # debug_show (transferError);
+                            data = false;
+                        };
+                    };
+                    case (#Ok(blockIndex)) {
+                        msg := "blockIndex: " # Nat.toText(blockIndex);
+
+                        // Map.set(consumerPidMap, thash, userInfo.pid, userInfo.id);
+                        // Map.set(consumerUidMap, thash, userInfo.id, userInfo.pid);
+
+                        _income := _income + price;
+
+                        let log : IncomeLog = {
+                            time = Time.now();
+                            info = "subscribed workspace";
+                            opeater =  userResp.data.name # ":" # Principal.toText(caller); // name:uid
+                            token = "ICP";
+                            amount = price;
+                            balance = await icpLedger.icrc1_balance_of({owner=Principal.fromActor(this);subaccount=null});
+                            blockIndex = Nat.toText(blockIndex);
+                        };
+                        _incomeLogs := List.push(log, _incomeLogs);
                     };
                 };
-                case (#Ok(blockIndex)) {
-                    Map.set(consumerPidMap, thash, userInfo.pid, userInfo.id);
-                    Map.set(consumerUidMap, thash, userInfo.id, userInfo.pid);
-                    msg := "blockIndex: " # Nat.toText(blockIndex);
-                    pushFundsLog(userInfo.pid, "subscribed workspace", "income", "ICP", price, await icpLedger.icrc1_balance_of({owner=Principal.fromActor(this);subaccount=null}));
-                    _income := _income + price;
-                };
-            };
             } catch (error : Error) {
             // catch any errors that might occur during the transfer
                 return {
@@ -1430,7 +1433,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func outgiving(uid: Text, amount: Nat): async Resp<Bool>{
+    public shared({caller}) func outgiving(uid: Text, name: Text, amount: Nat, desc: Text): async Resp<Bool>{
         if(not isSuper(Principal.toText(caller))){
             return {
                 code = 403;
@@ -1472,7 +1475,17 @@ shared({caller}) actor class WorkSpace(
                 case (#Ok(blockIndex)) {
                     _outgiving := _outgiving + amount + fee;
 
-                    pushFundsLog(Principal.toText(caller), "out giving", "outgiving", "ICP", amount, await icpLedger.icrc1_balance_of({owner=Principal.fromActor(this);subaccount=null}));
+                    let log: OutGivingLog = {
+                        time = Time.now();
+                        desc = desc;
+                        opeater = superUid;
+                        receiver = name # ":" # uid;
+                        token = "ICP";
+                        amount = amount;
+                        balance = await icpLedger.icrc1_balance_of({owner=Principal.fromActor(this);subaccount=null});
+                        blockIndex = Nat.toText(blockIndex);
+                    };
+                    _outgivingLogs := List.push(log, _outgivingLogs);
                     
                     return {
                         code = 200;
@@ -1518,7 +1531,8 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func fundsLog(): async Resp<[FundsLog]>{
+    // 资金日志
+    public shared({caller}) func incomeLogs(): async Resp<[IncomeLog]>{
         if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;
@@ -1529,10 +1543,26 @@ shared({caller}) actor class WorkSpace(
         return {
             code = 200;
             msg = "";
-            data = List.toArray(_fundslog);
+            data = List.toArray(_incomeLogs);
         };
     };
 
+    public shared({caller}) func allocatedLogs(): async Resp<[OutGivingLog]>{
+        if (not isMember(Principal.toText(caller))){
+            return {
+                code = 403;
+                msg = "permision denied";
+                data = [];
+            };
+        };
+        return {
+            code = 200;
+            msg = "";
+            data = List.toArray(_outgivingLogs);
+        };
+    };
+
+    // 用户消费日志：订阅、取消订阅
     public shared({caller}) func consumerLog(): async Resp<[Log]>{
         if (not isMember(Principal.toText(caller))){
             return {
@@ -1548,6 +1578,7 @@ shared({caller}) actor class WorkSpace(
         }
     };
     
+    // 系统日志：空间信息变更、空间成员变更、成员权限变更
     public shared({caller}) func sysLog(): async Resp<[Log]>{
         if (not isMember(Principal.toText(caller))){
             return {
