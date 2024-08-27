@@ -110,7 +110,7 @@ const SpaceModal = (props) => {
           {({ getFieldValue }) =>
             getFieldValue('model') === 'Subscribe' && (
               <Form.Item label="Price" name="price" initialValue={0}>
-                <InputNumber type="number" />
+                <InputNumber type="number" /> ICP
               </Form.Item>
             )
           }

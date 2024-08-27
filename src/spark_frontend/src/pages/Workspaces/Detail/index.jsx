@@ -27,7 +27,7 @@ const WorkspaceDetail = () => {
   const EditRef = useRef(null)
 
   const [menuContent, setMenuContent] = useState('')
-  const [currentMenu, setCurrentMenu] = useState('Statistics')
+  const [currentMenu, setCurrentMenu] = useState('Home')
   
   // 空间信息
   const [spaceInfo, setSpaceInfo] = useState({})
@@ -57,20 +57,7 @@ const WorkspaceDetail = () => {
   const [isEmptySummery, setIsEmptySummery] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const menuBarItems = [
-    {
-      key: 'Home',
-      label: 'Home',
-    },
-    {
-      key: 'Permission',
-      label: 'Permission',
-    },
-    {
-      key: 'Statistics',
-      label: 'Statistics',
-    },
-  ]
+  const [menuBarItems, setMenuBarItems] = useState([])
 
   // 获取空间各类信息 api
   const getSpaceInfo = async () => {
@@ -362,6 +349,24 @@ const WorkspaceDetail = () => {
     setIsAdmin(admins.some((item) => item.id === authUserInfo.id))
   }, [admins, members])
 
+  useEffect(() =>{
+    let barItems = [{
+      key: 'Home',
+      label: 'Home',
+    }]
+    if(isMember){
+      barItems.push({
+        key: 'Permission',
+        label: 'Permission',
+      })
+      barItems.push({
+        key: 'Statistics',
+        label: 'Statistics',
+      })
+    }
+    setMenuBarItems(barItems)
+  }, [isMember])
+
   // 根据不同菜单选择，变更右侧信息展示页面
   useEffect(() => {
     switch(currentMenu){
@@ -546,7 +551,6 @@ const WorkspaceDetail = () => {
         )}
       </div>
 
-      {/* todo: 增加余额判断和展示。余额不足直接提示余额不足不能订阅 */}
       <Modal 
         title="Subscribe tips" 
         open={openSubTips} 

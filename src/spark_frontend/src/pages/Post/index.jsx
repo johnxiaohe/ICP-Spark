@@ -44,6 +44,8 @@ const Post = () => {
     if (result.code === 200) {
       await getContent(params.wid, params.id)
       message.success('Subscribe success')
+    }else{
+      message.error(result.msg)
     }
   }
 

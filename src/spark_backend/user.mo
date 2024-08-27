@@ -776,6 +776,15 @@ shared({caller}) actor class UserSpace(
             };
         };
         if(workInfo.model == #Subscribe and workInfo.price > 0){
+            let balanceResult = await balance("ICP");
+            let currentBalance : Nat = balanceResult.data;
+            if(currentBalance < (workInfo.price + 1000000)){
+                return {
+                    code = 500;
+                    msg = "Insufficient balance";
+                    data = false;
+                };
+            };
             // 授权转账；检查余额
             let args : ApproveArgs = {
                 fee = null;

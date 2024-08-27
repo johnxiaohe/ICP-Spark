@@ -199,9 +199,10 @@ const WorkspaceHome = (props) =>{
                 </div>
             </div>
         </div>
+        
         <div id='summarys' className='w-full float-right flex flex-col'>
             <Divider className='w-10/12 float-right font-medium' orientation="left">SUMMARYS</Divider>
-            <List className='w-10/12 text-base m-auto'
+            <List className='w-11/12 text-base m-auto'
                 // header={<div>Summary</div>}
                 // footer={<div>Footer</div>}
                 size="small"
@@ -209,8 +210,8 @@ const WorkspaceHome = (props) =>{
                 bordered={false}
                 dataSource={summaryData}
                 renderItem={(item) => (
-                    <List.Item className='ml-16 rounded-md font-light hover:bg-slate-100 hover:cursor-pointer ' onClick={()=>{navigate(`/space/${params.id}/${item.id}`); setIsUpdate(false)}}>
-                        <p className='ml-1'>{item.name}</p>
+                    <List.Item className='ml-2 rounded-md font-light hover:bg-slate-100 hover:cursor-pointer ' onClick={()=>{navigate(`/space/${params.id}/${item.id}`); setIsUpdate(false)}}>
+                        <p className=''>{item.name}</p>
                     </List.Item>
                 )}
             />

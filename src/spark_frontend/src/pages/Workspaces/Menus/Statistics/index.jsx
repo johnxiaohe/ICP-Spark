@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import { Tooltip,Divider,List, Modal, Button, Table, message,Popover,InputNumber } from 'antd'
+import { Tooltip,Divider,List, Modal, Button, Table, message,Popover,InputNumber, Input } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import { formatICPAmount,formatCyclesAmount } from '@/utils/dataFormat'
 import { timeFormat } from '../../../../utils/dataFormat'
@@ -36,6 +36,7 @@ const WorkspaceStatistics = (props) => {
     const [allotValue, setAllotValue] = useState(0)
     const [allotLoading, setAllotLoading] = useState(false)
     const [allotRemark, setAllotRemark] = useState('')
+    // const [maxAllot, setMaxAllot] = useState(0)
 
     const [isOwner, setIsOwner] = useState(false)
 
@@ -50,11 +51,11 @@ const WorkspaceStatistics = (props) => {
         dataIndex: 'name',
         key: 'name',
       },
-      {
-        title: 'uid',
-        dataIndex: 'uid',
-        key: 'uid',
-      },      
+      // {
+      //   title: 'uid',
+      //   dataIndex: 'uid',
+      //   key: 'uid',
+      // },      
       {
         title: 'content',
         dataIndex: 'info',
@@ -83,11 +84,11 @@ const WorkspaceStatistics = (props) => {
         dataIndex: 'receiver',
         key: 'receiver',
       },
-      {
-        title: 'uid',
-        dataIndex: 'uid',
-        key: 'uid',
-      },
+      // {
+      //   title: 'uid',
+      //   dataIndex: 'uid',
+      //   key: 'uid',
+      // },
       {
         title: 'token',
         dataIndex: 'token',
@@ -100,8 +101,8 @@ const WorkspaceStatistics = (props) => {
       },
       {
         title: 'remark',
-        dataIndex: 'remark',
-        key: 'remark',
+        dataIndex: 'desc',
+        key: 'desc',
       },
     ]
 
@@ -170,7 +171,10 @@ const WorkspaceStatistics = (props) => {
         'workspace',
         'incomeLogs',)
       if (result.code === 200) {
-        result.data.foreach(item => {
+        if (result.data == null){
+          result.data = []
+        }
+        result.data.forEach(item => {
           item.key = item.blockIndex
           item.timeStr = timeFormat(item.time)
           item.name = item.opeater.split(":")[0]
@@ -193,7 +197,10 @@ const WorkspaceStatistics = (props) => {
         'workspace',
         'allocatedLogs',)
       if (result.code === 200) {
-        result.data.foreach(item => {
+        if (result.data == null){
+          result.data = []
+        }
+        result.data.forEach(item => {
           item.key = item.blockIndex
           item.timeStr = timeFormat(item.time)
           item.uid = item.receiver.split(":")[1]
@@ -211,18 +218,25 @@ const WorkspaceStatistics = (props) => {
         message.error("allot amount must great zero")
         return
       }
+      if(allotValue > balance){
+        message.error("Insufficient balance")
+        return 
+      }
       setAllotLoading(true)
       const result = await fetchICApi(
         { id: params.id, agent },
         'workspace',
         'outgiving',
-        [memberInfo.id, memberInfo.name, allotValue, allotRemark || 'balance allot'])
+        [memberInfo.id, memberInfo.name, allotValue * Math.pow(10, 8), allotRemark || 'balance allot'])
       if (result.code === 200) {
         message.success('allot successed')  
       }else{
         message.error(result.msg)
       }
       setAllotLoading(false)
+
+      getBalance()
+      getCount()
     }
 
     useEffect(()=>{
@@ -238,6 +252,10 @@ const WorkspaceStatistics = (props) => {
     useEffect(()=>{
       setIsOwner(spaceInfo.super === authUserInfo.id)
     }, [spaceInfo])
+
+    // useEffect(()=>{
+    //   setMaxAllot(balance * Math.pow(10, -8))
+    // }, [balance])
     
     return (
       <div className='flex flex-col w-full gap-5'>
@@ -268,14 +286,14 @@ const WorkspaceStatistics = (props) => {
                     <span>Income</span>
                     <Button size='small' onClick={openIncomewindow}>log</Button>
                   </div>
-                  <div className='w-1/2'>{count.income}</div>
+                  <div className='w-1/2'>{formatICPAmount(count.income)}</div>
                 </div>
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
                   <div className='flex flex-row w-1/2 gap-2'>
                     <span>Allocated</span>
                     <Button size='small' onClick={openAllocatedLogwindow}>log</Button>
                   </div>
-                  <div className='w-1/2'>{count.outgiving}</div>
+                  <div className='w-1/2'>{formatICPAmount(count.outgiving)}</div>
                 </div>
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
                   <div className='flex flex-row w-1/2 gap-2'>
@@ -339,7 +357,7 @@ const WorkspaceStatistics = (props) => {
           <Table dataSource={allocatedLogs} columns={allocatedclomes} />
         </Modal>
 
-        <Modal title="Allot ICP to Member" open={openAllot} width={400} onCancel={() => {setOpenAllot(false)}} footer={null}>
+        <Modal title="Allot ICP to Member" open={openAllot} width={400} onCancel={() => {setOpenAllot(false);setAllotRemark('');setAllotValue(0)}} footer={null}>
           <List
             dataSource={members}
             renderItem={(item) => (
@@ -350,17 +368,18 @@ const WorkspaceStatistics = (props) => {
                     </Link>
                     <Popover
                       title={"Allot ICP to " + item.name}
-                      rootClassName="w-52"
+                      rootClassName="w-60"
+                      placement="right"
                       content={
-                        <div>
-                          {/* <p>Please enter ICP amount you want to allot</p> */}
-                          <InputNumber
+                        <div >
+                          <Input addonBefore='Remark' value={allotRemark} onChange={(e) => setAllotRemark(e.target.value)}></Input>
+                          <InputNumber className="mt-3 w-full"
                             precision={4}
                             addonBefore="ICP"
                             value={allotValue}
-                            max={balance * Math.pow(10, -8)}
+                            // max={10}
                             min={0}
-                            step={0.1}
+                            step={0.5}
                             onChange={(e) => setAllotValue(e)}
                           />
                           <Button

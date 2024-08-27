@@ -30,7 +30,7 @@ const PostDetail = (props) => {
       }
       setOpenTips(false)
       setLoading(true)
-      // await onSubscribe()
+      await onSubscribe()
       setLoading(false)
     }
   }

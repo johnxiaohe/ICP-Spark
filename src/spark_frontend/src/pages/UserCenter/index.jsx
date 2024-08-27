@@ -324,7 +324,7 @@ const UserCenter = () => {
               <div className="right p-5 bg-gray-100 rounded-xl min-w-60">
                 <div>
                   <h2 className="text-sm font-bold text-gray-700">
-                    Income(ICP)
+                    Balance(ICP)
                   </h2>
                   <div className="flex justify-between items-center text-base font-bold">
                     {formatICPAmount(balance)}
