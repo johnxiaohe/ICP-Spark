@@ -381,7 +381,7 @@ const WorkspaceDetail = () => {
           ></WorkspacePermission>)
         break;
       case 'Statistics':
-        setMenuContent(<WorkspaceStatistics spaceInfo={spaceInfo} isMember={isMember}></WorkspaceStatistics>)
+        setMenuContent(<WorkspaceStatistics spaceInfo={spaceInfo} members={[...admins, ...members]} isMember={isMember}></WorkspaceStatistics>)
         break;
     }
   }, [spaceModel, currentMenu, admins,members,spaceModel,isAdmin,isMember])

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import { Tooltip,Divider,List, Modal, Button, Table, message } from 'antd'
+import { Tooltip,Divider,List, Modal, Button, Table, message,Popover,InputNumber } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import { formatICPAmount,formatCyclesAmount } from '@/utils/dataFormat'
 import { timeFormat } from '../../../../utils/dataFormat'
@@ -16,7 +16,7 @@ const WorkspaceStatistics = (props) => {
   
     const { agent, authUserInfo, isRegistered } = useAuth()
 
-    const { isMember} = props
+    const { spaceInfo, members = [], isMember} = props
 
     const [count, setCount] = useState({}) // 空间统计信息
     const [balance, setBalance] = useState(0)
@@ -32,6 +32,12 @@ const WorkspaceStatistics = (props) => {
     const [allocatedLogs, setAllocatedLogs] = useState([])
 
     const [openAllot, setOpenAllot] = useState(false)
+
+    const [allotValue, setAllotValue] = useState(0)
+    const [allotLoading, setAllotLoading] = useState(false)
+    const [allotRemark, setAllotRemark] = useState('')
+
+    const [isOwner, setIsOwner] = useState(false)
 
     const incomeclomes = [
       {
@@ -200,17 +206,23 @@ const WorkspaceStatistics = (props) => {
       }
     }
 
-    const allotToMember = async(uid,name,amount,desc) =>{
+    const allotToMember = async(memberInfo) =>{
+      if(allotValue <= 0){
+        message.error("allot amount must great zero")
+        return
+      }
+      setAllotLoading(true)
       const result = await fetchICApi(
         { id: params.id, agent },
         'workspace',
         'outgiving',
-        [uid, name, amount, desc])
+        [memberInfo.id, memberInfo.name, allotValue, allotRemark || 'balance allot'])
       if (result.code === 200) {
         message.success('allot successed')  
       }else{
         message.error(result.msg)
       }
+      setAllotLoading(false)
     }
 
     useEffect(()=>{
@@ -222,6 +234,10 @@ const WorkspaceStatistics = (props) => {
         getEditRank()
       }
     }, [isMember])
+
+    useEffect(()=>{
+      setIsOwner(spaceInfo.super === authUserInfo.id)
+    }, [spaceInfo])
     
     return (
       <div className='flex flex-col w-full gap-5'>
@@ -264,7 +280,7 @@ const WorkspaceStatistics = (props) => {
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
                   <div className='flex flex-row w-1/2 gap-2'>
                     <span>Balance</span>
-                    <Button size='small' onClick={() => {setOpenAllot(true)}}>allot</Button>
+                    {isOwner ? (<Button size='small' onClick={() => {setOpenAllot(true)}}>allot</Button>):null}
                   </div>
                   <div className='w-1/2'>{balance}</div>
                 </div>
@@ -323,16 +339,44 @@ const WorkspaceStatistics = (props) => {
           <Table dataSource={allocatedLogs} columns={allocatedclomes} />
         </Modal>
 
-        <Modal title="Allot to Member" open={openAllot} width={800} onCancel={() => {setOpenAllot(false)}} footer={null}>
+        <Modal title="Allot ICP to Member" open={openAllot} width={400} onCancel={() => {setOpenAllot(false)}} footer={null}>
           <List
-            dataSource={data}
+            dataSource={members}
             renderItem={(item) => (
               <List.Item>
-                <div className='flex flex-row justify-between'>
-                    <Link to={`/user/${item.id}`}>
+                <div className='flex flex-row justify-between w-11/12 mx-auto'>
+                    <Link className="w-2/3" to={`/user/${item.id}`}>
                         {item.name}
                     </Link>
-                    <Button onClick={(item) => {console.log(item)}}>allot</Button>
+                    <Popover
+                      title={"Allot ICP to " + item.name}
+                      rootClassName="w-52"
+                      content={
+                        <div>
+                          {/* <p>Please enter ICP amount you want to allot</p> */}
+                          <InputNumber
+                            precision={4}
+                            addonBefore="ICP"
+                            value={allotValue}
+                            max={balance * Math.pow(10, -8)}
+                            min={0}
+                            step={0.1}
+                            onChange={(e) => setAllotValue(e)}
+                          />
+                          <Button
+                            className="mt-3 w-full"
+                            type="primary"
+                            onClick={() => {allotToMember(item)}}
+                            loading={allotLoading}
+                          >
+                            Submit
+                          </Button>
+                        </div>
+                      }
+                      trigger="hover"
+                    >
+                      <Button className="w-1/3" loading={allotLoading} >allot</Button>
+                    </Popover>
                 </div>
               </List.Item>
             )}
