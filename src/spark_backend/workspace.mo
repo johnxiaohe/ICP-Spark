@@ -1184,8 +1184,12 @@ shared({caller}) actor class WorkSpace(
             case(null){
             };
             case(?content){
+                // 直接删除,后续提供回收站，只保留最近10个
                 Map.delete(contentMap, nhash, id);
-                // todo : add log push portal
+
+                // 保留trait，从回收站删除时trait也一并删除
+
+                // log
                 pushContentLog(Principal.toText(caller), "delete", id, content.name);
                 // 删除父级内容关联
                 switch(Map.get(contentIndex, nhash, content.pid)){

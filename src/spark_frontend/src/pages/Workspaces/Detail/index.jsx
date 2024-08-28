@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchICApi } from '@/api/icFetch'
 import { useAuth } from '@/Hooks/useAuth'
-import { Button, Tree, Modal, Input, Tooltip, Select, message, Popconfirm, Menu } from 'antd'
+import { Button, Tree, Modal, Tooltip, message, Popconfirm, Menu } from 'antd'
 import CommonAvatar from '@/components/CommonAvatar'
 import PostEdit from '@/components/PostEdit'
 import { formatPostTree } from '@/utils/dataFormat'
@@ -36,7 +36,9 @@ const WorkspaceDetail = () => {
 
     // 空间内容信息
   const [summery, setSummery] = useState([])
-  const [currentId, setCurrentId] = useState(0)
+  const [currentId, setCurrentId] = useState(params.index || 0)
+  const [clickDelId, setClickDelId] = useState(0)
+  const [currentExit, setCurrentExit] = useState(false)
 
   const [spaceModel, setSpaceModel] = useState('Private')
   const [calledSub, setCalledSub] = useState(false)
@@ -48,16 +50,13 @@ const WorkspaceDetail = () => {
   // 订阅展示相关
   const [haveSubscribe, setHaveSubscribe] = useState(false)
   const [openSubTips, setOpenSubTips] = useState(false)
-
-  const [content, setContent] = useState({})
-  const [trait, setTrait] = useState({})
-
-  const [isEdit, setIsEdit] = useState(searchParams.get('edit') || false)
   
-  const [isEmptySummery, setIsEmptySummery] = useState(false)
+  // const [isEmptySummery, setIsEmptySummery] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const [menuBarItems, setMenuBarItems] = useState([])
+
+  const [isEdit, setIsEdit] = useState(searchParams.get('edit') || false)
 
   // 获取空间各类信息 api
   const getSpaceInfo = async () => {
@@ -68,6 +67,7 @@ const WorkspaceDetail = () => {
     )
     setSpaceInfo(result.data || {})
   }
+
   // 获取目录
   const getSummery = async (level = 0) => {
     const result = await fetchICApi(
@@ -89,6 +89,7 @@ const WorkspaceDetail = () => {
       return result
     }
   }
+  
   // 获取admins
   const getAdmins = async () => {
     const result = await fetchICApi(
@@ -100,6 +101,7 @@ const WorkspaceDetail = () => {
       setAdmins(result.data || [])
     }
   }
+
   // 获取members
   const getMembers = async () => {
     const result = await fetchICApi(
@@ -127,7 +129,20 @@ const WorkspaceDetail = () => {
     setCalledSub(true)
   }
 
-  // 请求订阅api
+  // 确认 内容是否存在
+  const getContent = async () => {
+    const result = await fetchICApi(
+      { id: params.id, agent },
+      'workspace',
+      'getContent',
+      [BigInt(currentId)],
+    )
+    if (result.code === 200) {
+      setCurrentExit(true)
+    }
+  }
+
+  // 请求订阅
   const requestSubscribe = async () => {
     setLoading(true)
     const result = await fetchICApi(
@@ -157,6 +172,7 @@ const WorkspaceDetail = () => {
       await requestSubscribe()
     }
   }
+
   // 请求取消订阅
   const handleUnSubscribe = async () => {
     setLoading(true)
@@ -196,9 +212,8 @@ const WorkspaceDetail = () => {
     if (result.code === 200) {
       getSummery()
       setCurrentId(result.data.id)
-      navigate(`/space/${params.id}/${result.data.id}`)
       setIsEdit(true)
-      setContent(result.data || {})
+      navigate(`/space/${params.id}/${result.data.id}`)
     }
   }
 
@@ -217,39 +232,11 @@ const WorkspaceDetail = () => {
         setIsEdit(false)
         navigate(`/space/${params.id}`)
         setCurrentId(0)
-        setContent({})
       }
     }else{
       message.error(result.msg)
     }
-  }
-
-  const getContent = async (id) => {
-    const result = await fetchICApi(
-      { id: params.id, agent },
-      'workspace',
-      'getContent',
-      [BigInt(id)],
-    )
-    setContent(result.data || {})
-  }
-
-  const getTrait = async (id) => {
-    const result = await fetchICApi(
-      { id: params.id, agent },
-      'workspace',
-      'getTrait',
-      [BigInt(id)],
-    )
-    if (result.code === 200 || result.code === 404) {
-      setTrait(result.data || {})
-    }
-  }
-
-  const getCurrentContent = async (id) => {
-    setCurrentId(id)
-    getContent(id)
-    getTrait(id)
+    setClickDelId(0)
   }
 
   const onDragEnter = (info) => {
@@ -307,6 +294,7 @@ const WorkspaceDetail = () => {
     }
     setSummery(data)
   }
+  
   // const onLoadData = async (e) => {
   //   const result = await getSummery(e.id)
   //   if (result.code === 200 && result.data?.length) {
@@ -324,7 +312,7 @@ const WorkspaceDetail = () => {
   // }
 
   const onSelect = async (keys, e) => {
-    console.log(e)
+    // console.log(e)
     if (isEdit && e.node.id !== Number(params.index)) {
       Modal.warning({
         title: 'Confirm to quit editing',
@@ -336,6 +324,7 @@ const WorkspaceDetail = () => {
         maskClosable: true,
       })
     } else {
+      setCurrentId(e.node.id)
       navigate(`/space/${params.id}/${e.node.id}`)
     }
   }
@@ -413,13 +402,6 @@ const WorkspaceDetail = () => {
     }
   }, [spaceModel, currentMenu, admins,members,spaceModel,isAdmin,isMember])
 
-  // 更新当前内容
-  useEffect(() => {
-    if (params.index && agent) {
-      getCurrentContent(params.index)
-    }
-  }, [params.index, agent])
-
   // 空间信息变更回调
   useEffect(()=>{
     if (spaceInfo.id){
@@ -434,6 +416,10 @@ const WorkspaceDetail = () => {
       getSubscribe()
     }
   }, [spaceModel])
+
+  useEffect(() =>{
+    getContent()
+  }, [currentId])
 
   return (
     <div className="flex h-full gap-5 w-full max-w-7xl ml-auto mr-auto overflow-hidden">
@@ -489,6 +475,7 @@ const WorkspaceDetail = () => {
           theme={'light'}
           items={menuBarItems}
           onSelect={handleClickBar}
+          onClick={handleClickBar}
         />
 
         {/* 目录行 */}
@@ -510,44 +497,52 @@ const WorkspaceDetail = () => {
         </div>
 
         {/* 目录树 */}
-        <Tree
-          draggable
-          blockNode
-          onDragEnter={onDragEnter}
-          onDrop={onDrop}
-          treeData={summery}
-          // loadData={onLoadData}
-          onSelect={onSelect}
-          selectedKeys={[params.index]}
-          key={(row) => row.id}
-          titleRender={(row) => (
-            <div className="group flex justify-between items-center">
-              {row.name}
-              {isMember && (
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100">
-                  <PlusOutlined
-                    onClick={() => createContent({ pid: row.id })}
-                  />
-                  <Popconfirm 
-                    title="Delete the content" 
-                    description="Are you sure to delete this content?"
-                    onConfirm={() => deleteContent(row.id)}
-                    okText="Yes" 
-                    cancelText="No">
-                    <DeleteTwoTone twoToneColor="#eb2f96"/>
-                  </Popconfirm>
-                  {/* <EditOutlined /> */}
-                </div>
-              )}
-            </div>
-          )}
-        />
+        { summery.length ? 
+          <Tree
+            height={600}
+            draggable
+            // defaultExpandAll={true}
+            blockNode
+            onDragEnter={onDragEnter}
+            onDrop={onDrop}
+            treeData={summery}
+            // loadData={onLoadData}
+            onSelect={onSelect}
+            // selectedKeys={[params.index]}
+            key={(row) => row.id}
+            titleRender={(row) => (
+              <div className="group flex justify-between items-center">
+                {row.name}
+                {isMember && (
+                  <div className={clickDelId == row.id ? "flex gap-2 opacity-100" :"flex gap-2 opacity-0 group-hover:opacity-100"}>
+                    <PlusOutlined title='new child content'
+                      onClick={() => createContent({ pid: row.id })}
+                    />
+                    <Popconfirm 
+                      title="Delete the content" 
+                      description="Are you sure to delete this content?"
+                      onConfirm={() => deleteContent(row.id)}
+                      onCancel={() => setClickDelId(0)}
+                      okText="Yes" 
+                      cancelText="No">
+                      <DeleteTwoTone title="delete" twoToneColor="#eb2f96" onClick={() => setClickDelId(row.id)}/>
+                    </Popconfirm>
+                    {/* <EditOutlined /> */}
+                  </div>
+                )}
+              </div>
+            )}
+          />
+          : null
+        }
+
 
       </div>
 
       {/* right content area */}
       <div className="right h-full flex-1 flex flex-col border border-gray-200 rounded-md bg-white pb-5 relative overflow-hidden">
-        {isMember && params.index && (
+        {/* 编辑模式按钮 */}
+        {isMember && params.index && currentExit && (
           <Button
             type="primary"
             onClick={() => setIsEdit(!isEdit)}
@@ -556,19 +551,18 @@ const WorkspaceDetail = () => {
             {isEdit ? 'View' : 'Edit'}
           </Button>
         )}
+
+        {/* 路径有文章id，则进入文章浏览  否则 进入 导航管理页面 */}
         {params.index ? (
           // 判断edit模式，和成员权限展示 edit与否
           isEdit && isMember ? (
             <div className="flex-1 overflow-hidden">
               <PostEdit
                 ref={EditRef}
-                content={content}
-                trait={trait}
-                spaceId={params.id}
-                spaceInfo={spaceInfo}
+                id={currentId}
+                wid={params.id}
                 onSaveSuccess={() => {
                   getSummery()
-                  getCurrentContent(currentId)
                   setIsEdit(false)
                 }}
               />
@@ -576,7 +570,7 @@ const WorkspaceDetail = () => {
           ) : (
             // view模式浏览文章内容
             <div className="flex-1 overflow-y-scroll">
-              <PostDetail content={content} trait={trait} space={spaceInfo} />
+              <PostDetail id={currentId} wid={params.id} />
             </div>
           )
         ) : (

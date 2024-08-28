@@ -20,29 +20,36 @@ import CommonAvatar from '../CommonAvatar'
 Quill.register('modules/cursors', QuillCursors)
 
 const PostEdit = React.forwardRef((props, ref) => {
+
   useImperativeHandle(ref, () => ({
     handleSave,
   }))
-  const { onSaveSuccess, spaceInfo } = props
+  const { id, wid, onSaveSuccess } = props
   const { agent, authUserInfo } = useAuth()
+
+  const [spaceInfo, setSpaceInfo] = useState({})
+
   const [myEditor, setMyEditor] = useState(null)
+
   const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState({})
+  const [trait, setTrait] = useState({})
+
   const [defaultDesc, setDefaultDesc] = useState('')
   const [editors, setEditors] = useState([])
   const [myProvider, setMyProvider] = useState(null)
-  const [trait, setTrait] = useState({})
+
   const [isShowTrait, setIsShowTrait] = useState(false)
   const [loading, setLoading] = useState(false)
   const tagOptions = []
 
   const initEditor = () => {
     const ydoc = new Y.Doc()
-    console.log(`icp-${spaceInfo.id}-${props.content.id}`)
+    console.log(`icp-${wid}-${id}`)
     const provider = new WebsocketProvider(
       'wss://demos.yjs.dev/ws', // use the public ws server
       // `ws${location.protocol.slice(4)}//${location.host}/ws`, // alternatively: use the local ws server (run `npm start` in root directory)
-      `icp-${spaceInfo.id}-${props.content.id}`,
+      `icp-${wid}-${id}`,
       ydoc,
     )
     const ytext = ydoc.getText('quill')
@@ -86,6 +93,43 @@ const PostEdit = React.forwardRef((props, ref) => {
     })
   }
 
+  // 初始化 空间信息、内容、愿信息
+  const getSpaceInfo = async () => {
+    const result = await fetchICApi(
+      { id: wid, agent },
+      'workspace',
+      'info',
+    )
+    setSpaceInfo(result.data || {})
+  }
+
+  const getContent = async () => {
+    const result = await fetchICApi(
+      { id: wid, agent },
+      'workspace',
+      'getContent',
+      [BigInt(id)],
+    )
+    if (result.code === 200) {
+      setContent(result.data || {})
+    }else{
+      message.error(result.msg)
+    }
+  }
+
+  const getTrait = async () => {
+    const result = await fetchICApi(
+      { id: wid, agent },
+      'workspace',
+      'getTrait',
+      [BigInt(id)],
+    )
+    if (result.code === 200 || result.code === 404) {
+      setTrait(result.data || {})
+    }
+  }
+
+  // 保存信息
   const handleSave = async () => {
     console.log(props.content.name, title, props.content.content, content)
     if (props.content.name !== title || props.content.content !== content) {
@@ -162,6 +206,13 @@ const PostEdit = React.forwardRef((props, ref) => {
     setTrait({ ...trait, tag: e })
   }
 
+  // 初始化信息
+  useEffect(() => {
+    getSpaceInfo()
+    getContent()
+    getTrait()
+  }, [id,wid])
+
   useEffect(() => {
     return () => {
       myProvider?.disconnect()
@@ -178,20 +229,14 @@ const PostEdit = React.forwardRef((props, ref) => {
   }, [authUserInfo])
 
   useEffect(() => {
-    setTitle(props.content.name)
+    setTitle(content.name)
     if (myEditor) {
       setTimeout(() => {
-        const delta = myEditor.clipboard.convert(props.content.content)
+        const delta = myEditor.clipboard.convert(content.content)
         myEditor.setContents(delta, 'silent')
       }, 3000)
     }
-  }, [props.content, myEditor])
-
-  useEffect(() => {
-    if (props.trait.name) {
-      setTrait(props.trait)
-    }
-  }, [props.trait])
+  }, [content, myEditor])
 
   return (
     <div className=" w-full h-full overflow-hidden relative pb-10">
@@ -211,6 +256,7 @@ const PostEdit = React.forwardRef((props, ref) => {
         >
           {isShowTrait ? 'Hide Trait' : 'Set Trait'}
         </Button>
+
         <Form
           className={`${
             isShowTrait ? 'h-auto' : 'h-0 overflow-hidden'
@@ -238,6 +284,7 @@ const PostEdit = React.forwardRef((props, ref) => {
               </Upload>
             </ImgCrop>
           </Form.Item>
+
           <Form.Item
             label="Description"
             onChange={(e) => setTrait({ ...trait, desc: e.target.value })}
@@ -256,6 +303,7 @@ const PostEdit = React.forwardRef((props, ref) => {
               value={trait.tag || []}
             />
           </Form.Item>
+          
         </Form>
         <div id="editor"></div>
       </div>
