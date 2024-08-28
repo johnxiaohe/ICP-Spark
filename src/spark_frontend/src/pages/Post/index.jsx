@@ -19,8 +19,13 @@ const Post = () => {
       'getContent',
       [BigInt(id)],
     )
-    setData(result.data || {})
+    if (result.code == 200){
+      setData(result.data || {})
+    }else{
+      message.error(result.msg)
+    }
   }
+  
   const getTrait = async (wid, id) => {
     const result = await fetchICApi(
       { id: wid, agent },

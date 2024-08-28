@@ -54,7 +54,6 @@ shared({caller}) actor class(){
         return [];
     };
 
-
     public shared({caller}) func push(trait: ContentTrait): async(Bool){
         let callerWid = Principal.toText(caller);
         // Debug.print(debug_show(callerWid));
@@ -81,6 +80,24 @@ shared({caller}) actor class(){
             };
         };
         return true;
+    };
+
+    public shared({caller}) func delContent(id: Nat) : async(){
+        let callerWid = Principal.toText(caller);
+
+        let uuid = getUUid(callerWid, id);
+        Map.delete(traits, thash, uuid);
+        switch(Map.get(wids, thash, callerWid)){
+            case(null){};
+            case(?ids){
+                // 删除空间 -- id映射
+                let newIds = List.filter<Nat>(ids, func item { not Nat.equal(item, id)});
+                Map.set(wids, thash, callerWid, newIds);
+            };
+        };
+
+        latests := List.filter<Text>(latests, func item { not Text.equal(item, uuid) });
+        // hots 不管，每五分钟重置hots数据
     };
 
     private func addWids(wid: Text, index: Nat) {

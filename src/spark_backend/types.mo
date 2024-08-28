@@ -340,6 +340,7 @@ module{
 
     public type PortalActor = actor {
         push: shared(ContentTrait) -> async();
+        delContent: shared(Nat) -> async();
     };
 
     public type CyclesManageActor = actor {

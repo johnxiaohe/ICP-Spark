@@ -1156,6 +1156,7 @@ shared({caller}) actor class WorkSpace(
         return List.toArray(result);
     };
 
+    // 有子content不能删除，删除成功通知portal删除对应推送
     public shared({caller}) func delContent(id: Nat): async (Resp<Bool>){
         if (not isMember(Principal.toText(caller))){
             return {
@@ -1164,23 +1165,42 @@ shared({caller}) actor class WorkSpace(
                 data = false;
             };
         };
-        switch(Map.get(contentMap, nhash, id)){
+        // 判断是否有child content, 有子内容则无法删除，没有则删除下子内容关联集合记录
+        switch(Map.get(contentIndex, nhash, id)){
             case(null){};
+            case(?childs){
+                if(List.size(childs) > 0){
+                    return {
+                        code = 400;
+                        msg = "There are sub-contents and the current content cannot be deleted";
+                        data = false;
+                    };
+                };
+                Map.delete(contentIndex, nhash, id);
+            };
+        };
+
+        switch(Map.get(contentMap, nhash, id)){
+            case(null){
+            };
             case(?content){
                 Map.delete(contentMap, nhash, id);
                 // todo : add log push portal
                 pushContentLog(Principal.toText(caller), "delete", id, content.name);
+                // 删除父级内容关联
                 switch(Map.get(contentIndex, nhash, content.pid)){
                     case(null){};
                     case(?ids){
                         var newIds: List.List<Nat> = List.nil();
                         newIds := List.filter<Nat>(ids, func x { x != id});
                         Map.set(contentIndex, nhash, content.pid, newIds);
-
                     };
                 };
             };
         };
+
+        // 删除portal记录
+        ignore portal.delContent(id);
 
         return {
             code = 200;
@@ -1415,6 +1435,7 @@ shared({caller}) actor class WorkSpace(
             };
         };
     };
+
     public shared func fee(token: Text): async Resp<Nat>{
         switch(tokenMap.get(token)){
             case(null){

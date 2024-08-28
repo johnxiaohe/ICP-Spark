@@ -199,7 +199,7 @@ const PostDetail = (props) => {
             </div>
           )}
         <div></div>
-        {/* todo: 增加余额判断和展示。余额不足直接提示余额不足不能订阅 */}
+        
         <Modal 
           title="Subscribe tips" 
           open={openTips} 

@@ -6,7 +6,7 @@ import { Button, Tree, Modal, Input, Tooltip, Select, message, Popconfirm, Menu 
 import CommonAvatar from '@/components/CommonAvatar'
 import PostEdit from '@/components/PostEdit'
 import { formatPostTree } from '@/utils/dataFormat'
-import { PlusOutlined,MenuOutlined } from '@ant-design/icons'
+import { PlusOutlined,MenuOutlined,DeleteTwoTone } from '@ant-design/icons'
 import PostDetail from '@/components/PostDetail'
 import WorkspaceHome from '../Menus/Home'
 import WorkspacePermission from '../Menus/Permission'
@@ -199,6 +199,28 @@ const WorkspaceDetail = () => {
       navigate(`/space/${params.id}/${result.data.id}`)
       setIsEdit(true)
       setContent(result.data || {})
+    }
+  }
+
+  const deleteContent = async (id) => {
+    const result = await fetchICApi(
+      { id: params.id, agent },
+      'workspace',
+      'delContent',
+      [id],
+    )
+    if (result.code === 200) {
+      await getSummery()
+      message.success("delete success")
+      if (id == currentId){
+        setCurrentMenu('Home')
+        setIsEdit(false)
+        navigate(`/space/${params.id}`)
+        setCurrentId(0)
+        setContent({})
+      }
+    }else{
+      message.error(result.msg)
     }
   }
 
@@ -468,6 +490,7 @@ const WorkspaceDetail = () => {
           items={menuBarItems}
           onSelect={handleClickBar}
         />
+
         {/* 目录行 */}
         <div className="mt-3 flex flex-row justify-between rounded-lg hover:bg-slate-100 cursor-pointer">
           <div className="basis-1/4 flex flex-row justify-evenly">
@@ -485,6 +508,7 @@ const WorkspaceDetail = () => {
             </Tooltip>
           )}
         </div>
+
         {/* 目录树 */}
         <Tree
           draggable
@@ -504,14 +528,23 @@ const WorkspaceDetail = () => {
                   <PlusOutlined
                     onClick={() => createContent({ pid: row.id })}
                   />
-                  {/* <DeleteOutlined />
-                <EditOutlined /> */}
+                  <Popconfirm 
+                    title="Delete the content" 
+                    description="Are you sure to delete this content?"
+                    onConfirm={() => deleteContent(row.id)}
+                    okText="Yes" 
+                    cancelText="No">
+                    <DeleteTwoTone twoToneColor="#eb2f96"/>
+                  </Popconfirm>
+                  {/* <EditOutlined /> */}
                 </div>
               )}
             </div>
           )}
         />
+
       </div>
+
       {/* right content area */}
       <div className="right h-full flex-1 flex flex-col border border-gray-200 rounded-md bg-white pb-5 relative overflow-hidden">
         {isMember && params.index && (
