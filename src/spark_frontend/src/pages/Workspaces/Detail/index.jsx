@@ -523,6 +523,7 @@ const WorkspaceDetail = () => {
                       description="Are you sure to delete this content?"
                       onConfirm={() => deleteContent(row.id)}
                       onCancel={() => setClickDelId(0)}
+                      onOpenChange={() => {if (clickDelId > 0){ setClickDelId(0)}}}
                       okText="Yes" 
                       cancelText="No">
                       <DeleteTwoTone title="delete" twoToneColor="#eb2f96" onClick={() => setClickDelId(row.id)}/>
