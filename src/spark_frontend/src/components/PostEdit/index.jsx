@@ -5,7 +5,11 @@ import { WebsocketProvider } from 'y-websocket'
 import { QuillBinding } from 'y-quill'
 import Quill from 'quill'
 import QuillCursors from 'quill-cursors'
-import { Form, Input, Button, message, Upload, Select } from 'antd'
+import MarkdownShortcuts from 'quill-markdown-shortcuts'
+import 'highlight.js/styles/xcode.css'
+import hljs from 'highlight.js'
+
+import { Form, Input, Button, message, Upload, Select,Skeleton } from 'antd'
 import ImgCrop from 'antd-img-crop'
 import { useAuth } from '@/Hooks/useAuth'
 import { fetchICApi } from '@/api/icFetch'
@@ -17,7 +21,9 @@ import {
 } from '@ant-design/icons'
 import CommonAvatar from '../CommonAvatar'
 
+
 Quill.register('modules/cursors', QuillCursors)
+Quill.register('modules/markdownShortcuts', MarkdownShortcuts)
 
 const PostEdit = React.forwardRef((props, ref) => {
 
@@ -59,17 +65,26 @@ const PostEdit = React.forwardRef((props, ref) => {
     const editor = new Quill(editorContainer, {
       modules: {
         cursors: true,
+        markdownShortcuts: {}, // 启动 Markdown 快捷键模块
         toolbar: [
-          [{ header: [1, 2, false] }],
-          ['bold', 'italic', 'underline'],
-          ['image', 'code-block'],
+          [{ header: [1, 2, 3, 4, 5, false] }],
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ 'color': [] }, { 'background': [] }],
+          // [{ 'size': [] }],
+          [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+          ['blockquote', 'code-block'],
+          ['link', 'image']
+          ['clean']
         ],
         history: {
           userOnly: true,
         },
       },
+      syntax: true,
+      // syntax: true,
       placeholder: 'Write your post content here...',
       theme: 'snow', // or 'bubble'
+      // readOnly: true
     })
 
     setMyEditor(editor)
@@ -133,6 +148,7 @@ const PostEdit = React.forwardRef((props, ref) => {
 
   // 保存信息
   const handleSave = async () => {
+    setLoading(true)
     console.log(contentInfo.name, title, contentInfo.content, content)
     if (contentInfo.name !== title || contentInfo.content !== content) {
       await fetchICApi(
@@ -148,6 +164,7 @@ const PostEdit = React.forwardRef((props, ref) => {
       wid,
       BigInt(id),
     ])
+    setLoading(false)
     onSaveSuccess()
     message.success('Saved success')
   }
@@ -192,10 +209,12 @@ const PostEdit = React.forwardRef((props, ref) => {
       { id: wid, agent },
       'workspace',
       'pushPortal',
-      [id],
+      [BigInt(id)],
     )
     if (result.code === 200) {
       message.success('Published!')
+    }else{
+      message.error(result.msg)
     }
   }
 
@@ -213,6 +232,10 @@ const PostEdit = React.forwardRef((props, ref) => {
     setSpaceInfo({})
     setContent({})
     setTrait({})
+
+    getSpaceInfo()
+    getContent()
+    getTrait()
   }, [id,wid])
 
   useEffect(() => {
@@ -221,52 +244,63 @@ const PostEdit = React.forwardRef((props, ref) => {
     }
   }, [myProvider])
 
+  // useEffect(() => {
+  //   if (authUserInfo.name) {
+  //     initEditor()
+  //     return () => {
+  //       myProvider?.destroy()
+  //     }
+  //   }
+  // }, [authUserInfo])
+
   useEffect(() => {
-    if (authUserInfo.name) {
-      getSpaceInfo()
-      getContent()
-      getTrait()
+    if(contentInfo.id && authUserInfo.name){
+      setTitle(contentInfo.name)
       initEditor()
       return () => {
         myProvider?.destroy()
       }
     }
-  }, [authUserInfo])
+  }, [contentInfo, authUserInfo])
 
   useEffect(() => {
-    console.log("123")
-    setTitle(contentInfo.name)
     if (myEditor) {
+      console.log(myEditor)
       setTimeout(() => {
         const delta = myEditor.clipboard.convert(contentInfo.content)
         myEditor.setContents(delta, 'silent')
-      }, 3000)
+      }, 2000)
     }
-  }, [contentInfo, myEditor])
+  }, [myEditor])
 
   return (
     <div className=" w-full h-full overflow-hidden relative pb-10">
 
       {/* 编辑器 */}
       <div className="flex flex-col w-full h-full overflow-hidden ml-auto mr-auto relative">
+        {contentInfo.id ? 
+          <>
+            {/* title */}
+            <Input
+              className="border-0 text-2xl mt-12 pl-10 pr-10 focus-within:shadow-none"
+              placeholder="New post title here..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
 
-        {/* title */}
-        <Input
-          className="border-0 text-2xl mt-12 pl-10 pr-10 focus-within:shadow-none"
-          placeholder="New post title here..."
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
+            {/* 特征展示按钮 */}
+            <Button
+              type="link"
+              className="block ml-auto mr-auto"
+              icon={isShowTrait ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+              onClick={() => setIsShowTrait(!isShowTrait)}
+            >
+              {isShowTrait ? 'Hide Trait' : 'Set Trait'}
+            </Button>
+          </>
+          : <Skeleton className='w-11/12 mx-auto mt-10' active />
+        }
 
-        {/* 特征展示按钮 */}
-        <Button
-          type="link"
-          className="block ml-auto mr-auto"
-          icon={isShowTrait ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-          onClick={() => setIsShowTrait(!isShowTrait)}
-        >
-          {isShowTrait ? 'Hide Trait' : 'Set Trait'}
-        </Button>
 
         {/* 文章展示信息表单 */}
         <Form
@@ -332,10 +366,10 @@ const PostEdit = React.forwardRef((props, ref) => {
             (item) => item !== 'Private',
           ) ? (
             <>
-              <Button type="primary" onClick={handlePublish}>
+              <Button type="primary" onClick={handlePublish} loading={loading}>
                 Save & Publish
               </Button>
-              <Button type="text" className="ml-2" onClick={handleSave}>
+              <Button type="text" className="ml-2" onClick={handleSave} loading={loading}>
                 Save
               </Button>
             </>
