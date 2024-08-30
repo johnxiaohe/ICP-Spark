@@ -28,28 +28,29 @@ const PostEdit = React.forwardRef((props, ref) => {
   const { agent, authUserInfo } = useAuth()
 
   const [spaceInfo, setSpaceInfo] = useState({})
+  const [contentInfo, setContentInfo] = useState({})
+  const [traitInfo, setTraitInfo] = useState({})
 
   const [myEditor, setMyEditor] = useState(null)
-
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState({})
-  const [trait, setTrait] = useState({})
-
-  const [defaultDesc, setDefaultDesc] = useState('')
   const [editors, setEditors] = useState([])
   const [myProvider, setMyProvider] = useState(null)
 
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [defaultDesc, setDefaultDesc] = useState('')
+  const [trait, setTrait] = useState({})
+  
   const [isShowTrait, setIsShowTrait] = useState(false)
   const [loading, setLoading] = useState(false)
   const tagOptions = []
 
   const initEditor = () => {
     const ydoc = new Y.Doc()
-    console.log(`icp-${wid}-${id}`)
+    console.log(`icp-spark-${wid}-${id}`)
     const provider = new WebsocketProvider(
       'wss://demos.yjs.dev/ws', // use the public ws server
       // `ws${location.protocol.slice(4)}//${location.host}/ws`, // alternatively: use the local ws server (run `npm start` in root directory)
-      `icp-${wid}-${id}`,
+      `icp-spark-${wid}-${id}`,
       ydoc,
     )
     const ytext = ydoc.getText('quill')
@@ -111,7 +112,7 @@ const PostEdit = React.forwardRef((props, ref) => {
       [BigInt(id)],
     )
     if (result.code === 200) {
-      setContent(result.data || {})
+      setContentInfo(result.data || {})
     }else{
       message.error(result.msg)
     }
@@ -125,26 +126,27 @@ const PostEdit = React.forwardRef((props, ref) => {
       [BigInt(id)],
     )
     if (result.code === 200 || result.code === 404) {
+      setTraitInfo(result.data || {})
       setTrait(result.data || {})
     }
   }
 
   // 保存信息
   const handleSave = async () => {
-    console.log(props.content.name, title, props.content.content, content)
-    if (props.content.name !== title || props.content.content !== content) {
+    console.log(contentInfo.name, title, contentInfo.content, content)
+    if (contentInfo.name !== title || contentInfo.content !== content) {
       await fetchICApi(
-        { id: props.spaceId, agent },
+        { id: wid, agent },
         'workspace',
         'updateContent',
-        [BigInt(props.content.id), title, content, authUserInfo.name],
+        [BigInt(id), title, content, authUserInfo.name],
       )
     }
     await saveTrait()
     // 记录最近编辑的文章
     fetchICApi({ id: authUserInfo.id, agent }, 'user', 'addRecentEdit', [
-      props.spaceId,
-      BigInt(props.content.id),
+      wid,
+      BigInt(id),
     ])
     onSaveSuccess()
     message.success('Saved success')
@@ -152,10 +154,11 @@ const PostEdit = React.forwardRef((props, ref) => {
 
   const saveTrait = async () => {
     if (!defaultDesc) return
-    const oldDesc = props.trait.desc || ''
-    const oldPlate = props.trait.plate || ''
-    const oldTag = props.trait.tag?.join('')
-    const oldName = props.trait.name || ''
+    const oldDesc = traitInfo.desc || ''
+    const oldPlate = traitInfo.plate || ''
+    const oldTag = traitInfo.tag?.join('')
+    const oldName = traitInfo.name || ''
+
     const newDesc = trait.desc || defaultDesc
     const newPlate = trait.plate || ''
     const newTag = trait.tag?.join('')
@@ -169,8 +172,8 @@ const PostEdit = React.forwardRef((props, ref) => {
     )
       return
 
-    await fetchICApi({ id: props.spaceId, agent }, 'workspace', 'updateTrait', [
-      BigInt(props.content.id),
+    await fetchICApi({ id: wid, agent }, 'workspace', 'updateTrait', [
+      BigInt(id),
       newName,
       newDesc.substr(0, 200),
       newPlate,
@@ -180,17 +183,16 @@ const PostEdit = React.forwardRef((props, ref) => {
 
   const handlePublish = async () => {
     await handleSave()
-    onSaveSuccess()
     if (!content) {
       return message.warning(
         'Publishing is rejected since the content is empty!',
       )
     }
     const result = await fetchICApi(
-      { id: props.spaceId, agent },
+      { id: wid, agent },
       'workspace',
       'pushPortal',
-      [props.content.id],
+      [id],
     )
     if (result.code === 200) {
       message.success('Published!')
@@ -208,9 +210,9 @@ const PostEdit = React.forwardRef((props, ref) => {
 
   // 初始化信息
   useEffect(() => {
-    getSpaceInfo()
-    getContent()
-    getTrait()
+    setSpaceInfo({})
+    setContent({})
+    setTrait({})
   }, [id,wid])
 
   useEffect(() => {
@@ -221,6 +223,9 @@ const PostEdit = React.forwardRef((props, ref) => {
 
   useEffect(() => {
     if (authUserInfo.name) {
+      getSpaceInfo()
+      getContent()
+      getTrait()
       initEditor()
       return () => {
         myProvider?.destroy()
@@ -229,18 +234,23 @@ const PostEdit = React.forwardRef((props, ref) => {
   }, [authUserInfo])
 
   useEffect(() => {
-    setTitle(content.name)
+    console.log("123")
+    setTitle(contentInfo.name)
     if (myEditor) {
       setTimeout(() => {
-        const delta = myEditor.clipboard.convert(content.content)
+        const delta = myEditor.clipboard.convert(contentInfo.content)
         myEditor.setContents(delta, 'silent')
       }, 3000)
     }
-  }, [content, myEditor])
+  }, [contentInfo, myEditor])
 
   return (
     <div className=" w-full h-full overflow-hidden relative pb-10">
+
+      {/* 编辑器 */}
       <div className="flex flex-col w-full h-full overflow-hidden ml-auto mr-auto relative">
+
+        {/* title */}
         <Input
           className="border-0 text-2xl mt-12 pl-10 pr-10 focus-within:shadow-none"
           placeholder="New post title here..."
@@ -248,6 +258,7 @@ const PostEdit = React.forwardRef((props, ref) => {
           onChange={(e) => setTitle(e.target.value)}
         />
 
+        {/* 特征展示按钮 */}
         <Button
           type="link"
           className="block ml-auto mr-auto"
@@ -257,6 +268,7 @@ const PostEdit = React.forwardRef((props, ref) => {
           {isShowTrait ? 'Hide Trait' : 'Set Trait'}
         </Button>
 
+        {/* 文章展示信息表单 */}
         <Form
           className={`${
             isShowTrait ? 'h-auto' : 'h-0 overflow-hidden'
@@ -264,6 +276,7 @@ const PostEdit = React.forwardRef((props, ref) => {
           labelCol={{ offset: 0, span: 4 }}
         >
           <Form.Item label="Plate">
+
             <ImgCrop rotationSlider aspect={2 / 1}>
               <Upload
                 className="bg-none"
@@ -291,6 +304,7 @@ const PostEdit = React.forwardRef((props, ref) => {
           >
             <Input.TextArea maxLength={200} value={trait.desc} />
           </Form.Item>
+
           <Form.Item label="Tags">
             <Select
               mode="tags"
@@ -305,10 +319,14 @@ const PostEdit = React.forwardRef((props, ref) => {
           </Form.Item>
           
         </Form>
+
+        {/* 编辑器窗口 */}
         <div id="editor"></div>
       </div>
 
+      {/* footer */}
       <div className="flex justify-between mt-5 pl-10 pr-10 w-full absolute bottom-0">
+        {/* 保存按钮 */}
         <div>
           {Object.keys(spaceInfo?.model || {}).some(
             (item) => item !== 'Private',
@@ -327,6 +345,8 @@ const PostEdit = React.forwardRef((props, ref) => {
             </Button>
           )}
         </div>
+
+        {/* 共同编辑成员 */}
         <div className="flex">
           {editors.map((item, index) => (
             <div className="w-5 last:w-auto" key={index}>
@@ -340,7 +360,9 @@ const PostEdit = React.forwardRef((props, ref) => {
             </div>
           ))}
         </div>
+
       </div>
+
     </div>
   )
 })
