@@ -40,7 +40,7 @@ actor{
   system func postupgrade() {};
 
   public shared({caller}) func version(): async (Text){
-    return "v1.0.4"
+    return "v1.0.0"
   };
 
   public shared({caller}) func initArgs(): async(Blob){

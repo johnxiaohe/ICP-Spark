@@ -163,7 +163,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     public shared({caller}) func version(): async (Text){
-        return "v1.0.5"
+        return "v1.0.0"
     };
 
     public shared({caller}) func childCids(moduleName: Text): async ([Text]){
