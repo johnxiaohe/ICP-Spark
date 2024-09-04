@@ -8,6 +8,7 @@ import Debug "mo:base/Debug";
 import Time "mo:base/Time";
 import Error "mo:base/Error";
 import Principal "mo:base/Principal";
+import Cycles "mo:base/ExperimentalCycles";
 
 import Map "mo:map/Map";
 import { thash } "mo:map/Map";
@@ -46,11 +47,11 @@ shared({caller}) actor class(){
 
     private var errlogs : List.List<Log> = List.nil();
 
-    public shared({caller}) func version(): async (Text){
+    public query({caller}) func version(): async (Text){
         return "v1.0.0"
     };
 
-    public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+    public query({caller}) func childCids(moduleName: Text): async ([Text]){
         return [];
     };
 
@@ -120,7 +121,7 @@ shared({caller}) actor class(){
         };
     };
 
-    public shared func getTrait(wid: Text, index: Nat): async(Resp<ContentTrait>) {
+    public query func getTrait(wid: Text, index: Nat): async(Resp<ContentTrait>) {
         let uuid = getUUid(wid, index);
         switch(Map.get(traits, thash, uuid)){
             case(null){
@@ -141,7 +142,7 @@ shared({caller}) actor class(){
     };
 
     // 热度排序 slice方法  前闭后开
-    public shared func hot(offset: Nat, size: Nat): async(Resp<[ContentTrait]>){
+    public query func hot(offset: Nat, size: Nat): async(Resp<[ContentTrait]>){
         var from = offset;
         var to = offset + size;
         if (to > Array.size(hots)){
@@ -165,7 +166,7 @@ shared({caller}) actor class(){
     };
 
     // 最新排序
-    public shared func latest(offset: Nat, size: Nat): async(Resp<[ContentTrait]>){
+    public query func latest(offset: Nat, size: Nat): async(Resp<[ContentTrait]>){
         var from = offset;
         var to = offset + size;
         if (to > List.size(latests)){
@@ -194,7 +195,7 @@ shared({caller}) actor class(){
     };
 
     // 检索
-    public shared func queryByName(keyword: Text): async(Resp<[ContentTrait]>){
+    public query func queryByName(keyword: Text): async(Resp<[ContentTrait]>){
         var result : List.List<ContentTrait> = List.nil();
         for(trait in Map.vals(traits)){
             if (Text.contains(trait.name, #text keyword)){
@@ -208,7 +209,7 @@ shared({caller}) actor class(){
         };
     };
 
-    public shared func queryLogs (): async(Resp<[Log]>){
+    public query func queryLogs (): async(Resp<[Log]>){
         return {
             code = 200;
             msg = "";
@@ -280,4 +281,9 @@ shared({caller}) actor class(){
             processing := false;
         });
 
+
+    public func wallet_receive(): async() {
+        let amout = Cycles.available();
+        let accepted = Cycles.accept(amout);
+    };
 }

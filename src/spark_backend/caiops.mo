@@ -69,7 +69,7 @@ actor{
 
     private stable var index : Nat = 0;
 
-    public shared({caller}) func version(): async (Text){
+    public query({caller}) func version(): async (Text){
         return "v1.0.0"
     };
 
@@ -80,7 +80,7 @@ actor{
         }
     };
 
-    public shared({caller}) func checkAdmin(): async (Text){
+    public query({caller}) func checkAdmin(): async (Text){
          switch(Map.get(admins, thash, Principal.toText(caller))){
             case(null){ 
                 return "";
@@ -91,7 +91,7 @@ actor{
         }
     };
 
-    public shared({caller}) func adminList() : async([Member]){
+    public query({caller}) func adminList() : async([Member]){
         if(isAdmin(Principal.toText(caller))){
             return Iter.toArray(Map.vals(admins))
         };
@@ -111,7 +111,7 @@ actor{
         };
     };
 
-    public shared({caller}) func modules(): async([CaiModule]){
+    public query({caller}) func modules(): async([CaiModule]){
         if(not isAdmin(Principal.toText(caller))){
             return [];
         };
@@ -212,7 +212,7 @@ actor{
         };
     };
 
-    public shared({caller}) func versions(moduleName: Text): async([CaiVersion]){
+    public query({caller}) func versions(moduleName: Text): async([CaiVersion]){
         if(not isAdmin(Principal.toText(caller))){
             return [];
         };

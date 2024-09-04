@@ -100,11 +100,11 @@ shared (installation) actor class CyclesManage() ={
     private stable var canisterBalanceMap = Map.new<Text, List.List<BalanceLog>>();
     private stable var canisterTopupLogsMap = Map.new<Text, List.List<Log>>();
 
-    public shared({caller}) func version(): async (Text){
+    public query({caller}) func version(): async (Text){
         return "v1.0.0"
     };
 
-    public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+    public query({caller}) func childCids(moduleName: Text): async ([Text]){
         return [];
     };
 
@@ -173,7 +173,7 @@ shared (installation) actor class CyclesManage() ={
         };
     };
 
-    public shared({caller}) func balance(): async (Nat){
+    public query({caller}) func balance(): async (Nat){
         return Cycles.balance();
     };
 
@@ -267,7 +267,7 @@ shared (installation) actor class CyclesManage() ={
         };
     };
 
-    public shared({caller}) func preSaveLogs(): async (Resp<[Log]>){
+    public query({caller}) func preSaveLogs(): async (Resp<[Log]>){
         let result : List.List<Log> = Option.get(Map.get(preSaveLogsMap, thash, Principal.toText(caller)), List.nil());
         return {
             code = 200;
@@ -327,7 +327,7 @@ shared (installation) actor class CyclesManage() ={
         };
     };
 
-    public shared func topUpLogs(cid: Text): async (Resp<[Log]>){
+    public query func topUpLogs(cid: Text): async (Resp<[Log]>){
         let result : List.List<Log> = Option.get(Map.get(canisterTopupLogsMap, thash, cid), List.nil());
         return {
             code = 200;
@@ -476,7 +476,7 @@ shared (installation) actor class CyclesManage() ={
 
     };
 
-    public shared({caller}) func canisterBalanceHistorys(cid: Text): async(Resp<[BalanceLog]>){
+    public query({caller}) func canisterBalanceHistorys(cid: Text): async(Resp<[BalanceLog]>){
         let result = Option.get(Map.get(canisterBalanceMap, thash, cid), List.nil());
         return {
             code = 200;
@@ -538,7 +538,7 @@ shared (installation) actor class CyclesManage() ={
         };
     };
 
-    public shared({caller}) func sysErrorLog(): async(Resp<[Log]>){
+    public query({caller}) func sysErrorLog(): async(Resp<[Log]>){
         // assert(caller == SELF or caller == OWNER);
         return {
             code = 200;
@@ -547,7 +547,7 @@ shared (installation) actor class CyclesManage() ={
         };
     };
 
-    public shared({caller}) func feeLog(): async(Resp<[FeeLog]>){
+    public query({caller}) func feeLog(): async(Resp<[FeeLog]>){
         // assert(caller == SELF or caller == OWNER);
         return {
             code = 200;

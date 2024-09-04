@@ -105,18 +105,18 @@ shared({caller}) actor class UserSpace(
     tokenMap.put("ICP", icpLedger);
     tokenMap.put("CYCLES", cyclesLedger);
 
-    public shared({caller}) func initArgs(): async(Blob){
+    public query({caller}) func initArgs(): async(Blob){
         if(Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
             return to_candid(name,owner,avatar,desc,ctime);
         };
         return to_candid();
     };
 
-    public shared({caller}) func version(): async (Text){
+    public query({caller}) func version(): async (Text){
         return "v1.0.0"
     };
 
-    public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+    public query({caller}) func childCids(moduleName: Text): async ([Text]){
         if (not Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
             return [];
         };
@@ -161,7 +161,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared func baseUserInfo(): async Resp<BaseUserInfo>{
+    public query func baseUserInfo(): async Resp<BaseUserInfo>{
         return {
             code=200;
             msg="";
@@ -173,7 +173,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared func info(): async Resp<User>{
+    public query func info(): async Resp<User>{
         return {
             code=200;
             msg="";
@@ -188,7 +188,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared func getAvatar(): async Resp<Text>{
+    public query func getAvatar(): async Resp<Text>{
         return {
             code = 200;
             msg = "";
@@ -196,7 +196,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared func detail(): async(Resp<UserDetail>) {
+    public query func detail(): async(Resp<UserDetail>) {
         return {
             code=200;
             msg="";
@@ -269,7 +269,7 @@ shared({caller}) actor class UserSpace(
         };
     };
 
-    public shared func cycles(): async Resp<Nat>{
+    public query func cycles(): async Resp<Nat>{
         return {
             code = 200;
             msg = "";
@@ -431,7 +431,7 @@ shared({caller}) actor class UserSpace(
 
     // user meta data manage-----------------------------------
     // a follow b => a.follow b.fans relation: uid -- uid
-    public shared({caller}) func hvFollowed(uid: Text): async Resp<Bool> {
+    public query({caller}) func hvFollowed(uid: Text): async Resp<Bool> {
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -601,7 +601,7 @@ shared({caller}) actor class UserSpace(
     };
 
     // 收藏、取消收藏、收藏列表
-    public shared({caller}) func hvCollectioned(wid: Text, index: Nat): async Resp<Bool> {
+    public query({caller}) func hvCollectioned(wid: Text, index: Nat): async Resp<Bool> {
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;
@@ -719,7 +719,7 @@ shared({caller}) actor class UserSpace(
     };
 
     // 订阅列表、添加、删除订阅。关联标识为目标workspace的 priciaplid
-    public shared({caller}) func hvSubscribed(wid: Text): async Resp<Bool>{
+    public query({caller}) func hvSubscribed(wid: Text): async Resp<Bool>{
         if (not Principal.equal(caller,owner)){
             return {
                 code = 403;

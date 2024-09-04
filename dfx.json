@@ -29,9 +29,6 @@
       "type": "motoko"
     },
     "spark_frontend": {
-      "dependencies": [
-        "spark_backend"
-      ],
       "frontend": {
         "entrypoint": "src/spark_frontend/src/index.html"
       },

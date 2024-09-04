@@ -39,15 +39,15 @@ actor{
 
   system func postupgrade() {};
 
-  public shared({caller}) func version(): async (Text){
+  public query({caller}) func version(): async (Text){
     return "v1.0.0"
   };
 
-  public shared({caller}) func initArgs(): async(Blob){
+  public query({caller}) func initArgs(): async(Blob){
     return to_candid();
   };
 
-  public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+  public query({caller}) func childCids(moduleName: Text): async ([Text]){
     if (not Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
       return []
     };
@@ -133,7 +133,7 @@ actor{
   };
 
   // 查询个人基础信息
-  public shared({caller}) func queryUserInfo(): async Resp<User> {
+  public query({caller}) func queryUserInfo(): async Resp<User> {
     switch(Map.get(userMap, thash, Principal.toText(caller))){
       case(null){
         return {
@@ -153,7 +153,7 @@ actor{
   };
 
   // 用户名称模糊查询
-  public shared func queryByName(keyword: Text): async(Resp<[User]>){
+  public query func queryByName(keyword: Text): async(Resp<[User]>){
     var result : List.List<User> = List.nil();
     for (u in Map.vals(userMap)){
       let name = u.name;
@@ -169,7 +169,7 @@ actor{
   };
 
   // 用户canisterid查询
-  public shared({caller}) func queryById(id: Text): async(Resp<User>){
+  public query({caller}) func queryById(id: Text): async(Resp<User>){
     switch(Map.get(userIdMap, thash, id)){
       case(null){
         return {
@@ -200,7 +200,7 @@ actor{
   };
 
   // 用户principalid查询
-  public shared({caller}) func queryByPid(pid: Text): async(Resp<User>){
+  public query({caller}) func queryByPid(pid: Text): async(Resp<User>){
     switch(Map.get(userMap, thash, pid)){
       case(null){
         return {
@@ -218,4 +218,10 @@ actor{
       };
     };
   };
+
+  public func wallet_receive(): async() {
+    let amout = Cycles.available();
+    let accepted = Cycles.accept(amout);
+  };
+
 }

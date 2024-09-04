@@ -146,7 +146,7 @@ shared({caller}) actor class WorkSpace(
     // 总编辑数
     private stable var _editcount : Nat = 0;
 
-    public shared({caller}) func initArgs(): async(Blob){
+    public query({caller}) func initArgs(): async(Blob){
         if(Principal.equal(caller, Principal.fromText(configs.SPARK_CAIOPS_ID))){
             return to_candid(
                 _createrName,
@@ -162,11 +162,11 @@ shared({caller}) actor class WorkSpace(
         return to_candid();
     };
 
-    public shared({caller}) func version(): async (Text){
+    public query({caller}) func version(): async (Text){
         return "v1.0.0"
     };
 
-    public shared({caller}) func childCids(moduleName: Text): async ([Text]){
+    public query({caller}) func childCids(moduleName: Text): async ([Text]){
         return [];
     };
 
@@ -266,7 +266,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 由用户直接调用的 空间基础信息管理方法 ---------------------------------------------------------------
-    public shared func info(): async Resp<WorkSpaceInfo>{
+    public query func info(): async Resp<WorkSpaceInfo>{
         return {
                 code = 200;
                 msg = "";
@@ -283,7 +283,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func baseInfo(): async Resp<WorkSpaceBaseInfo>{
+    public query func baseInfo(): async Resp<WorkSpaceBaseInfo>{
         return {
                 code = 200;
                 msg = "";
@@ -298,7 +298,7 @@ shared({caller}) actor class WorkSpace(
     };
 
 
-    public shared func getAvatar(): async Resp<Text>{
+    public query func getAvatar(): async Resp<Text>{
         return {
             code = 200;
             msg = "";
@@ -392,7 +392,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 获取当前用户在空间中的角色
-    public shared({caller}) func role(): async Resp<Text>{
+    public query({caller}) func role(): async Resp<Text>{
         let pid = Principal.toText(caller);
         if (Text.equal(pid, superPid)){
             return {
@@ -794,7 +794,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func collectionCall(index: Nat): async (Resp<Collection>){
+    public query func collectionCall(index: Nat): async (Resp<Collection>){
         switch(Map.get(contentMap, nhash, index)){
             case(null){
                 return {
@@ -826,7 +826,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 由用户客户端调用  查看是否有订阅 -------------------------------------
-    public shared({caller}) func haveSubscribe(): async (Resp<Bool>){
+    public query({caller}) func haveSubscribe(): async (Resp<Bool>){
         if (isSubscriberByPid(Principal.toText(caller))){
             return {
                 code = 200;
@@ -1099,7 +1099,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func getTrait(index: Nat): async (Resp<ContentTrait>){
+    public query({caller}) func getTrait(index: Nat): async (Resp<ContentTrait>){
         let callerPid = Principal.toText(caller);
         if (showModel == #Private and not isMember(callerPid)){
             return {
@@ -1143,7 +1143,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func views(indexs: [Nat]): async([ViewResp]){
+    public query func views(indexs: [Nat]): async([ViewResp]){
         var result : List.List<ViewResp> = List.nil();
         for(index in Array.vals(indexs)){
             let view = Option.get<Nat>(Map.get(contentViewMap, nhash, index), 0);
@@ -1268,7 +1268,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     // summary all
-    public shared({caller}) func summary(): async (Resp<[SummaryResp]>){
+    public query({caller}) func summary(): async (Resp<[SummaryResp]>){
         if (showModel == #Private and not isMember(Principal.toText(caller))){
             return {
                 code = 403;
@@ -1293,7 +1293,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func getSummery(pid: Nat): async (Resp<[SummaryResp]>){
+    public query({caller}) func getSummery(pid: Nat): async (Resp<[SummaryResp]>){
         // 判断是否是成员,仅私有空间不能查看目录
         if (showModel == #Private){
             if(not isMember(Principal.toText(caller))){
@@ -1337,7 +1337,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func searchSummery(keyword: Text): async (Resp<[SummaryResp]>){
+    public query({caller}) func searchSummery(keyword: Text): async (Resp<[SummaryResp]>){
         // 判断是否是成员,仅私有空间不能查看目录
         if (showModel == #Private){
             if(not isMember(Principal.toText(caller))){
@@ -1368,7 +1368,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 由用户调用的 空间统计信息管理方法 -------------------------------------------------
-    public shared func count(): async Resp<SpaceData>{
+    public query func count(): async Resp<SpaceData>{
         return{
             code = 200;
             msg = "";
@@ -1383,7 +1383,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func editRanking(): async Resp<[EditorRanking]>{
+    public query func editRanking(): async Resp<[EditorRanking]>{
         return {
             code = 200;
             msg = "";
@@ -1391,7 +1391,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func viewRanking(): async Resp<[ViewRanking]> {
+    public query func viewRanking(): async Resp<[ViewRanking]> {
         var result : List.List<ViewRanking> = List.nil();
         Map.forEach<Nat,Nat>(contentViewMap, func (id,count)  {
             switch(Map.get(contentMap, nhash, id)){
@@ -1413,7 +1413,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared func cycles(): async Resp<Nat>{
+    public query func cycles(): async Resp<Nat>{
         return {
             code = 200;
             msg = "";
@@ -1531,7 +1531,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 由用户直接调用的  空间日志 --------------------------------
-    public shared({caller}) func contentLog(id: Nat): async Resp<[ContentLog]>{
+    public query({caller}) func contentLog(id: Nat): async Resp<[ContentLog]>{
         if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;
@@ -1558,7 +1558,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 资金日志
-    public shared({caller}) func incomeLogs(): async Resp<[IncomeLog]>{
+    public query({caller}) func incomeLogs(): async Resp<[IncomeLog]>{
         if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;
@@ -1573,7 +1573,7 @@ shared({caller}) actor class WorkSpace(
         };
     };
 
-    public shared({caller}) func allocatedLogs(): async Resp<[OutGivingLog]>{
+    public query({caller}) func allocatedLogs(): async Resp<[OutGivingLog]>{
         if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;
@@ -1589,7 +1589,7 @@ shared({caller}) actor class WorkSpace(
     };
 
     // 用户消费日志：订阅、取消订阅
-    public shared({caller}) func consumerLog(): async Resp<[Log]>{
+    public query({caller}) func consumerLog(): async Resp<[Log]>{
         if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;
@@ -1605,7 +1605,7 @@ shared({caller}) actor class WorkSpace(
     };
     
     // 系统日志：空间信息变更、空间成员变更、成员权限变更
-    public shared({caller}) func sysLog(): async Resp<[Log]>{
+    public query({caller}) func sysLog(): async Resp<[Log]>{
         if (not isMember(Principal.toText(caller))){
             return {
                 code = 403;

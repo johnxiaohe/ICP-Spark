@@ -11,7 +11,13 @@ spark_backend klii6-7yaaa-aaaap-qhv7a-cai
 ### frontend
 
 spark_frontend  5wfnd-jiaaa-aaaap-qhwaa-cai
-spark_caiops_frontend
+
+https://5wfnd-jiaaa-aaaap-qhwaa-cai.icp0.io/
+
+
+spark_caiops_frontend 4omya-hiaaa-aaaap-qhwea-cai
+
+https://4omya-hiaaa-aaaap-qhwea-cai.icp0.io/
 
 
 
@@ -38,3 +44,11 @@ dfx canister start xhlkl-syaaa-aaaap-qherq-cai --ic
 dfx build spark_backend --ic
 dfx canister install spark_backend --ic --wasm ./.dfx/ic/canisters/spark_backend/spark_backend.wasm
 
+dfx canister update-settings --add-controller es6cc-o7jxo-ytzux-pddov-wbuac-bebfb-4772w-gl5dp-6vaag-qeja2-dqe vnrqu-jiaaa-aaaap-qhirq-cai
+
+
+
+临时充值cycles方法
+https://iclight.io/cyclesFinance/swap
+
+后面通过caiops为各个容器充值，只需要补充caiops的cycles即可
