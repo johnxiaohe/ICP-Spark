@@ -89,8 +89,8 @@ dfx generate blackhole
 dfx generate spark_caiops
 
 #### 启动业务后端容器
-dfx deploy spark_backend --specified-id n7ib3-4qaaa-aaaai-qagnq-cai
-dfx deploy spark_portal --specified-id cusyh-iyaaa-aaaah-qcpba-cai
+dfx deploy spark_backend --specified-id klii6-7yaaa-aaaap-qhv7a-cai
+dfx deploy spark_portal --specified-id xhlkl-syaaa-aaaap-qherq-cai
 dfx deploy blackhole --specified-id e3mmv-5qaaa-aaaah-aadma-cai
 dfx deploy spark_cyclesmanage --specified-id vnrqu-jiaaa-aaaap-qhirq-cai
 dfx deploy spark_caiops --specified-id xvn5s-6iaaa-aaaap-qhesq-cai

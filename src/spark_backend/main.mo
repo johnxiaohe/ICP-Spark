@@ -33,7 +33,7 @@ actor{
   // 用户注册先后排名
   private stable var _ranking : List.List<Text> = List.nil();
 
-  private stable var _cyclesPerUser: Nat = 200_000_000_000; // 0.2t cycles for each token canister
+  private stable var _cyclesPerUser: Nat = 500_000_000_000; // 0.5t cycles for each token canister
 
   system func preupgrade() {};
 

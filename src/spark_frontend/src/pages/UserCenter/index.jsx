@@ -348,7 +348,12 @@ const UserCenter = () => {
                 <div className="mt-4">
                   <h2 className="text-sm font-bold text-gray-700">Cycles</h2>
                   <div className="flex justify-between items-center text-base font-bold">
-                    {formatCyclesAmount(cycles)}
+                    {(cycles / Math.pow(10, 12)).toFixed(3) > 0.3 ?
+                      <>{formatCyclesAmount(cycles)}</> :
+                      <div className="text-red-600">
+                        <Tooltip title="Maybe you should top up some cycles, click Enter Gas Station">{formatCyclesAmount(cycles)}</Tooltip>
+                      </div>
+                    }
                   </div>
                 </div>
                 <Button

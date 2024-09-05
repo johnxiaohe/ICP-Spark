@@ -73,7 +73,8 @@ const PostEdit = React.forwardRef((props, ref) => {
           // [{ 'size': [] }],
           [{ 'list': 'ordered'}, { 'list': 'bullet' }],
           ['blockquote', 'code-block'],
-          ['link', 'image']
+          // ['link', 'image'],
+          ['link'],
           ['clean']
         ],
         history: {
@@ -219,7 +220,18 @@ const PostEdit = React.forwardRef((props, ref) => {
   }
 
   const handleUpload = async (file) => {
+    if(file.file.size > 819200){
+      message.error(" The image must be smaller than 100kb ")
+      return
+    };
     const imgBase64 = await fileToBase64(file.file)
+    let totalBytes = new Blob([imgBase64]).size;
+    let sizeInMB = totalBytes / (1024 * 1024);
+    console.log(sizeInMB)
+    if (sizeInMB > 1){
+      message.error(" Image conversion data is too large ")
+      return
+    }
     setTrait({ ...trait, plate: imgBase64 })
   }
 
