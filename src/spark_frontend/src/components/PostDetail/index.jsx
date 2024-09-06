@@ -142,7 +142,7 @@ const PostDetail = (props) => {
       { id: authUserInfo.id, agent },
       'user',
       'collection',
-      [wid, id],
+      [wid, BigInt(id)],
     )
     if (result.code === 200) {
       setCollected(true)
@@ -157,7 +157,7 @@ const PostDetail = (props) => {
       { id: authUserInfo.id, agent },
       'user',
       'unCollection',
-      [wid, id],
+      [wid, BigInt(id)],
     )
     if (result.code === 200) {
       setCollected(false)
