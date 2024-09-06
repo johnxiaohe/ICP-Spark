@@ -197,16 +197,16 @@ const WorkspaceDetail = () => {
   const handleClickBar = (item) =>{
     if (isEdit) {
       Modal.warning({
-        title: 'Confirm to quit editing',
+        title: 'Please quirt edit first',
         content:
           'Leaving the current page will cause unsaved changes to be lost. Confirm whether to leave.',
-        okText: 'Save and leave',
-        onOk: () => async () => {
-          await EditRef.current.handleSave();
-          navigate(`/space/${params.id}`);
-          setCurrentMenu(item.key)},
-        cancelText: 'Cancel',
-        maskClosable: true,
+        // okText: 'ok',
+        // onOk: () => async () => {
+        //   await EditRef.current.handleSave();
+        //   navigate(`/space/${params.id}`);
+        //   setCurrentMenu(item.key)},
+        cancelText: 'Ok',
+        // maskClosable: true,
       })
     }else{
       navigate(`/space/${params.id}`)
