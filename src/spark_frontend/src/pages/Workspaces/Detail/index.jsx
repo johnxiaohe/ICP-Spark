@@ -416,7 +416,7 @@ const WorkspaceDetail = () => {
         setMenuContent(<WorkspaceStatistics spaceInfo={spaceInfo} members={[...admins, ...members]} isMember={isMember}></WorkspaceStatistics>)
         break;
     }
-  }, [spaceModel, currentMenu, admins,members,spaceModel,isAdmin,isMember])
+  }, [spaceInfo, currentMenu, admins,members,spaceModel,isAdmin,isMember])
 
   // 空间信息变更回调
   useEffect(()=>{

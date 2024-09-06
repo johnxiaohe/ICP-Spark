@@ -100,7 +100,6 @@ const WorkspaceHome = (props) =>{
 
     useEffect(() => {
         getOwner()
-        console.log(summary)
         setSummaryData(summary.filter(item => {
             return item.pid == 0
         }))
