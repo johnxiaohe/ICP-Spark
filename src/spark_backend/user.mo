@@ -114,7 +114,7 @@ shared({caller}) actor class UserSpace(
     };
 
     public query({caller}) func version(): async (Text){
-        return "v1.0.2"
+        return "v1.0.3"
     };
 
     public query({caller}) func childCids(moduleName: Text): async ([Text]){

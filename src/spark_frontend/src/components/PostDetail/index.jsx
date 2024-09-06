@@ -182,7 +182,7 @@ const PostDetail = (props) => {
   }, [id])
 
   useEffect(() => {
-    if (spaceInfo.id && content.id){
+    if (spaceInfo.id && content.id == id){
       setInitLoading(false)
     }
   }, [content, trait, spaceInfo])
