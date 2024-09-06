@@ -150,14 +150,18 @@ const PostEdit = React.forwardRef((props, ref) => {
   // 保存信息
   const handleSave = async () => {
     setLoading(true)
-    console.log(contentInfo.name, title, contentInfo.content, content)
     if (contentInfo.name !== title || contentInfo.content !== content) {
-      await fetchICApi(
+      console.log(title, content)
+      let result = await fetchICApi(
         { id: wid, agent },
         'workspace',
         'updateContent',
         [BigInt(id), title, content, authUserInfo.name],
       )
+      if (result.code != 200){
+        message.error(result.msg)
+        return
+      }
     }
     await saveTrait()
     // 记录最近编辑的文章
@@ -242,7 +246,7 @@ const PostEdit = React.forwardRef((props, ref) => {
   // 初始化信息
   useEffect(() => {
     setSpaceInfo({})
-    setContent({})
+    setContent('')
     setTrait({})
 
     getSpaceInfo()
