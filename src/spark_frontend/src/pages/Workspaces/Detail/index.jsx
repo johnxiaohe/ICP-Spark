@@ -348,6 +348,7 @@ const WorkspaceDetail = () => {
   const onLeave = async (e) => {
     console.log(EditRef)
     await EditRef.current.handleSave()
+    setCurrentId(e.node.id)
     navigate(`/space/${params.id}/${e.node.id}`)
   }
 
