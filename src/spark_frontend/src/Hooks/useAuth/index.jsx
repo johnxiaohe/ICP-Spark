@@ -19,14 +19,9 @@ export const defaultOptions = {
     },
   },
   loginOptions: {
-    identityProvider:
-      process.env.DFX_NETWORK === 'ic'
-        ? 'https://identity.ic0.app/#authorize'
-        // : `http://rdmx6-jaaaa-aaaaa-aaadq-cai.localhost:8080/#authorize`,
-         : `http://qhbym-qaaaa-aaaaa-aaafq-cai.localhost:8080/#authorize`,
+    identityProvider: 'http://qhbym-qaaaa-aaaaa-aaafq-cai.localhost:8080/#authorize',
     // Maximum authorization expiration is 8 days
     maxTimeToLive: days * hours * nanoseconds,
-    derivationOrigin: "https://5wfnd-jiaaa-aaaap-qhwaa-cai.icp0.io",
   },
 }
 
@@ -87,6 +82,12 @@ export const AuthProvider = ({ children }) => {
   const login = async () => {
     let _authClient = authClient
     if (!_authClient) _authClient = await init()
+
+    if(process.env.DFX_NETWORK === 'ic'){
+      defaultOptions.loginOptions.derivationOrigin = "https://5wfnd-jiaaa-aaaap-qhwaa-cai.icp0.io"
+      defaultOptions.loginOptions.identityProvider = 'https://identity.ic0.app/#authorize'
+    }
+    
     _authClient.login({
       ...defaultOptions.loginOptions,
       onSuccess: () => handleAuthenticated(_authClient),

@@ -949,7 +949,7 @@ shared({caller}) actor class UserSpace(
         };
         await IC.update_settings(params);
 
-        ignore CaiOps.addCanister("workspace", Principal.toText(workspaceActorId));
+        await CaiOps.addCanister("workspace", Principal.toText(workspaceActorId));
 
         // add workspace relation
         let myworkspace : MyWorkspace = {wid=Principal.toText(workspaceActorId);owner=true;start=false};

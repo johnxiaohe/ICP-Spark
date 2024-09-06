@@ -843,7 +843,7 @@ shared({caller}) actor class WorkSpace(
 
 
     // 由用户直接调用的  创作内容管理相关api
-    public shared({caller}) func createContent(name: Text, parentId : Nat, sort: Nat): async (Resp<Content>){
+    public shared({caller}) func createContent(name: Text, parentId : Nat): async (Resp<Content>){
         let callerPid = Principal.toText(caller);
         let callerUid = getMemberUid(callerPid);
         if (Text.equal(callerUid, "")){
@@ -856,11 +856,35 @@ shared({caller}) actor class WorkSpace(
         // pid id 循环
         _contentIndex := _contentIndex + 1;
         let index = _contentIndex;
+
         var pid = parentId;
         if (index == parentId){
             pid := 0;
         };
-        var authors : List.List<Text> = List.nil();
+
+        var authors : List.List<Text> = List.make(callerUid);
+
+        var sort = 0;
+        var ids : List.List<Nat> = List.make(index);
+        switch(Map.get(contentIndex, nhash, pid)){
+            case(null){};
+            case(?existIds){
+                // 找到该id下最大的子id的sort
+                List.iterate<Nat>(existIds, func item {
+                    switch(Map.get(contentMap, nhash, item)){
+                        case(null){};
+                        case(?brotherContent){
+                            if (Nat.less(sort, brotherContent.sort)){
+                                sort := brotherContent.sort;
+                            };
+                        };
+                    };
+                });
+                sort := sort + 1;
+                ids := List.append<Nat>(ids, existIds);
+            };
+        };
+
         let content: Content = {
             id = index;
             pid = pid;
@@ -869,17 +893,9 @@ shared({caller}) actor class WorkSpace(
             sort = sort;
             utime = Time.now();
             uid = callerUid;
-            coAuthors = List.push(callerUid, authors);
+            coAuthors = authors;
         };
 
-        var ids : List.List<Nat> = List.nil();
-        ids := List.push(index, ids);
-        switch(Map.get(contentIndex, nhash, pid)){
-            case(null){};
-            case(?existIds){
-                ids := List.append<Nat>(ids, existIds);
-            };
-        };
         Map.set(contentIndex, nhash, pid, ids);
         Map.set(contentMap, nhash, index, content);
 

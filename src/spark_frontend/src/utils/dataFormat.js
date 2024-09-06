@@ -50,13 +50,18 @@ export const formatPostTree = (list) => {
         node.children.push(buildTree(childNode))
       }
     })
+    if (node.children.length > 0){
+      node.children.sort(function(a, b){return a.sort-b.sort})
+    }
     return node
   }
 
   // 过滤出根节点并递归构建整棵树
-  return list
+  let result = list
     .filter((item) => item.pid === 0)
     .map((rootNode) => buildTree(map.get(rootNode.id)))
+    .sort(function(a, b){return a.sort-b.sort})
+  return result
 }
 
 export const formatICPAmount = (num) => {

@@ -195,18 +195,34 @@ const WorkspaceDetail = () => {
   }
 
   const handleClickBar = (item) =>{
-    navigate(`/space/${params.id}`)
-    setCurrentMenu(item.key)
+    if (isEdit) {
+      Modal.warning({
+        title: 'Confirm to quit editing',
+        content:
+          'Leaving the current page will cause unsaved changes to be lost. Confirm whether to leave.',
+        okText: 'Save and leave',
+        onOk: () => async () => {
+          await EditRef.current.handleSave();
+          navigate(`/space/${params.id}`);
+          setCurrentMenu(item.key)},
+        cancelText: 'Cancel',
+        maskClosable: true,
+      })
+    }else{
+      navigate(`/space/${params.id}`)
+      setCurrentMenu(item.key)
+    }
   }
 
   // 创建空间内容
-  const createContent = async ({ pid = 0, sort = 1 }) => {
+  const createContent = async ({ pid = 0 }) => {
     setLoading(true)
+    console.log(pid)
     const result = await fetchICApi(
       { id: params.id, agent },
       'workspace',
       'createContent',
-      ['New post', BigInt(pid), BigInt(sort)],
+      ['New post', BigInt(pid)],
     )
     setLoading(false)
     if (result.code === 200) {
@@ -500,7 +516,7 @@ const WorkspaceDetail = () => {
         { summery.length ? 
           <Tree
             height={600}
-            draggable
+            // draggable
             // defaultExpandAll={true}
             blockNode
             onDragEnter={onDragEnter}
