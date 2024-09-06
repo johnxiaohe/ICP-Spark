@@ -156,6 +156,7 @@ const WorkspaceHome = (props) =>{
                             </li>
                             <li className="text-gray-300">at: {timeFormat(spaceInfo.ctime)} </li>
                             <li> Model: {Object.keys(spaceInfo?.model ?? {})}</li>
+                            <li> SpaceId: {spaceInfo?.id}</li>
                         </ul>
                     </div>
                     { isMember ? (
@@ -179,13 +180,13 @@ const WorkspaceHome = (props) =>{
                                 okText="Yes"
                                 cancelText="No"
                             >
-                                <Button danger>
+                                <Button type="primary" danger>
                                     Quit
                                 </Button>
                             </Popconfirm>
                             {isAdmin? 
                             (<>
-                                <Button onClick={handleUpdate}>
+                                <Button type="primary" onClick={handleUpdate}>
                                     Update
                                 </Button>
                             </>)

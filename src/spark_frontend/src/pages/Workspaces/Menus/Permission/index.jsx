@@ -302,7 +302,7 @@ const WorkspacePermission = (props) => {
                         {ownerInfo.name  || 'loading'}
                 </Link>
                 {isOwner ? (
-                    <Button onClick={() => {setOpenTransfer(true)}}>transfer owner</Button>
+                    <Button type="primary" danger onClick={() => {setOpenTransfer(true)}}>transfer owner</Button>
                     ) 
                     :
                     null
@@ -341,14 +341,14 @@ const WorkspacePermission = (props) => {
                     {changeModule ? (
                         <div className='flex flex-row gap-2'>
                             <Button onClick={cancelModuleChange}>cancel</Button>
-                            <Button onClick={submitModuleChange} loading={radioLoading}>submit</Button>
+                            <Button type="primary" onClick={submitModuleChange} loading={radioLoading}>submit</Button>
                         </div>
                     ): null}
                 </div>
 
                 <Divider orientation="content">Actions</Divider>
                 <div className='flex flex-row w-full gap-1 ml-10'>
-                    <Button onClick={handleInvite}>add member</Button>
+                    {isAdmin? <Button  type="primary" onClick={handleInvite}>add member</Button>: null}
                     <Button loading={loading} onClick={handleOpenLog}>System Logs</Button>
                 </div>
             </div>
@@ -362,8 +362,8 @@ const WorkspacePermission = (props) => {
                             <Link className='ml-10'>{item.name}</Link>
                             { isOwner && item.id == spaceInfo.super ? (
                                 <div className='flex flex-row gap-1'>
-                                    <Button loading={loading} onClick={() => {toMember(item)}}>To Member</Button>
-                                    <Button loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
+                                    <Button type="primary" loading={loading} onClick={() => {toMember(item)}}>To Member</Button>
+                                    <Button type="primary" danger loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
                                 </div>
                             ): null}
                         </div>
@@ -379,8 +379,8 @@ const WorkspacePermission = (props) => {
                             <Link className='ml-10'>{item.name}</Link>
                             { isAdmin ? (
                                 <div className='flex flex-row gap-1'>
-                                    <Button loading={loading} onClick={() => {toAdmin(item)}}>To Admin</Button>
-                                    <Button loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
+                                    <Button type="primary" loading={loading} onClick={() => {toAdmin(item)}}>To Admin</Button>
+                                    <Button type="primary" danger loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
                                 </div>
                             ): null}
                         </div>

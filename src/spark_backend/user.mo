@@ -65,8 +65,8 @@ shared({caller}) actor class UserSpace(
     type CanistersResp = types.CanistersResp;
 
     // 常量声明
-    private stable var cyclesPerNamespace: Nat = 300_000_000_000; // 0.3t cycles for each token canister
-    private stable var cyclesBalanceLess : Nat = 400_000_000_000; // 0.4T less 
+    private var cyclesPerNamespace: Nat = 200_000_000_000; // 0.2t cycles for each token canister
+    private var cyclesBalanceLess : Nat = 300_000_000_000; // 0.3T less 
 
     // 用户元信息
     private stable var owner : Principal = _owner;
@@ -114,7 +114,7 @@ shared({caller}) actor class UserSpace(
     };
 
     public query({caller}) func version(): async (Text){
-        return "v1.0.1"
+        return "v1.0.2"
     };
 
     public query({caller}) func childCids(moduleName: Text): async ([Text]){
@@ -922,7 +922,7 @@ shared({caller}) actor class UserSpace(
         if (Nat.less(cyclesBalance, cyclesBalanceLess)){
             return {
                 code = 400;
-                msg = "cycles balance not enought! at least 0.4T is required";
+                msg = "cycles balance not enought! at least 0.3T is required";
                 data = false;
             };
         };

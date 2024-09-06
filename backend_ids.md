@@ -12,8 +12,8 @@ spark_backend klii6-7yaaa-aaaap-qhv7a-cai
 
 spark_frontend  5wfnd-jiaaa-aaaap-qhwaa-cai
 
-https://5wfnd-jiaaa-aaaap-qhwaa-cai.icp0.io/
-https://ic-spark.app/ (namecheap)
+https://5wfnd-jiaaa-aaaap-qhwaa-cai.icp0.io
+https://ic-spark.app
 
 
 spark_caiops_frontend 4omya-hiaaa-aaaap-qhwea-cai

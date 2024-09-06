@@ -298,7 +298,7 @@ const WorkspaceStatistics = (props) => {
                 <div className = 'w-5/12 h-1/4 ml-10 text-lg flex flex-row'>
                   <div className='flex flex-row w-1/2 gap-2'>
                     <span>Balance</span>
-                    {isOwner ? (<Button size='small' onClick={() => {setOpenAllot(true)}}>allot</Button>):null}
+                    {isOwner ? (<Button size='small' type="primary" onClick={() => {setOpenAllot(true)}}>allot</Button>):null}
                   </div>
                   <div className='w-1/2'>{balance}</div>
                 </div>
@@ -363,9 +363,6 @@ const WorkspaceStatistics = (props) => {
             renderItem={(item) => (
               <List.Item>
                 <div className='flex flex-row justify-between w-11/12 mx-auto'>
-                    <Link className="w-2/3" to={`/user/${item.id}`}>
-                        {item.name}
-                    </Link>
                     <Popover
                       title={"Allot ICP to " + item.name}
                       rootClassName="w-60"
@@ -394,7 +391,11 @@ const WorkspaceStatistics = (props) => {
                       }
                       trigger="hover"
                     >
-                      <Button className="w-1/3" loading={allotLoading} >allot</Button>
+                      {/* <Button className="w-1/3" loading={allotLoading} >allot</Button>
+                       */}
+                      <Link className="w-full" to={`/user/${item.id}`}>
+                          {item.name}
+                      </Link>
                     </Popover>
                 </div>
               </List.Item>
