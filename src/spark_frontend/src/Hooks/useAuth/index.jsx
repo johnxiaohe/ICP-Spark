@@ -26,6 +26,7 @@ export const defaultOptions = {
          : `http://qhbym-qaaaa-aaaaa-aaafq-cai.localhost:8080/#authorize`,
     // Maximum authorization expiration is 8 days
     maxTimeToLive: days * hours * nanoseconds,
+    derivationOrigin: "https://5wfnd-jiaaa-aaaap-qhwaa-cai.icp0.io",
   },
 }
 
