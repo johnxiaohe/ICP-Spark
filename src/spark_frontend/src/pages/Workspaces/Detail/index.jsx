@@ -344,6 +344,7 @@ const WorkspaceDetail = () => {
       setCurrentId(e.node.id)
       navigate(`/space/${params.id}/${e.node.id}`)
     }
+    setCurrentMenu('')
   }
 
   const onLeave = async (e) => {
@@ -417,6 +418,8 @@ const WorkspaceDetail = () => {
       case 'Statistics':
         setMenuContent(<WorkspaceStatistics spaceInfo={spaceInfo} members={[...admins, ...members]} isMember={isMember}></WorkspaceStatistics>)
         break;
+      default:
+        setMenuContent(<></>)
     }
   }, [spaceInfo, currentMenu, admins,members,spaceModel,isAdmin,isMember,summery])
 
@@ -488,7 +491,7 @@ const WorkspaceDetail = () => {
         {/* 导航bar */}
         <Menu className='mt-4'
           style={{ width: 256 }}
-          defaultSelectedKeys={['Home']}
+          selectedKeys={[currentMenu]}
           mode={'vertical'}
           theme={'light'}
           items={menuBarItems}
