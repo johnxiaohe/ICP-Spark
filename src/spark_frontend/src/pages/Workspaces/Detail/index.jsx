@@ -211,6 +211,7 @@ const WorkspaceDetail = () => {
     }else{
       navigate(`/space/${params.id}`)
       setCurrentMenu(item.key)
+      setCurrentId(0)
     }
   }
 
@@ -399,7 +400,7 @@ const WorkspaceDetail = () => {
   useEffect(() => {
     switch(currentMenu){
       case 'Home':
-        setMenuContent(<WorkspaceHome spaceInfo={spaceInfo} summary={summery} isAdmin={isAdmin} isMember={isMember} updateSpaceInfo={setSpaceInfo} />)
+        setMenuContent(<WorkspaceHome spaceInfo={spaceInfo} summary={summery} isAdmin={isAdmin} isMember={isMember} updateSpaceInfo={setSpaceInfo} setCurrentId={setCurrentId} />)
         break;
       case 'Permission':
         setMenuContent(<WorkspacePermission 
@@ -417,7 +418,7 @@ const WorkspaceDetail = () => {
         setMenuContent(<WorkspaceStatistics spaceInfo={spaceInfo} members={[...admins, ...members]} isMember={isMember}></WorkspaceStatistics>)
         break;
     }
-  }, [spaceInfo, currentMenu, admins,members,spaceModel,isAdmin,isMember])
+  }, [spaceInfo, currentMenu, admins,members,spaceModel,isAdmin,isMember,summery])
 
   // 空间信息变更回调
   useEffect(()=>{
@@ -525,7 +526,7 @@ const WorkspaceDetail = () => {
             treeData={summery}
             // loadData={onLoadData}
             onSelect={onSelect}
-            // selectedKeys={[params.index]}
+            selectedKeys={[currentId]}
             key={(row) => row.id}
             titleRender={(row) => (
               <div className="group flex justify-between items-center">

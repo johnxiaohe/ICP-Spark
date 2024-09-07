@@ -14,7 +14,7 @@ import {
 const WorkspaceHome = (props) =>{
     const params = useParams()
     const navigate = useNavigate()
-    const { spaceInfo = {}, summary=[], isAdmin = false, isMember = false, updateSpaceInfo } = props
+    const { spaceInfo = {}, summary=[], isAdmin = false, isMember = false, updateSpaceInfo, setCurrentId } = props
     const { agent, authUserInfo } = useAuth()
 
     const [ownerInfo, setOwnerInfo] = useState({})
@@ -66,7 +66,7 @@ const WorkspaceHome = (props) =>{
           return
         }
         setAvatar(imgBase64)
-      }
+    }
 
     const quitWorkspace = async() => {
         const result = await fetchICApi(
@@ -103,7 +103,7 @@ const WorkspaceHome = (props) =>{
         setSummaryData(summary.filter(item => {
             return item.pid == 0
         }))
-    }, [spaceInfo,params.id])
+    }, [spaceInfo,params.id, summary])
 
     return (
     <div className='flex flex-col w-full gap-5'>
@@ -221,7 +221,9 @@ const WorkspaceHome = (props) =>{
                 bordered={false}
                 dataSource={summaryData}
                 renderItem={(item) => (
-                    <List.Item className='ml-2 rounded-md font-light hover:bg-slate-100 hover:cursor-pointer ' onClick={()=>{navigate(`/space/${params.id}/${item.id}`); setIsUpdate(false)}}>
+                    <List.Item 
+                        className='ml-2 rounded-md font-light hover:bg-slate-100 hover:cursor-pointer ' 
+                        onClick={()=>{navigate(`/space/${params.id}/${item.id}`); setCurrentId(item.id); setIsUpdate(false)}}>
                         <p className=''>{item.name}</p>
                     </List.Item>
                 )}

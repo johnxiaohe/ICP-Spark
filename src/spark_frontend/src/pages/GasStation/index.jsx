@@ -100,7 +100,7 @@ const GasStation = () => {
             <Button
               onClick={() => handleMint(record)}
               type="link"
-              icon={<DownloadOutlined />}
+              icon={<RocketOutlined />}
             />
           </Popover>
           <Popover
