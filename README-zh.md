@@ -14,6 +14,7 @@ Spark一款基于ICP链的全链文档协同管理平台，数据上链，完全
 ![structure](./structure.jpg)
 
 ## 使用文档
+[Spark User Guide](https://ic-spark.app/post/2qc72-4qaaa-aaaap-qhwqq-cai/2)
 
 ## 路线图
 - [x] 用户管理、工作空间管理、空间成员管理基础功能  

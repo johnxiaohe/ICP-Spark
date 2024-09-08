@@ -16,6 +16,7 @@ It supports real-time online collaborative editing by multiple people, Markdown 
 ![structure](./structure.jpg)
 
 ## Guide
+[Spark User Guide](https://ic-spark.app/post/2qc72-4qaaa-aaaap-qhwqq-cai/2)
 
 ## Roadmap
 - [x] user management, workspace management, and space member management  
