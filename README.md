@@ -2,7 +2,9 @@
 Hello! Every One! This is Spark!  
 Spark is an [Internet Computer](https://internetcomputer.org/)-based full-chain multi-person document collaborative editing management and knowledge sharing community platform.  
 It supports users to manage multi-person teams, edit in real time, and share knowledge publicly.  
-Website: https://ic-spark.app  
+Website: https://ic-spark.app   
+Twitter: https://x.com/ICPSPARK  
+TG : https://t.me/+l_8WrRyLONg0NTJl  
 [Chinese Readme](./README-zh.md)  
 
 ## Introduction

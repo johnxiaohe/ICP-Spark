@@ -2,6 +2,8 @@
 Hello! 大家好! 这里是Spark!  
 Spark是一个基于[Internet Computer](https://internetcomputer.org/)的全链多人文档协同编辑管理、知识分享社区平台。支持用户进行多人团队管理、多人实时编辑、知识公开分享。  
 网址: https://ic-spark.app  
+推特: https://x.com/ICPSPARK  
+TG : https://t.me/+l_8WrRyLONg0NTJl  
 
 ## 介绍
 Spark一款基于ICP链的全链文档协同管理平台，数据上链，完全由合约管理，无数据隐私泄漏、丢失风险，保证用户匿名性。  
