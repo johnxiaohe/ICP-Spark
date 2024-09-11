@@ -77,6 +77,8 @@ const WorkspaceHome = (props) =>{
         )
         if (result.code === 200) {
             // 通知主组件，刷新成员、管理等信息
+            // navigate(`/space/${params.id}`)
+            window.location.reload()
         }else{
             // 退出失败，弹窗提示
             message.error(result.msg);

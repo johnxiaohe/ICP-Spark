@@ -359,8 +359,8 @@ const WorkspacePermission = (props) => {
                     renderItem={(item) => 
                     <List.Item>
                         <div className='w-full my-auto flex flex-row justify-between'>
-                            <Link className='ml-10'>{item.name}</Link>
-                            { isOwner && item.id == spaceInfo.super ? (
+                            <Link className='ml-10' to={`/user/${item.id}`}>{item.name}</Link>
+                            { isOwner && item.id != spaceInfo.super && item.id != authUserInfo.id ? (
                                 <div className='flex flex-row gap-1'>
                                     <Button type="primary" loading={loading} onClick={() => {toMember(item)}}>To Member</Button>
                                     <Button type="primary" danger loading={loading} onClick={() => {removeIt(item)}}>Remove</Button>
@@ -376,7 +376,7 @@ const WorkspacePermission = (props) => {
                     renderItem={(item) => 
                         <List.Item>
                         <div className='w-full my-auto flex flex-row justify-between'>
-                            <Link className='ml-10'>{item.name}</Link>
+                            <Link className='ml-10' to={`/user/${item.id}`} >{item.name}</Link>
                             { isAdmin ? (
                                 <div className='flex flex-row gap-1'>
                                     <Button type="primary" loading={loading} onClick={() => {toAdmin(item)}}>To Admin</Button>

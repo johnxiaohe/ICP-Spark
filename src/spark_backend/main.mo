@@ -33,14 +33,14 @@ actor{
   // 用户注册先后排名
   private stable var _ranking : List.List<Text> = List.nil();
 
-  private stable var _cyclesPerUser: Nat = 500_000_000_000; // 0.5t cycles for each token canister
+  private var _cyclesPerUser: Nat = 500_000_000_000; // 0.5t cycles for each token canister
 
   system func preupgrade() {};
 
   system func postupgrade() {};
 
   public query({caller}) func version(): async (Text){
-    return "v1.0.0"
+    return "v1.0.1"
   };
 
   public query({caller}) func initArgs(): async(Blob){

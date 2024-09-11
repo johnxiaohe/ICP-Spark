@@ -25,6 +25,7 @@ const PostDetail = (props) => {
   const [loading, setLoading] = useState(false)
 
   const [subscribed, setSubscribed] = useState(false)
+  const [isMember, setIsMember] = useState(false)
 
   const [collected, setCollected] = useState(false)
   const [collecting, setCollecting] = useState(true)
@@ -43,7 +44,7 @@ const PostDetail = (props) => {
     if (result.code == 200){
       setContent(result.data || {})
     }else{
-      message.error(result.msg)
+      // message.error(result.msg)
       if(result.code == 404){
         setContent({
           content:'<p>Content does not exist</p>',
@@ -81,6 +82,17 @@ const PostDetail = (props) => {
     }
   }
 
+  const getIsMember = async () => {
+    const result = await fetchICApi(
+      { id: wid, agent },
+      'workspace',
+      'role',
+    )
+    if (result.code === 200) {
+      setIsMember(true)
+    }
+  }
+
   const handleSubscribe = async () => {
     if (!isRegistered) {
       navigate('/settings')
@@ -103,7 +115,7 @@ const PostDetail = (props) => {
         [params.wid],
       )
       if (result.code === 200) {
-        setSubscribe(true)
+        setSubscribed(true)
         await getContent()
         message.success('Subscribe success')
       }else{
@@ -171,10 +183,11 @@ const PostDetail = (props) => {
     if(authUserInfo.id){
       getSubscribe()
       getCollectioned()
+      getIsMember()
+      getContent()
     }
-    getContent()
-    getTrait()
     getSpaceInfo()
+    getTrait()
   }, [id, wid, authUserInfo.id])
 
   useEffect(() => {
@@ -182,10 +195,10 @@ const PostDetail = (props) => {
   }, [id])
 
   useEffect(() => {
-    if (spaceInfo.id && content.id == id){
+    if (spaceInfo.id && trait.index){
       setInitLoading(false)
     }
-  }, [content, trait, spaceInfo])
+  }, [trait, spaceInfo])
 
   return <>
     {initLoading ? 
@@ -288,7 +301,7 @@ const PostDetail = (props) => {
           {Object.keys(spaceInfo.model || {}).some(
             (item) => item === 'Subscribe',
           ) &&
-            !subscribed && (
+            !subscribed && !isMember && (
               <div className="mt-3 flex justify-center">
                 {isLoggedIn ? (
                   <Button
